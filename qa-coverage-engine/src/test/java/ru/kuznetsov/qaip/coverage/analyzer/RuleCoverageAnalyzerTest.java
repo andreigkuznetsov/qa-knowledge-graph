@@ -1,0 +1,5 @@
+package ru.kuznetsov.qaip.coverage.analyzer; import com.fasterxml.jackson.databind.*; import org.junit.jupiter.api.Test; import org.springframework.core.io.ClassPathResource; import java.io.InputStream; import static org.junit.jupiter.api.Assertions.*;
+class RuleCoverageAnalyzerTest { private final ObjectMapper om=new ObjectMapper(); private final RuleCoverageAnalyzer a=new RuleCoverageAnalyzer();
+ @Test void partial() throws Exception {try(InputStream in=new ClassPathResource("rule-coverage-partial.json").getInputStream()){var r=a.analyze(om.readTree(in)); var m=r.metrics().getFirst(); assertEquals(2,m.total()); assertEquals(1,m.covered()); assertEquals(1,m.uncovered()); assertEquals(50.0,m.percentage()); assertEquals("BR-002",r.problems().getFirst().objectId()); assertEquals("/nodes/3",r.problems().getFirst().path());}}
+ @Test void empty(){var root=om.createObjectNode(); root.putArray("nodes"); root.putArray("relationships"); var r=a.analyze(root); assertEquals(100.0,r.metrics().getFirst().percentage()); assertTrue(r.problems().isEmpty());}
+}

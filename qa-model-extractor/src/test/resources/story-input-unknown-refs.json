@@ -1,0 +1,164 @@
+{
+  "schemaVersion": "0.1",
+  "project": {
+    "id": "DPD-SVERKA",
+    "name": "ИС Сверка",
+    "description": "Story Input pilot for SORT-385",
+    "version": "0.1",
+    "metadata": {}
+  },
+  "source": {
+    "id": "SRC-SORT-385",
+    "type": "USE_CASE",
+    "name": "SORT-385 — Статусная модель сверки",
+    "version": "08.11.2024",
+    "externalRef": "SORT-385",
+    "uri": null,
+    "metadata": {}
+  },
+  "story": {
+    "externalId": "SORT-385",
+    "title": "Ручной перевод статусов и комментарии",
+    "description": "Перевод статусов и указание комментария в интерфейсе детальной сверки.",
+    "actor": "Сотрудник автозагрузки",
+    "goal": "Изменять статус сверки и указывать комментарий",
+    "businessValue": "Сократить время выполнения действия и повысить удобство работы",
+    "sourceRef": {
+      "location": {
+        "type": "USER_STORY",
+        "value": "SORT-385"
+      },
+      "text": "Я как сотрудник автозагрузки хочу иметь возможность переводить статус документа сверки..."
+    },
+    "metadata": {}
+  },
+  "operations": [
+    {
+      "code": "CHANGE_RECONCILIATION_STATUS",
+      "name": "Сменить статус сверки",
+      "description": "Изменение статуса выбранной сверки.",
+      "businessOutcome": "Статус сверки изменён при соблюдении правил",
+      "preconditions": [
+        {
+          "id": "PRE-001",
+          "text": "Пользователь авторизован",
+          "sourceRef": {
+            "location": {
+              "type": "PRECONDITION",
+              "value": "1"
+            }
+          },
+          "metadata": {}
+        }
+      ],
+      "rules": [
+        {
+          "code": "REASON_REQUIRED_FOR_CLOSED",
+          "name": "Обязательная причина закрытия",
+          "ruleType": "VALIDATION_RULE",
+          "text": "При выборе статуса «Закрыта» необходимо выбрать хотя бы одну причину закрытия.",
+          "expression": null,
+          "sourceRef": {
+            "location": {
+              "type": "REQUIREMENT",
+              "value": "2"
+            }
+          },
+          "metadata": {}
+        }
+      ],
+      "scenarios": [
+        {
+          "code": "CLOSE_WITHOUT_REASON",
+          "title": "Попытка закрыть сверку без причины",
+          "tags": [
+            "NEGATIVE",
+            "VALIDATION"
+          ],
+          "given": [
+            {
+              "text": "Пользователь выбрал статус «Закрыта»",
+              "parameters": {}
+            }
+          ],
+          "when": [
+            {
+              "text": "Пользователь не выбирает причину и нажимает «Сохранить»",
+              "parameters": {}
+            }
+          ],
+          "then": [
+            {
+              "text": "Статус сверки не изменяется",
+              "parameters": {}
+            },
+            {
+              "text": "Отображается уведомление «Заполните причину закрытия сверки»",
+              "parameters": {}
+            }
+          ],
+          "coversRuleCodes": [
+            "UNKNOWN_RULE"
+          ],
+          "sourceRef": {
+            "location": {
+              "type": "ERROR_SCENARIO",
+              "value": "Закрытие без причины"
+            }
+          },
+          "metadata": {}
+        }
+      ],
+      "technicalImplementationRefs": [
+        "UNKNOWN_TECH"
+      ],
+      "sourceRef": {
+        "location": {
+          "type": "MAIN_SCENARIO",
+          "value": "Сменить статус сверки"
+        }
+      },
+      "metadata": {}
+    }
+  ],
+  "technicalImplementations": [
+    {
+      "id": "TI-UI-001",
+      "implementationType": "UI",
+      "system": "ИС Сверка",
+      "name": "Форма смены статуса сверки",
+      "details": {
+        "screen": "Список сверок / Детальная сверка"
+      },
+      "status": "CONFIRMED",
+      "evidenceType": "DOCUMENTED",
+      "sourceRef": {
+        "location": {
+          "type": "REQUIREMENT",
+          "value": "4"
+        }
+      },
+      "metadata": {}
+    },
+    {
+      "id": "TI-API-001",
+      "implementationType": "API",
+      "system": "ИС Сверка",
+      "name": "Сохранение статуса сверки",
+      "details": {
+        "method": "POST",
+        "path": "/api/v1/consolidation-status/save"
+      },
+      "status": "CONFIRMED",
+      "evidenceType": "OBSERVED",
+      "sourceRef": {
+        "location": {
+          "type": "OTHER",
+          "value": "Swagger / фактическое тестирование"
+        }
+      },
+      "metadata": {}
+    }
+  ],
+  "metadata": {}
+}

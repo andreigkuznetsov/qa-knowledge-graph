@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: qaip-rule-coverage-engine
+server:
+  port: 8083
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

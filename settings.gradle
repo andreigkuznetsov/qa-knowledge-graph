@@ -1,0 +1,11 @@
+rootProject.name = 'qa-knowledge-graph'
+
+include 'qa-model'
+include 'qa-model-validator'
+include 'qa-model-extractor'
+include 'qa-model-validation-core'
+include 'qa-story-analyzer'
+include 'qa-coverage-engine'
+include 'qaip-core'
+
+include 'qaip-analysis'

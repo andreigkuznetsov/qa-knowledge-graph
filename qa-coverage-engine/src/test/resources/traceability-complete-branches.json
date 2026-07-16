@@ -1,0 +1,523 @@
+{
+  "schemaVersion": "0.1",
+  "project": {
+    "id": "DPD-SVERKA",
+    "name": "ИС Сверка",
+    "description": "Coverage fixture",
+    "version": "0.2",
+    "metadata": {}
+  },
+  "sources": [
+    {
+      "id": "SRC-SORT-385",
+      "type": "USER_STORY",
+      "name": "SORT-385",
+      "version": "1",
+      "externalRef": "SORT-385",
+      "uri": null,
+      "checksum": null,
+      "metadata": {}
+    }
+  ],
+  "nodes": [
+    {
+      "id": "SORT-385",
+      "type": "USER_STORY",
+      "name": "Ручной перевод статусов",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [],
+      "sourceReferences": [
+        {
+          "sourceId": "SRC-SORT-385",
+          "location": {
+            "type": "USER_STORY",
+            "value": "SORT-385"
+          },
+          "text": null,
+          "confidence": 1,
+          "evidenceType": "DOCUMENTED"
+        }
+      ],
+      "metadata": {},
+      "story": {
+        "externalId": "SORT-385",
+        "actor": "Сотрудник",
+        "goal": "Изменить статус",
+        "businessValue": "Ускорить работу"
+      }
+    },
+    {
+      "id": "BO-001",
+      "type": "BUSINESS_OPERATION",
+      "name": "Сменить статус",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [],
+      "sourceReferences": [
+        {
+          "sourceId": "SRC-SORT-385",
+          "location": {
+            "type": "SECTION",
+            "value": "Operation"
+          },
+          "text": null,
+          "confidence": 1,
+          "evidenceType": "DOCUMENTED"
+        }
+      ],
+      "metadata": {},
+      "operation": {
+        "code": "CHANGE_STATUS",
+        "domain": null,
+        "businessOutcome": "Статус изменён"
+      }
+    },
+    {
+      "id": "BR-001",
+      "type": "BUSINESS_RULE",
+      "name": "Причина закрытия обязательна",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [],
+      "sourceReferences": [
+        {
+          "sourceId": "SRC-SORT-385",
+          "location": {
+            "type": "SECTION",
+            "value": "Rule 1"
+          },
+          "text": null,
+          "confidence": 1,
+          "evidenceType": "DOCUMENTED"
+        }
+      ],
+      "metadata": {},
+      "rule": {
+        "code": "REASON_REQUIRED",
+        "ruleType": "VALIDATION_RULE",
+        "text": "Причина закрытия обязательна",
+        "expression": null
+      }
+    },
+    {
+      "id": "BR-002",
+      "type": "BUSINESS_RULE",
+      "name": "Комментарий отображается в списке",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [],
+      "sourceReferences": [
+        {
+          "sourceId": "SRC-SORT-385",
+          "location": {
+            "type": "SECTION",
+            "value": "Rule 2"
+          },
+          "text": null,
+          "confidence": 1,
+          "evidenceType": "DOCUMENTED"
+        }
+      ],
+      "metadata": {},
+      "rule": {
+        "code": "COMMENT_VISIBLE",
+        "ruleType": "BUSINESS_INVARIANT",
+        "text": "Комментарий отображается в списке",
+        "expression": null
+      }
+    },
+    {
+      "id": "SC-001",
+      "type": "SCENARIO",
+      "name": "Закрытие без причины",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [
+        "NEGATIVE"
+      ],
+      "sourceReferences": [
+        {
+          "sourceId": "SRC-SORT-385",
+          "location": {
+            "type": "SECTION",
+            "value": "Scenario 1"
+          },
+          "text": null,
+          "confidence": 1,
+          "evidenceType": "DOCUMENTED"
+        }
+      ],
+      "metadata": {},
+      "scenario": {
+        "code": "CLOSE_WITHOUT_REASON",
+        "given": [
+          {
+            "id": "STEP-001",
+            "text": "Выбран статус Закрыта",
+            "parameters": {}
+          }
+        ],
+        "when": [
+          {
+            "id": "STEP-002",
+            "text": "Причина не выбрана",
+            "parameters": {}
+          }
+        ],
+        "then": [
+          {
+            "id": "STEP-003",
+            "text": "Показана ошибка",
+            "parameters": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "TI-UI-001",
+      "type": "TECHNICAL_IMPLEMENTATION",
+      "name": "Форма статуса",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [],
+      "sourceReferences": [
+        {
+          "sourceId": "SRC-SORT-385",
+          "location": {
+            "type": "SECTION",
+            "value": "UI"
+          },
+          "text": null,
+          "confidence": 1,
+          "evidenceType": "DOCUMENTED"
+        }
+      ],
+      "metadata": {},
+      "technicalImplementation": {
+        "implementationType": "UI",
+        "system": "ИС Сверка",
+        "details": {}
+      }
+    },
+    {
+      "id": "SC-002",
+      "type": "SCENARIO",
+      "name": "Комментарий отображается в списке",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [
+        "POSITIVE"
+      ],
+      "sourceReferences": [
+        {
+          "sourceId": "SRC-SORT-385",
+          "location": {
+            "type": "SECTION",
+            "value": "Scenario 2"
+          },
+          "text": null,
+          "confidence": 1,
+          "evidenceType": "DOCUMENTED"
+        }
+      ],
+      "metadata": {},
+      "scenario": {
+        "code": "COMMENT_VISIBLE_IN_LIST",
+        "given": [
+          {
+            "id": "STEP-004",
+            "text": "Пользователь указал комментарий",
+            "parameters": {}
+          }
+        ],
+        "when": [
+          {
+            "id": "STEP-005",
+            "text": "Статус сохранён",
+            "parameters": {}
+          }
+        ],
+        "then": [
+          {
+            "id": "STEP-006",
+            "text": "Комментарий отображается в списке",
+            "parameters": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "TEST-001",
+      "type": "TEST_IMPLEMENTATION",
+      "name": "Проверка обязательной причины закрытия",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [
+        "API",
+        "NEGATIVE"
+      ],
+      "sourceReferences": [
+        {
+          "sourceId": "SRC-SORT-385",
+          "location": {
+            "type": "OTHER",
+            "value": "JUnit test"
+          },
+          "text": null,
+          "confidence": 1,
+          "evidenceType": "OBSERVED"
+        }
+      ],
+      "metadata": {},
+      "testImplementation": {
+        "code": "CLOSE_WITHOUT_REASON_TEST",
+        "executionType": "AUTOMATED",
+        "preconditions": [
+          "Пользователь авторизован"
+        ],
+        "steps": [
+          {
+            "order": 1,
+            "action": "Отправить запрос без причины закрытия",
+            "expectedResult": "Система отклоняет изменение статуса"
+          }
+        ]
+      }
+    },
+    {
+      "id": "TEST-002",
+      "type": "TEST_IMPLEMENTATION",
+      "name": "Проверка отображения комментария",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [
+        "UI",
+        "POSITIVE"
+      ],
+      "sourceReferences": [
+        {
+          "sourceId": "SRC-SORT-385",
+          "location": {
+            "type": "OTHER",
+            "value": "Manual test"
+          },
+          "text": null,
+          "confidence": 1,
+          "evidenceType": "OBSERVED"
+        }
+      ],
+      "metadata": {},
+      "testImplementation": {
+        "code": "COMMENT_VISIBLE_TEST",
+        "executionType": "MANUAL",
+        "preconditions": [
+          "Пользователь авторизован"
+        ],
+        "steps": [
+          {
+            "order": 1,
+            "action": "Сохранить статус с комментарием",
+            "expectedResult": "Комментарий отображается в списке"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CHK-001",
+      "type": "CHECK",
+      "name": "Проверить отклонение запроса без причины",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [
+        "API"
+      ],
+      "sourceReferences": [
+        {
+          "sourceId": "SRC-SORT-385",
+          "location": {
+            "type": "OTHER",
+            "value": "Assertion"
+          },
+          "text": null,
+          "confidence": 1,
+          "evidenceType": "OBSERVED"
+        }
+      ],
+      "metadata": {},
+      "check": {
+        "checkType": "API",
+        "assertion": "HTTP status and error message are correct",
+        "details": {
+          "target": "POST /api/v1/consolidation-status/save"
+        }
+      }
+    },
+    {
+      "id": "CHK-002",
+      "type": "CHECK",
+      "name": "Проверить отображение комментария",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [
+        "UI"
+      ],
+      "sourceReferences": [
+        {
+          "sourceId": "SRC-SORT-385",
+          "location": {
+            "type": "OTHER",
+            "value": "Assertion 2"
+          },
+          "text": null,
+          "confidence": 1,
+          "evidenceType": "OBSERVED"
+        }
+      ],
+      "metadata": {},
+      "check": {
+        "checkType": "UI",
+        "assertion": "Комментарий отображается в списке",
+        "details": {
+          "target": "Колонка Комментарий"
+        }
+      }
+    },
+    {
+      "id": "CHK-003",
+      "type": "CHECK",
+      "name": "Проверить текст ошибки",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [
+        "API"
+      ],
+      "sourceReferences": [
+        {
+          "sourceId": "SRC-SORT-385",
+          "location": {
+            "type": "OTHER",
+            "value": "Assertion 3"
+          },
+          "text": null,
+          "confidence": 1,
+          "evidenceType": "OBSERVED"
+        }
+      ],
+      "metadata": {},
+      "check": {
+        "checkType": "API",
+        "assertion": "Текст ошибки соответствует требованиям",
+        "details": {
+          "target": "response.message"
+        }
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL-001",
+      "from": "SORT-385",
+      "type": "DESCRIBES",
+      "to": "BO-001",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-002",
+      "from": "BO-001",
+      "type": "GOVERNED_BY",
+      "to": "BR-001",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-003",
+      "from": "BO-001",
+      "type": "GOVERNED_BY",
+      "to": "BR-002",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-004",
+      "from": "BO-001",
+      "type": "SPECIFIED_BY",
+      "to": "SC-001",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-005",
+      "from": "SC-001",
+      "type": "COVERS",
+      "to": "BR-001",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-006",
+      "from": "BO-001",
+      "type": "IMPLEMENTED_BY",
+      "to": "TI-UI-001",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-007",
+      "from": "BO-001",
+      "type": "SPECIFIED_BY",
+      "to": "SC-002",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-008",
+      "from": "SC-002",
+      "type": "COVERS",
+      "to": "BR-002",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-009",
+      "from": "TEST-001",
+      "type": "VALIDATES",
+      "to": "SC-001",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-010",
+      "from": "TEST-002",
+      "type": "VALIDATES",
+      "to": "SC-002",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-011",
+      "from": "TEST-001",
+      "type": "HAS_CHECK",
+      "to": "CHK-001",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-012",
+      "from": "TEST-002",
+      "type": "HAS_CHECK",
+      "to": "CHK-002",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-013",
+      "from": "TEST-001",
+      "type": "HAS_CHECK",
+      "to": "CHK-003",
+      "properties": {},
+      "sourceReferences": []
+    }
+  ]
+}

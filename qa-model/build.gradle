@@ -1,0 +1,10 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'Normalized QA Model contracts and JSON Schema'
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.12.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}

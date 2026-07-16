@@ -1,0 +1,258 @@
+{
+  "schemaVersion": "0.1",
+  "project": {
+    "id": "DPD-TERMINAL",
+    "name": "Terminal Operations",
+    "description": "Операции обработки отправлений на терминале",
+    "version": "1.0",
+    "metadata": {}
+  },
+  "sources": [
+    {
+      "id": "SRC-001",
+      "type": "USER_STORY",
+      "name": "US-127 Принятие посылки",
+      "version": "3",
+      "externalRef": "US-127",
+      "uri": null,
+      "checksum": null,
+      "metadata": {}
+    }
+  ],
+  "nodes": [
+    {
+      "id": "US-127",
+      "type": "USER_STORY",
+      "name": "Принятие посылки оператором",
+      "description": "Как оператор терминала, я хочу принять посылку, чтобы передать её на дальнейшую обработку",
+      "status": "CONFIRMED",
+      "tags": [
+        "BDD"
+      ],
+      "sourceReferences": [
+        {
+          "sourceId": "SRC-001",
+          "location": {
+            "type": "USER_STORY",
+            "value": "US-127"
+          },
+          "text": null,
+          "confidence": 1,
+          "evidenceType": "DOCUMENTED"
+        }
+      ],
+      "metadata": {},
+      "story": {
+        "externalId": "US-127",
+        "actor": "Оператор терминала",
+        "goal": "Принять посылку",
+        "businessValue": "Передать её на дальнейшую обработку"
+      }
+    },
+    {
+      "id": "BO-001",
+      "type": "BUSINESS_OPERATION",
+      "name": "Принять посылку",
+      "description": "Перевод посылки в принятое состояние",
+      "status": "CONFIRMED",
+      "tags": [],
+      "sourceReferences": [],
+      "metadata": {},
+      "operation": {
+        "code": "ACCEPT_PARCEL",
+        "domain": "Terminal Operations",
+        "businessOutcome": "Посылка доступна для дальнейшей обработки"
+      }
+    },
+    {
+      "id": "BR-001",
+      "type": "BUSINESS_RULE",
+      "name": "Принятие только готовой посылки",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [
+        "STATE"
+      ],
+      "sourceReferences": [
+        {
+          "sourceId": "SRC-001",
+          "location": {
+            "type": "ACCEPTANCE_CRITERION",
+            "value": "AC-1"
+          },
+          "text": "Принять можно только посылку в статусе READY",
+          "confidence": 1,
+          "evidenceType": "DOCUMENTED"
+        }
+      ],
+      "metadata": {},
+      "rule": {
+        "code": "ACCEPT_ONLY_READY",
+        "ruleType": "PRECONDITION",
+        "text": "Принять можно только посылку в статусе READY",
+        "expression": "parcel.status == READY"
+      }
+    },
+    {
+      "id": "SC-001",
+      "type": "SCENARIO",
+      "name": "Успешное принятие посылки",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [
+        "POSITIVE"
+      ],
+      "sourceReferences": [],
+      "metadata": {},
+      "scenario": {
+        "code": "ACCEPT_PARCEL_SUCCESS",
+        "given": [
+          {
+            "id": "STEP-001",
+            "text": "Посылка находится в статусе READY",
+            "parameters": {}
+          }
+        ],
+        "when": [
+          {
+            "id": "STEP-002",
+            "text": "Оператор принимает посылку",
+            "parameters": {}
+          }
+        ],
+        "then": [
+          {
+            "id": "STEP-003",
+            "text": "Посылка получает статус RECEIVED",
+            "parameters": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "TI-UI-001",
+      "type": "TECHNICAL_IMPLEMENTATION",
+      "name": "Кнопка «Принять»",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [],
+      "sourceReferences": [],
+      "metadata": {},
+      "technicalImplementation": {
+        "implementationType": "UI",
+        "system": "DPD Terminal Client",
+        "details": {
+          "screen": "Карточка отправления",
+          "control": "Кнопка «Принять»"
+        }
+      }
+    },
+    {
+      "id": "TC-001",
+      "type": "TEST_IMPLEMENTATION",
+      "name": "Принятие через Delphi с проверкой Oracle",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [
+        "REGRESSION"
+      ],
+      "sourceReferences": [],
+      "metadata": {},
+      "testImplementation": {
+        "code": "ACCEPT_PARCEL_UI_DB",
+        "executionType": "MANUAL",
+        "preconditions": [
+          "В БД существует посылка в статусе READY"
+        ],
+        "steps": [
+          {
+            "order": 1,
+            "action": "Открыть карточку посылки",
+            "expectedResult": "Карточка открыта"
+          },
+          {
+            "order": 2,
+            "action": "Нажать кнопку «Принять»",
+            "expectedResult": "Операция выполнена"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CHK-001",
+      "type": "CHECK",
+      "name": "Проверка статуса в Oracle",
+      "description": null,
+      "status": "CONFIRMED",
+      "tags": [],
+      "sourceReferences": [],
+      "metadata": {},
+      "check": {
+        "checkType": "SQL",
+        "assertion": "Статус посылки равен RECEIVED",
+        "details": {
+          "query": "SELECT status_code FROM parcel WHERE parcel_id = :parcelId",
+          "expected": "RECEIVED"
+        }
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL-001",
+      "from": "US-127",
+      "type": "DESCRIBES",
+      "to": "BO-001",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-002",
+      "from": "BO-001",
+      "type": "GOVERNED_BY",
+      "to": "BR-001",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-003",
+      "from": "BO-001",
+      "type": "SPECIFIED_BY",
+      "to": "SC-001",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-004",
+      "from": "BO-001",
+      "type": "IMPLEMENTED_BY",
+      "to": "TI-UI-001",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-006",
+      "from": "TC-001",
+      "type": "USES",
+      "to": "TI-UI-001",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-007",
+      "from": "TC-001",
+      "type": "HAS_CHECK",
+      "to": "CHK-001",
+      "properties": {},
+      "sourceReferences": []
+    },
+    {
+      "id": "REL-008",
+      "from": "SC-001",
+      "type": "COVERS",
+      "to": "BR-001",
+      "properties": {},
+      "sourceReferences": []
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+package ru.kuznetsov.qaip.coverage.api; import org.springframework.http.*; import org.springframework.http.converter.HttpMessageNotReadableException; import org.springframework.web.bind.annotation.*; import java.util.Map;
+@RestControllerAdvice public class ApiExceptionHandler { @ExceptionHandler(HttpMessageNotReadableException.class) ResponseEntity<Map<String,Object>> invalid(HttpMessageNotReadableException e){return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error","INVALID_JSON","message","Тело запроса не является корректным JSON"));} }

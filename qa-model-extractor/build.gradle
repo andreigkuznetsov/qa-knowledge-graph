@@ -1,0 +1,26 @@
+plugins {
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+}
+
+dependencies {
+    implementation project(':qa-model')
+    implementation project(':qa-model-validation-core')
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'com.networknt:json-schema-validator:1.5.8'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.register('smokeTest', Test) {
+    description = 'Runs extractor smoke tests'
+    group = 'verification'
+
+    useJUnitPlatform {
+        includeTags 'smoke'
+    }
+
+    shouldRunAfter test
+}

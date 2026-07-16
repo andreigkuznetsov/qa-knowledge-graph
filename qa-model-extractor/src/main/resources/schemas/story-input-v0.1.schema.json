@@ -1,0 +1,502 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/story-input-v0.1.schema.json",
+  "title": "Story Input Model v0.1",
+  "description": "Структурированный вход для детерминированного построения Normalized QA Model v0.1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "project",
+    "source",
+    "story",
+    "operations"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "0.1"
+    },
+    "project": {
+      "$ref": "#/$defs/project"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "story": {
+      "$ref": "#/$defs/story"
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/operation"
+      }
+    },
+    "technicalImplementations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/technicalImplementation"
+      },
+      "default": []
+    },
+    "metadata": {
+      "$ref": "#/$defs/metadata"
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "nonBlankString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": ".*\\S.*"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "default": {}
+    },
+    "sourceLocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "value"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "USER_STORY",
+            "ACCEPTANCE_CRITERION",
+            "PRECONDITION",
+            "MAIN_SCENARIO",
+            "ALTERNATIVE_SCENARIO",
+            "ERROR_SCENARIO",
+            "REQUIREMENT",
+            "NOTE",
+            "SECTION",
+            "OTHER"
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/nonBlankString"
+        }
+      }
+    },
+    "sourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "location"
+      ],
+      "properties": {
+        "location": {
+          "$ref": "#/$defs/sourceLocation"
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "type": {
+          "enum": [
+            "USER_STORY",
+            "USE_CASE",
+            "BRD",
+            "SRS",
+            "BDD_FEATURE",
+            "MANUAL_INPUT",
+            "OTHER"
+          ]
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "externalRef": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uri": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri-reference"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "story": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "externalId",
+        "title",
+        "actor",
+        "goal"
+      ],
+      "properties": {
+        "externalId": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "title": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "actor": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "goal": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "businessValue": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sourceRef": {
+          "$ref": "#/$defs/sourceRef"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "name",
+        "preconditions",
+        "rules",
+        "scenarios"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "businessOutcome": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/precondition"
+          },
+          "default": []
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rule"
+          },
+          "default": []
+        },
+        "scenarios": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/scenario"
+          }
+        },
+        "technicalImplementationRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          },
+          "uniqueItems": true,
+          "default": []
+        },
+        "sourceRef": {
+          "$ref": "#/$defs/sourceRef"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "precondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "text"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "text": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "sourceRef": {
+          "$ref": "#/$defs/sourceRef"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "name",
+        "ruleType",
+        "text"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "ruleType": {
+          "enum": [
+            "PRECONDITION",
+            "POSTCONDITION",
+            "ACCESS_RULE",
+            "STATE_TRANSITION",
+            "VALIDATION_RULE",
+            "BUSINESS_INVARIANT",
+            "AUDIT_RULE",
+            "CALCULATION_RULE",
+            "OTHER"
+          ]
+        },
+        "text": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "expression": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sourceRef": {
+          "$ref": "#/$defs/sourceRef"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "parameters": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "title",
+        "given",
+        "when",
+        "then"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/identifier"
+        },
+        "title": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonBlankString"
+          },
+          "uniqueItems": true,
+          "default": []
+        },
+        "given": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step"
+          },
+          "default": []
+        },
+        "when": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "then": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "coversRuleCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          },
+          "uniqueItems": true,
+          "default": []
+        },
+        "sourceRef": {
+          "$ref": "#/$defs/sourceRef"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "technicalImplementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "implementationType",
+        "system",
+        "name",
+        "evidenceType"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "implementationType": {
+          "enum": [
+            "UI",
+            "API",
+            "DATABASE",
+            "MESSAGE",
+            "BATCH",
+            "FILE_EXCHANGE",
+            "EXTERNAL_INTEGRATION",
+            "OTHER"
+          ]
+        },
+        "system": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "details": {
+          "$ref": "#/$defs/metadata"
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "CONFIRMED",
+            "NEEDS_CLARIFICATION"
+          ],
+          "default": "CONFIRMED"
+        },
+        "evidenceType": {
+          "enum": [
+            "DOCUMENTED",
+            "OBSERVED",
+            "INFERRED",
+            "CONFIRMED_BY_EXPERT"
+          ]
+        },
+        "sourceRef": {
+          "$ref": "#/$defs/sourceRef"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    }
+  }
+}

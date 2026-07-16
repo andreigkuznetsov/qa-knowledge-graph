@@ -1,0 +1,956 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/qa-model-v0.1.schema.json",
+  "title": "Normalized QA Model v0.1",
+  "description": "Переносимое представление QA Knowledge Graph: источники, узлы и типизированные связи.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "project",
+    "sources",
+    "nodes",
+    "relationships"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "0.1"
+    },
+    "project": {
+      "$ref": "#/$defs/project"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      },
+      "default": []
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      },
+      "default": []
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relationship"
+      },
+      "default": []
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "nonBlankString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": ".*\\S.*"
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "type": {
+          "enum": [
+            "USER_STORY",
+            "BRD",
+            "SRS",
+            "BDD_FEATURE",
+            "OPENAPI",
+            "DATABASE_SCHEMA",
+            "UI_SPECIFICATION",
+            "TEST_CASE",
+            "MANUAL_INPUT",
+            "OBSERVATION",
+            "OTHER"
+          ]
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "externalRef": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uri": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri-reference"
+        },
+        "checksum": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "sourceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceId"
+      ],
+      "properties": {
+        "sourceId": {
+          "$ref": "#/$defs/identifier"
+        },
+        "location": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "value"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "USER_STORY",
+                "ACCEPTANCE_CRITERION",
+                "SECTION",
+                "PAGE",
+                "PARAGRAPH",
+                "TABLE",
+                "OPENAPI_PATH",
+                "DATABASE_OBJECT",
+                "UI_ELEMENT",
+                "TEST_CASE",
+                "OTHER"
+              ]
+            },
+            "value": {
+              "$ref": "#/$defs/nonBlankString"
+            }
+          }
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "evidenceType": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "DOCUMENTED",
+            "OBSERVED",
+            "INFERRED",
+            "CONFIRMED_BY_EXPERT",
+            null
+          ]
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "default": {}
+    },
+    "nodeBaseProperties": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "type": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "CONFIRMED",
+            "REJECTED",
+            "NEEDS_CLARIFICATION"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonBlankString"
+          },
+          "uniqueItems": true,
+          "default": []
+        },
+        "sourceReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceReference"
+          },
+          "default": []
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "userStoryNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "name",
+        "story"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "type": {
+          "const": "USER_STORY"
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "CONFIRMED",
+            "REJECTED",
+            "NEEDS_CLARIFICATION"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonBlankString"
+          },
+          "uniqueItems": true
+        },
+        "sourceReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceReference"
+          }
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "story": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "externalId"
+          ],
+          "properties": {
+            "externalId": {
+              "$ref": "#/$defs/nonBlankString"
+            },
+            "actor": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "goal": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "businessValue": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "businessOperationNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "name",
+        "operation"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "type": {
+          "const": "BUSINESS_OPERATION"
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "CONFIRMED",
+            "REJECTED",
+            "NEEDS_CLARIFICATION"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonBlankString"
+          },
+          "uniqueItems": true
+        },
+        "sourceReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceReference"
+          }
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "operation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code"
+          ],
+          "properties": {
+            "code": {
+              "$ref": "#/$defs/identifier"
+            },
+            "domain": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "businessOutcome": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "businessRuleNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "name",
+        "rule"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "type": {
+          "const": "BUSINESS_RULE"
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "CONFIRMED",
+            "REJECTED",
+            "NEEDS_CLARIFICATION"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonBlankString"
+          },
+          "uniqueItems": true
+        },
+        "sourceReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceReference"
+          }
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "rule": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "ruleType",
+            "text"
+          ],
+          "properties": {
+            "code": {
+              "$ref": "#/$defs/identifier"
+            },
+            "ruleType": {
+              "enum": [
+                "PRECONDITION",
+                "POSTCONDITION",
+                "ACCESS_RULE",
+                "STATE_TRANSITION",
+                "VALIDATION_RULE",
+                "BUSINESS_INVARIANT",
+                "AUDIT_RULE",
+                "CALCULATION_RULE",
+                "OTHER"
+              ]
+            },
+            "text": {
+              "$ref": "#/$defs/nonBlankString"
+            },
+            "expression": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "scenarioStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "text"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "text": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "parameters": {
+          "$ref": "#/$defs/metadata"
+        }
+      }
+    },
+    "scenarioNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "name",
+        "scenario"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "type": {
+          "const": "SCENARIO"
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "CONFIRMED",
+            "REJECTED",
+            "NEEDS_CLARIFICATION"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonBlankString"
+          },
+          "uniqueItems": true
+        },
+        "sourceReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceReference"
+          }
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "scenario": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "given",
+            "when",
+            "then"
+          ],
+          "properties": {
+            "code": {
+              "$ref": "#/$defs/identifier"
+            },
+            "given": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/scenarioStep"
+              }
+            },
+            "when": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/scenarioStep"
+              }
+            },
+            "then": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/scenarioStep"
+              }
+            }
+          }
+        }
+      }
+    },
+    "technicalImplementationNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "name",
+        "technicalImplementation"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "type": {
+          "const": "TECHNICAL_IMPLEMENTATION"
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "CONFIRMED",
+            "REJECTED",
+            "NEEDS_CLARIFICATION"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonBlankString"
+          },
+          "uniqueItems": true
+        },
+        "sourceReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceReference"
+          }
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "technicalImplementation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "implementationType",
+            "system",
+            "details"
+          ],
+          "properties": {
+            "implementationType": {
+              "enum": [
+                "UI",
+                "API",
+                "DATABASE",
+                "MESSAGE",
+                "BATCH",
+                "FILE_EXCHANGE",
+                "EXTERNAL_INTEGRATION",
+                "OTHER"
+              ]
+            },
+            "system": {
+              "$ref": "#/$defs/nonBlankString"
+            },
+            "details": {
+              "$ref": "#/$defs/metadata"
+            }
+          }
+        }
+      }
+    },
+    "testStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "order",
+        "action"
+      ],
+      "properties": {
+        "order": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "action": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "expectedResult": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "testImplementationNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "name",
+        "testImplementation"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "type": {
+          "const": "TEST_IMPLEMENTATION"
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "CONFIRMED",
+            "REJECTED",
+            "NEEDS_CLARIFICATION"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonBlankString"
+          },
+          "uniqueItems": true
+        },
+        "sourceReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceReference"
+          }
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "testImplementation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "executionType",
+            "preconditions",
+            "steps"
+          ],
+          "properties": {
+            "code": {
+              "$ref": "#/$defs/identifier"
+            },
+            "executionType": {
+              "enum": [
+                "MANUAL",
+                "AUTOMATED",
+                "SEMI_AUTOMATED"
+              ]
+            },
+            "preconditions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/nonBlankString"
+              }
+            },
+            "steps": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/testStep"
+              }
+            }
+          }
+        }
+      }
+    },
+    "checkNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "name",
+        "check"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "type": {
+          "const": "CHECK"
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "CONFIRMED",
+            "REJECTED",
+            "NEEDS_CLARIFICATION"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonBlankString"
+          },
+          "uniqueItems": true
+        },
+        "sourceReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceReference"
+          }
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "check": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "checkType",
+            "assertion"
+          ],
+          "properties": {
+            "checkType": {
+              "enum": [
+                "UI",
+                "API",
+                "SQL",
+                "MESSAGE",
+                "FILE",
+                "LOG",
+                "METRIC",
+                "OTHER"
+              ]
+            },
+            "assertion": {
+              "$ref": "#/$defs/nonBlankString"
+            },
+            "details": {
+              "$ref": "#/$defs/metadata"
+            }
+          }
+        }
+      }
+    },
+    "node": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/userStoryNode"
+        },
+        {
+          "$ref": "#/$defs/businessOperationNode"
+        },
+        {
+          "$ref": "#/$defs/businessRuleNode"
+        },
+        {
+          "$ref": "#/$defs/scenarioNode"
+        },
+        {
+          "$ref": "#/$defs/technicalImplementationNode"
+        },
+        {
+          "$ref": "#/$defs/testImplementationNode"
+        },
+        {
+          "$ref": "#/$defs/checkNode"
+        }
+      ]
+    },
+    "relationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "from",
+        "type",
+        "to"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "from": {
+          "$ref": "#/$defs/identifier"
+        },
+        "type": {
+          "enum": [
+            "DESCRIBES",
+            "GOVERNED_BY",
+            "SPECIFIED_BY",
+            "IMPLEMENTED_BY",
+            "VALIDATES",
+            "USES",
+            "HAS_CHECK",
+            "COVERS",
+            "DEPENDS_ON",
+            "REFINES",
+            "SUPERSEDES",
+            "RELATED_TO"
+          ]
+        },
+        "to": {
+          "$ref": "#/$defs/identifier"
+        },
+        "properties": {
+          "$ref": "#/$defs/metadata"
+        },
+        "sourceReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceReference"
+          },
+          "default": []
+        }
+      }
+    }
+  }
+}
