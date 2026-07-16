@@ -6,6 +6,7 @@ description = 'QAIP unified analysis orchestration layer'
 
 dependencies {
     api project(':qaip-core')
+    implementation project(':qa-model-validation-core')
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.19.2'
 
     testImplementation platform('org.junit:junit-bom:5.12.2')
