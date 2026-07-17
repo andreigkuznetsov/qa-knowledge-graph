@@ -3,18 +3,17 @@ package ru.kuznetsov.qaip.analysis.adapter.validation;
 import com.fasterxml.jackson.databind.JsonNode;
 import ru.kuznetsov.qagraph.validationcore.QaModelValidationEngine;
 import ru.kuznetsov.qagraph.validationcore.model.QaModelValidationResult;
-import ru.kuznetsov.qaip.core.analysis.AnalysisAssessment;
 import ru.kuznetsov.qaip.core.analysis.AnalysisContext;
-import ru.kuznetsov.qaip.core.engine.AnalysisEngine;
+import ru.kuznetsov.qaip.core.engine.AbstractAnalysisEngineAdapter;
 
 import java.util.Objects;
 
-public final class ValidationAnalysisEngine implements AnalysisEngine {
+public final class ValidationAnalysisEngine
+        extends AbstractAnalysisEngineAdapter<QaModelValidationResult> {
 
     private static final int ORDER = 100;
 
     private final QaModelValidationEngine validationEngine;
-    private final ValidationAssessmentMapper mapper;
 
     public ValidationAnalysisEngine() {
         this(new QaModelValidationEngine(), new ValidationAssessmentMapper());
@@ -24,13 +23,10 @@ public final class ValidationAnalysisEngine implements AnalysisEngine {
             QaModelValidationEngine validationEngine,
             ValidationAssessmentMapper mapper
     ) {
+        super(mapper);
         this.validationEngine = Objects.requireNonNull(
                 validationEngine,
                 "validationEngine must not be null"
-        );
-        this.mapper = Objects.requireNonNull(
-                mapper,
-                "mapper must not be null"
         );
     }
 
@@ -50,14 +46,10 @@ public final class ValidationAnalysisEngine implements AnalysisEngine {
     }
 
     @Override
-    public AnalysisAssessment analyze(
+    protected QaModelValidationResult execute(
             JsonNode qaModel,
             AnalysisContext context
     ) {
-        Objects.requireNonNull(qaModel, "qaModel must not be null");
-        Objects.requireNonNull(context, "context must not be null");
-
-        QaModelValidationResult result = validationEngine.validate(qaModel);
-        return mapper.map(result);
+        return validationEngine.validate(qaModel);
     }
 }
