@@ -20,19 +20,14 @@ class UnifiedAnalysisFactoryTest {
             new ObjectMapper();
 
     @Test
-    void defaultFactoryShouldExecuteValidationEngine()
+    void defaultFactoryShouldExecuteCompletePipelineForFullyCoveredModel()
             throws Exception {
 
         UnifiedAnalysisService service =
                 UnifiedAnalysisFactory.createDefault();
 
-        JsonNode invalidModel =
-                objectMapper.readTree(
-                        "{\"schemaVersion\":\"0.1\"}"
-                );
-
         UnifiedAnalysisResult result =
-                service.analyze(invalidModel);
+                service.analyze(emptyValidModel());
 
         assertEquals(
                 UnifiedAnalysisFactory.RELEASE,
@@ -43,7 +38,7 @@ class UnifiedAnalysisFactoryTest {
                 result.metadata().schemaVersion()
         );
         assertEquals(
-                1,
+                2,
                 result.execution()
                         .engineResults()
                         .size()
@@ -52,25 +47,89 @@ class UnifiedAnalysisFactoryTest {
                 "validation",
                 result.execution()
                         .engineResults()
-                        .getFirst()
+                        .get(0)
                         .engineId()
         );
         assertEquals(
-                AssessmentStatus.FAILED,
+                AssessmentStatus.SUCCESS,
                 result.execution()
                         .engineResults()
-                        .getFirst()
+                        .get(0)
                         .assessment()
                         .status()
         );
-        assertFalse(
+        assertEquals(
+                "coverage",
                 result.execution()
                         .engineResults()
-                        .getFirst()
-                        .assessment()
-                        .findings()
-                        .isEmpty()
+                        .get(1)
+                        .engineId()
         );
+        assertEquals(
+                AssessmentStatus.SUCCESS,
+                result.execution()
+                        .engineResults()
+                        .get(1)
+                        .assessment()
+                        .status()
+        );
+    }
+
+    @Test
+    void defaultFactoryShouldReportPartialCoverageForValidModel()
+            throws Exception {
+
+        UnifiedAnalysisResult result = UnifiedAnalysisFactory
+                .createDefault()
+                .analyze(modelWithUncoveredRule());
+
+        assertEquals(
+                "validation",
+                result.execution().engineResults().get(0).engineId()
+        );
+        assertEquals(
+                AssessmentStatus.PARTIAL,
+                result.execution().engineResults().get(0).assessment().status()
+        );
+        assertEquals(
+                true,
+                result.execution().engineResults().get(0)
+                        .assessment().data().get("valid")
+        );
+        assertEquals(
+                "coverage",
+                result.execution().engineResults().get(1).engineId()
+        );
+        assertEquals(
+                AssessmentStatus.PARTIAL,
+                result.execution().engineResults().get(1).assessment().status()
+        );
+        assertFalse(
+                result.execution().engineResults().get(1)
+                        .assessment().findings().isEmpty()
+        );
+    }
+
+    @Test
+    void defaultFactoryShouldSkipCoverageForInvalidModel()
+            throws Exception {
+
+        UnifiedAnalysisResult result = UnifiedAnalysisFactory
+                .createDefault()
+                .analyze(objectMapper.readTree(
+                        "{\"schemaVersion\":\"0.1\",\"project\":{}}"
+                ));
+
+        var validation = result.execution().engineResults().get(0);
+        var coverage = result.execution().engineResults().get(1);
+
+        assertEquals("validation", validation.engineId());
+        assertEquals(AssessmentStatus.FAILED, validation.assessment().status());
+        assertFalse(validation.assessment().findings().isEmpty());
+        assertEquals("coverage", coverage.engineId());
+        assertEquals(AssessmentStatus.SKIPPED, coverage.assessment().status());
+        assertTrue(coverage.assessment().findings().isEmpty());
+        assertTrue(coverage.assessment().metrics().isEmpty());
     }
 
     @Test
@@ -103,5 +162,47 @@ class UnifiedAnalysisFactoryTest {
                         .engineResults()
                         .isEmpty()
         );
+    }
+
+    private JsonNode emptyValidModel() throws Exception {
+        return objectMapper.readTree("""
+                {
+                  "schemaVersion": "0.1",
+                  "project": {
+                    "id": "TEST-PROJECT",
+                    "name": "Test project"
+                  },
+                  "sources": [],
+                  "nodes": [],
+                  "relationships": []
+                }
+                """);
+    }
+
+    private JsonNode modelWithUncoveredRule() throws Exception {
+        return objectMapper.readTree("""
+                {
+                  "schemaVersion": "0.1",
+                  "project": {
+                    "id": "TEST-PROJECT",
+                    "name": "Test project"
+                  },
+                  "sources": [],
+                  "nodes": [
+                    {
+                      "id": "BR-001",
+                      "type": "BUSINESS_RULE",
+                      "name": "Required rule",
+                      "status": "DRAFT",
+                      "rule": {
+                        "code": "REQUIRED_RULE",
+                        "ruleType": "VALIDATION_RULE",
+                        "text": "Rule must be covered"
+                      }
+                    }
+                  ],
+                  "relationships": []
+                }
+                """);
     }
 }

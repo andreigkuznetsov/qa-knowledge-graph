@@ -1,5 +1,6 @@
 package ru.kuznetsov.qaip.analysis.config;
 
+import ru.kuznetsov.qaip.analysis.adapter.coverage.CoverageAnalysisEngine;
 import ru.kuznetsov.qaip.analysis.adapter.validation.ValidationAnalysisEngine;
 import ru.kuznetsov.qaip.analysis.execution.AnalysisExecutor;
 import ru.kuznetsov.qaip.analysis.orchestration.AnalysisOrchestrator;
@@ -31,7 +32,8 @@ public final class UnifiedAnalysisFactory {
     public static UnifiedAnalysisService createDefault() {
         return create(
                 List.of(
-                        new ValidationAnalysisEngine()
+                        new ValidationAnalysisEngine(),
+                        new CoverageAnalysisEngine()
                 ),
                 new DefaultAnalysisIdGenerator()
         );
