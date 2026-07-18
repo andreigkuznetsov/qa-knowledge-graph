@@ -11,6 +11,7 @@ import ru.kuznetsov.qaip.coverage.model.CoverageSeverity;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -73,7 +74,7 @@ public class CheckCoverageAnalyzer implements CoverageAnalyzer {
     }
 
     private Map<String, NodeInfo> indexTests(JsonNode nodes) {
-        Map<String, NodeInfo> result = new HashMap<>();
+        Map<String, NodeInfo> result = new LinkedHashMap<>();
 
         for (int index = 0; index < nodes.size(); index++) {
             JsonNode node = nodes.get(index);

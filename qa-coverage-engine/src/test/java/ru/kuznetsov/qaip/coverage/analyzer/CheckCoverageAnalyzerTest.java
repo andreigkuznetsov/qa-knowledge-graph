@@ -7,6 +7,7 @@ import org.springframework.core.io.ClassPathResource;
 import ru.kuznetsov.qaip.coverage.model.CoverageProblemType;
 
 import java.io.InputStream;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -92,6 +93,56 @@ class CheckCoverageAnalyzerTest {
                                         problem.objectId()
                                 ))
         );
+    }
+
+    @Test
+    void shouldPreserveInputOrderForMultipleMissingCheckFindings()
+            throws Exception {
+
+        JsonNode qaModel = objectMapper.readTree("""
+                {
+                  "nodes": [
+                    {"id":"TEST-300","type":"TEST_IMPLEMENTATION","name":"Third"},
+                    {"id":"TEST-100","type":"TEST_IMPLEMENTATION","name":"First"},
+                    {"id":"TEST-200","type":"TEST_IMPLEMENTATION","name":"Second"}
+                  ],
+                  "relationships": []
+                }
+                """);
+
+        for (int execution = 0; execution < 10; execution++) {
+            var result = analyzer.analyze(qaModel);
+
+            assertEquals(3, result.problems().size());
+            assertEquals(
+                    List.of(
+                            CoverageProblemType.MISSING_CHECK,
+                            CoverageProblemType.MISSING_CHECK,
+                            CoverageProblemType.MISSING_CHECK
+                    ),
+                    result.problems().stream()
+                            .map(problem -> problem.type())
+                            .toList()
+            );
+            assertEquals(
+                    List.of("TEST-300", "TEST-100", "TEST-200"),
+                    result.problems().stream()
+                            .map(problem -> problem.objectId())
+                            .toList()
+            );
+            assertEquals(
+                    List.of("/nodes/0", "/nodes/1", "/nodes/2"),
+                    result.problems().stream()
+                            .map(problem -> problem.path())
+                            .toList()
+            );
+
+            var metric = result.metrics().getFirst();
+            assertEquals(3, metric.total());
+            assertEquals(0, metric.covered());
+            assertEquals(3, metric.uncovered());
+            assertEquals(0.0, metric.percentage());
+        }
     }
 
     private JsonNode readFixture(String name)
