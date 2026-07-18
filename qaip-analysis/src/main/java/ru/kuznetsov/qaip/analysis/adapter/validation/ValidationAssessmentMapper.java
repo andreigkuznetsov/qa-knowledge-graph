@@ -8,18 +8,21 @@ import ru.kuznetsov.qaip.core.analysis.AssessmentStatus;
 import ru.kuznetsov.qaip.core.finding.AnalysisFinding;
 import ru.kuznetsov.qaip.core.finding.FindingCategory;
 import ru.kuznetsov.qaip.core.finding.FindingSeverity;
+import ru.kuznetsov.qaip.core.engine.AnalysisResultMapper;
 import ru.kuznetsov.qaip.core.metric.AnalysisMetric;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-final class ValidationAssessmentMapper {
+final class ValidationAssessmentMapper
+        implements AnalysisResultMapper<QaModelValidationResult> {
 
     static final String ENGINE_ID = "validation";
     static final String ENGINE_NAME = "QA Model Validation";
 
-    AnalysisAssessment map(QaModelValidationResult result) {
+    @Override
+    public AnalysisAssessment map(QaModelValidationResult result) {
         Objects.requireNonNull(result, "result must not be null");
 
         List<AnalysisFinding> findings = result.issues().stream()
