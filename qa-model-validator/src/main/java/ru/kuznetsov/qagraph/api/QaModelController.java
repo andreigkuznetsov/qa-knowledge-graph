@@ -14,6 +14,7 @@ import ru.kuznetsov.qagraph.registration.ModelDescriptor;
 import ru.kuznetsov.qagraph.service.QaModelRegistrationService;
 import ru.kuznetsov.qagraph.service.QaModelTraceService;
 import ru.kuznetsov.qagraph.service.RegisteredModelCoverageService;
+import ru.kuznetsov.qagraph.service.RegisteredModelFindingsService;
 
 import java.net.URI;
 import java.util.List;
@@ -25,15 +26,18 @@ public class QaModelController {
     private final QaModelRegistrationService registrationService;
     private final QaModelTraceService traceService;
     private final RegisteredModelCoverageService coverageService;
+    private final RegisteredModelFindingsService findingsService;
 
     public QaModelController(
             QaModelRegistrationService registrationService,
             QaModelTraceService traceService,
-            RegisteredModelCoverageService coverageService
+            RegisteredModelCoverageService coverageService,
+            RegisteredModelFindingsService findingsService
     ) {
         this.registrationService = registrationService;
         this.traceService = traceService;
         this.coverageService = coverageService;
+        this.findingsService = findingsService;
     }
 
     @PostMapping(
@@ -99,5 +103,15 @@ public class QaModelController {
             @PathVariable String modelId
     ) {
         return coverageService.analyze(modelId);
+    }
+
+    @GetMapping(
+            value = "/{modelId}/findings",
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public RegisteredModelFindingsResponse findings(
+            @PathVariable String modelId
+    ) {
+        return findingsService.analyze(modelId);
     }
 }

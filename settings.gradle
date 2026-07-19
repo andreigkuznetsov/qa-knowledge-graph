@@ -6,6 +6,7 @@ include 'qa-model-extractor'
 include 'qa-model-validation-core'
 include 'qa-story-analyzer'
 include 'qa-coverage-engine'
+include 'qa-findings-engine'
 include 'qaip-core'
 
 include 'qaip-analysis'

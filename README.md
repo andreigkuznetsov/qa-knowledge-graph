@@ -19,6 +19,7 @@ Spring Boot REST service containing:
 - `POST /api/v1/qa-model/validate`;
 - registration, retrieval, listing, and tracing of in-memory QA models;
 - `GET /api/v1/models/{modelId}/coverage` for registered-model coverage;
+- `GET /api/v1/models/{modelId}/findings` for actionable structural gaps;
 - JSON Schema Draft 2020-12 validation;
 - semantic graph validation;
 - integration and smoke tests.
@@ -80,6 +81,18 @@ they do not represent test execution status or successful test results. The
 current model does not prove that a particular `CHECK` validates a particular
 `BUSINESS_RULE`. Empty node categories are represented by
 `coveragePercent: 0.0`.
+
+Registered-model findings use these stable codes and severities:
+
+- `BUSINESS_RULE_WITHOUT_SCENARIO` — `HIGH`;
+- `SCENARIO_WITHOUT_TEST` — `MEDIUM`;
+- `TEST_WITHOUT_CHECK` — `MEDIUM`.
+
+Validation determines whether a model is acceptable. Coverage measures
+structural completeness. Findings identify exact nodes that require action.
+Findings are structural: they do not represent test execution results, and the
+model cannot prove that a particular `CHECK` validates a particular
+`BUSINESS_RULE`.
 
 ## Smoke suite
 
