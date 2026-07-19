@@ -1,0 +1,25 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'Deterministic expected remediation impact analysis'
+
+dependencies {
+    api(project(':qa-execution-planner')) {
+        transitive = false
+    }
+    api(project(':qa-roadmap-engine')) {
+        transitive = false
+    }
+    api(project(':qa-findings-engine')) {
+        transitive = false
+    }
+    api project(':qa-model')
+
+    testImplementation platform('org.junit:junit-bom:5.12.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation(project(':qa-model-validation-core')) {
+        transitive = false
+    }
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
