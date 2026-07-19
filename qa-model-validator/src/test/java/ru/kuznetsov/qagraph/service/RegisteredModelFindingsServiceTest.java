@@ -3,6 +3,7 @@ package ru.kuznetsov.qagraph.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import ru.kuznetsov.qagraph.api.FindingsResponseMapper;
 import ru.kuznetsov.qagraph.repository.InMemoryQaModelRepository;
 import ru.kuznetsov.qagraph.validationcore.model.QaModelValidationResult;
 import ru.kuznetsov.qagraph.validationcore.model.ValidationSummary;
@@ -35,9 +36,14 @@ class RegisteredModelFindingsServiceTest {
         );
         String modelId = repository.save(model, 0).modelId();
         FindingsService findingsService = mock(FindingsService.class);
-        when(findingsService.analyze(any())).thenReturn(validReport());
+        when(findingsService.analyze(any(JsonNode.class)))
+                .thenReturn(validReport());
         RegisteredModelFindingsService service =
-                new RegisteredModelFindingsService(repository, findingsService);
+                new RegisteredModelFindingsService(
+                        repository,
+                        findingsService,
+                        new FindingsResponseMapper()
+                );
 
         var response = service.analyze(modelId);
 
@@ -46,7 +52,7 @@ class RegisteredModelFindingsServiceTest {
         assertEquals("BUSINESS_RULE_WITHOUT_SCENARIO", response.findings().getFirst().code());
         assertEquals("HIGH", response.findings().getFirst().severity());
         assertEquals(model, repository.findById(modelId).orElseThrow());
-        verify(findingsService).analyze(any());
+        verify(findingsService).analyze(any(JsonNode.class));
     }
 
     @Test
@@ -54,7 +60,8 @@ class RegisteredModelFindingsServiceTest {
         RegisteredModelFindingsService service =
                 new RegisteredModelFindingsService(
                         new InMemoryQaModelRepository(),
-                        mock(FindingsService.class)
+                        mock(FindingsService.class),
+                        new FindingsResponseMapper()
                 );
 
         assertThrows(
@@ -73,7 +80,7 @@ class RegisteredModelFindingsServiceTest {
         ).modelId();
         FindingsService findingsService = mock(FindingsService.class);
         QaModelValidationResult validation = validation(false);
-        when(findingsService.analyze(any())).thenReturn(new FindingsReport(
+        when(findingsService.analyze(any(JsonNode.class))).thenReturn(new FindingsReport(
                 false,
                 null,
                 new FindingsSummary(0, 0, 0, 0),
@@ -81,7 +88,11 @@ class RegisteredModelFindingsServiceTest {
                 validation
         ));
         RegisteredModelFindingsService service =
-                new RegisteredModelFindingsService(repository, findingsService);
+                new RegisteredModelFindingsService(
+                        repository,
+                        findingsService,
+                        new FindingsResponseMapper()
+                );
 
         InvalidQaModelException exception = assertThrows(
                 InvalidQaModelException.class,

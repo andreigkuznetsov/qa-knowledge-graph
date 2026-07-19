@@ -20,6 +20,7 @@ Spring Boot REST service containing:
 - registration, retrieval, listing, and tracing of in-memory QA models;
 - `GET /api/v1/models/{modelId}/coverage` for registered-model coverage;
 - `GET /api/v1/models/{modelId}/findings` for actionable structural gaps;
+- `GET /api/v1/models/{modelId}/assessment` for a unified model assessment;
 - JSON Schema Draft 2020-12 validation;
 - semantic graph validation;
 - integration and smoke tests.
@@ -93,6 +94,11 @@ structural completeness. Findings identify exact nodes that require action.
 Findings are structural: they do not represent test execution results, and the
 model cannot prove that a particular `CHECK` validates a particular
 `BUSINESS_RULE`.
+
+The assessment endpoint is an orchestration API: it aggregates the existing
+validation, coverage, and findings results and adds an overall `PASS`,
+`WARNING`, or `FAIL` health value. It does not introduce another analysis or
+include exploratory trace results.
 
 ## Smoke suite
 

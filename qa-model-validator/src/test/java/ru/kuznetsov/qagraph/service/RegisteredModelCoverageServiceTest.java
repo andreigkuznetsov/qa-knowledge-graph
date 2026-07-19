@@ -3,6 +3,7 @@ package ru.kuznetsov.qagraph.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import ru.kuznetsov.qagraph.api.CoverageResponseMapper;
 import ru.kuznetsov.qagraph.repository.InMemoryQaModelRepository;
 import ru.kuznetsov.qagraph.validationcore.model.QaModelValidationResult;
 import ru.kuznetsov.qagraph.validationcore.model.ValidationSummary;
@@ -42,7 +43,11 @@ class RegisteredModelCoverageServiceTest {
                 new CoverageMetric(CoverageMetricCode.SCENARIO_TEST_COVERAGE, "scenarios", 3, 2, 1, 66.67)
         ));
         RegisteredModelCoverageService service =
-                new RegisteredModelCoverageService(repository, coverageService);
+                new RegisteredModelCoverageService(
+                        repository,
+                        coverageService,
+                        new CoverageResponseMapper()
+                );
 
         var response = service.analyze(modelId);
 
@@ -77,7 +82,11 @@ class RegisteredModelCoverageServiceTest {
                 new CoverageMetric(CoverageMetricCode.TEST_CHECK_COVERAGE, "checks", 0, 0, 0, 100.0)
         ));
         RegisteredModelCoverageService service =
-                new RegisteredModelCoverageService(repository, coverageService);
+                new RegisteredModelCoverageService(
+                        repository,
+                        coverageService,
+                        new CoverageResponseMapper()
+                );
 
         var first = service.analyze(modelId);
         var second = service.analyze(modelId);
@@ -94,7 +103,8 @@ class RegisteredModelCoverageServiceTest {
         RegisteredModelCoverageService service =
                 new RegisteredModelCoverageService(
                         new InMemoryQaModelRepository(),
-                        mock(CoverageService.class)
+                        mock(CoverageService.class),
+                        new CoverageResponseMapper()
                 );
 
         assertThrows(
@@ -124,7 +134,11 @@ class RegisteredModelCoverageServiceTest {
                 )
         ));
         RegisteredModelCoverageService service =
-                new RegisteredModelCoverageService(repository, coverageService);
+                new RegisteredModelCoverageService(
+                        repository,
+                        coverageService,
+                        new CoverageResponseMapper()
+                );
 
         CoverageMetricMissingException exception = assertThrows(
                 CoverageMetricMissingException.class,

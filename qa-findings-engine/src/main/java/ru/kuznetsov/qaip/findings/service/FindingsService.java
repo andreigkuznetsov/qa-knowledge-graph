@@ -27,7 +27,10 @@ public class FindingsService {
     }
 
     public FindingsReport analyze(JsonNode model) {
-        CoverageReport coverageReport = coverageService.analyze(model);
+        return analyze(coverageService.analyze(model));
+    }
+
+    public FindingsReport analyze(CoverageReport coverageReport) {
 
         if (!coverageReport.analyzed()) {
             return new FindingsReport(
