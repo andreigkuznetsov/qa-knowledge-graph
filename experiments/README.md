@@ -43,3 +43,11 @@ Copy and complete the files in [`templates/`](templates/). Dataset files may liv
 To reproduce an experiment, obtain the recorded repository commit and dataset version, verify input checksums, recreate the protocol environment, run the exact recorded command with the recorded parameters and repetition count, preserve raw output, calculate metrics as specified, and compare them with the preregistered criteria. Follow the mandatory [reproducibility rules](../docs/research/REPRODUCIBILITY_RULES.md) and lifecycle in [EXPERIMENT_LIFECYCLE.md](../docs/research/EXPERIMENT_LIFECYCLE.md).
 
 Source-control specifications, protocols, dataset cards, expected fixtures, result reports, small redistributable inputs, checksums, and reviewable raw results. Do not commit secrets, confidential data, licensed data that cannot be redistributed, local caches, build directories, temporary files, or large generated artifacts better held in an artifact store. Every excluded artifact must still have a stable locator, retention policy, checksum, and access instructions in the result report. Repository ignore rules may be added only when actual generated paths exist; this contract does not claim an experiment runner or report generator is implemented.
+
+## Machine-readable contract
+
+JSON Schema version [`v0.1`](schema/v0.1/README.md) provides machine-readable experiment-definition and execution-result contracts. Its [valid examples](schema/v0.1/examples/valid/) are illustrative and its [invalid examples](schema/v0.1/examples/invalid/) document focused structural failures. Validate both sets with:
+
+```powershell
+.\gradlew.bat :qa-model-validation-core:test --tests "*ExperimentSchemaContractTest"
+```
