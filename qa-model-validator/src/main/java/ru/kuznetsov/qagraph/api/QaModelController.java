@@ -13,8 +13,9 @@ import org.springframework.web.bind.annotation.RestController;
 import ru.kuznetsov.qagraph.registration.ModelDescriptor;
 import ru.kuznetsov.qagraph.service.QaModelRegistrationService;
 import ru.kuznetsov.qagraph.service.QaModelTraceService;
-import ru.kuznetsov.qagraph.service.RegisteredModelCoverageService;
 import ru.kuznetsov.qagraph.service.RegisteredModelAssessmentService;
+import ru.kuznetsov.qagraph.service.RegisteredModelCoverageService;
+import ru.kuznetsov.qagraph.service.RegisteredModelExecutionPlanService;
 import ru.kuznetsov.qagraph.service.RegisteredModelFindingsService;
 import ru.kuznetsov.qagraph.service.RegisteredModelRoadmapService;
 
@@ -31,6 +32,7 @@ public class QaModelController {
     private final RegisteredModelFindingsService findingsService;
     private final RegisteredModelAssessmentService assessmentService;
     private final RegisteredModelRoadmapService roadmapService;
+    private final RegisteredModelExecutionPlanService executionPlanService;
 
     public QaModelController(
             QaModelRegistrationService registrationService,
@@ -38,7 +40,8 @@ public class QaModelController {
             RegisteredModelCoverageService coverageService,
             RegisteredModelFindingsService findingsService,
             RegisteredModelAssessmentService assessmentService,
-            RegisteredModelRoadmapService roadmapService
+            RegisteredModelRoadmapService roadmapService,
+            RegisteredModelExecutionPlanService executionPlanService
     ) {
         this.registrationService = registrationService;
         this.traceService = traceService;
@@ -46,6 +49,7 @@ public class QaModelController {
         this.findingsService = findingsService;
         this.assessmentService = assessmentService;
         this.roadmapService = roadmapService;
+        this.executionPlanService = executionPlanService;
     }
 
     @PostMapping(
@@ -141,5 +145,15 @@ public class QaModelController {
             @PathVariable String modelId
     ) {
         return roadmapService.plan(modelId);
+    }
+
+    @GetMapping(
+            value = "/{modelId}/execution-plan",
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public RegisteredModelExecutionPlanResponse executionPlan(
+            @PathVariable String modelId
+    ) {
+        return executionPlanService.plan(modelId);
     }
 }

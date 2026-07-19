@@ -177,6 +177,62 @@ cycles. Waves express structural parallelism only: the planner does not execute
 tasks, assign priorities, estimate effort or duration, or inspect the QA model.
 No REST endpoint, persistence, or LLM processing is included yet.
 
+## MVP 0.7.1 — Registered Model Execution Plan API
+
+```http
+GET /api/v1/models/{modelId}/execution-plan
+```
+
+The endpoint follows this deterministic application flow:
+
+```text
+Registered model → CoverageReport → FindingsReport → RoadmapReport
+    → ExecutionPlan
+```
+
+The model is loaded once and Coverage is calculated once. Findings reuse that
+exact `CoverageReport`, Roadmap reuses the resulting `FindingsReport`, and the
+Execution Planner reuses the resulting `RoadmapReport`; validation is also
+reused from Coverage. Each stage runs once per request. Wave grouping uses only
+explicit task dependencies and never infers dependencies from task types.
+Because the current RoadmapService creates dependency-free tasks, its normal
+output is one wave containing all tasks.
+
+```json
+{
+  "modelId": "model-id",
+  "planned": true,
+  "schemaVersion": "0.1",
+  "summary": {
+    "totalTasks": 3,
+    "totalWaves": 1,
+    "parallelizableTasks": 3,
+    "sequentialTasks": 0,
+    "maximumParallelism": 3
+  },
+  "waves": [
+    {
+      "number": 1,
+      "taskIds": [
+        "TASK-CREATE-SCENARIO-BR-001",
+        "TASK-CREATE-TEST-IMPLEMENTATION-SC-001",
+        "TASK-CREATE-CHECK-TC-001"
+      ]
+    }
+  ],
+  "sourceRoadmapSummary": {
+    "totalTasks": 3,
+    "plannedTasks": 3,
+    "tasksWithDependencies": 0
+  },
+  "validation": { "valid": true }
+}
+```
+
+The endpoint does not execute or persist plans or tasks. It has no progress
+state, priority or effort estimation, and uses no LLM. Execution Plan is not
+included in Assessment, and the existing Roadmap response remains unchanged.
+
 ## Smoke suite
 
 The smoke suite checks:
