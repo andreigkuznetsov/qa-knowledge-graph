@@ -8,6 +8,7 @@ include 'qa-story-analyzer'
 include 'qa-coverage-engine'
 include 'qa-findings-engine'
 include 'qa-roadmap-engine'
+include 'qa-execution-planner'
 include 'qaip-core'
 
 include 'qaip-analysis'

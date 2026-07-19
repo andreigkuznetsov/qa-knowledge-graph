@@ -16,6 +16,7 @@ import ru.kuznetsov.qagraph.service.QaModelTraceService;
 import ru.kuznetsov.qagraph.service.RegisteredModelCoverageService;
 import ru.kuznetsov.qagraph.service.RegisteredModelAssessmentService;
 import ru.kuznetsov.qagraph.service.RegisteredModelFindingsService;
+import ru.kuznetsov.qagraph.service.RegisteredModelRoadmapService;
 
 import java.net.URI;
 import java.util.List;
@@ -29,19 +30,22 @@ public class QaModelController {
     private final RegisteredModelCoverageService coverageService;
     private final RegisteredModelFindingsService findingsService;
     private final RegisteredModelAssessmentService assessmentService;
+    private final RegisteredModelRoadmapService roadmapService;
 
     public QaModelController(
             QaModelRegistrationService registrationService,
             QaModelTraceService traceService,
             RegisteredModelCoverageService coverageService,
             RegisteredModelFindingsService findingsService,
-            RegisteredModelAssessmentService assessmentService
+            RegisteredModelAssessmentService assessmentService,
+            RegisteredModelRoadmapService roadmapService
     ) {
         this.registrationService = registrationService;
         this.traceService = traceService;
         this.coverageService = coverageService;
         this.findingsService = findingsService;
         this.assessmentService = assessmentService;
+        this.roadmapService = roadmapService;
     }
 
     @PostMapping(
@@ -127,5 +131,15 @@ public class QaModelController {
             @PathVariable String modelId
     ) {
         return assessmentService.assess(modelId);
+    }
+
+    @GetMapping(
+            value = "/{modelId}/roadmap",
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public RegisteredModelRoadmapResponse roadmap(
+            @PathVariable String modelId
+    ) {
+        return roadmapService.plan(modelId);
     }
 }

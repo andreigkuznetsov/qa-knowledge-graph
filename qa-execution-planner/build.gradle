@@ -1,0 +1,21 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'Deterministic execution waves for roadmap tasks'
+
+dependencies {
+    api(project(':qa-roadmap-engine')) {
+        transitive = false
+    }
+
+    testImplementation platform('org.junit:junit-bom:5.12.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation(project(':qa-findings-engine')) {
+        transitive = false
+    }
+    testImplementation(project(':qa-model-validation-core')) {
+        transitive = false
+    }
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}

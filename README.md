@@ -111,10 +111,71 @@ remediation tasks:
 | `SCENARIO_WITHOUT_TEST` | `CREATE_TEST_IMPLEMENTATION` |
 | `TEST_WITHOUT_CHECK` | `CREATE_CHECK` |
 
-Roadmap is not exposed through REST yet and never modifies the QA model. It
-does not generate scenarios, tests, or checks. All tasks are `PLANNED`;
+Roadmap never modifies the QA model or generates scenarios, tests, or checks.
+All tasks are `PLANNED`;
 dependencies are not inferred while future node identities are unknown. No
 priorities, effort estimates, persistence, or LLM processing are included.
+
+## MVP 0.6.2 — Registered Model Roadmap API
+
+```http
+GET /api/v1/models/{modelId}/roadmap
+```
+
+The endpoint follows `Registered model → Coverage → Findings → Roadmap`.
+Coverage is calculated once, Findings reuse the resulting `CoverageReport`,
+and Roadmap consumes that `FindingsReport`. Responses are deterministic; the
+model is not modified and tasks are not persisted. Every task remains
+`PLANNED`, dependencies remain empty, and priorities or effort estimates are
+not calculated. Roadmap is not included in Assessment yet, and no LLM is used.
+
+```json
+{
+  "modelId": "model-id",
+  "planned": true,
+  "summary": { "totalTasks": 1, "plannedTasks": 1,
+    "tasksWithDependencies": 0 },
+  "tasks": [
+    { "id": "TASK-CREATE-SCENARIO-BR-001",
+      "type": "CREATE_SCENARIO", "status": "PLANNED",
+      "targetNodeId": "BR-001", "dependsOn": [] }
+  ]
+}
+```
+
+## MVP 0.7 — Execution Planner Domain Foundation
+
+Roadmap identifies remediation tasks. Execution Planner groups those tasks
+into the earliest safe parallel waves using explicit dependencies only:
+
+```text
+RoadmapReport → ExecutionPlanner → ExecutionPlan → ExecutionWave[]
+```
+
+Independent tasks stay together, regardless of task type:
+
+```text
+A, B, C have no dependencies
+Wave 1: A, B, C
+```
+
+Explicit chain and diamond dependencies produce level-based waves:
+
+```text
+A → B → C                 A
+Wave 1: A                / \
+Wave 2: B               B   C
+Wave 3: C                \ /
+                          D
+                Wave 1: A; Wave 2: B, C; Wave 3: D
+```
+
+Dependencies are never inferred from task types. Current RoadmapService output
+normally produces one wave because all `dependsOn` lists are empty. The planner
+rejects missing dependencies, self-dependencies, duplicate task IDs, and
+cycles. Waves express structural parallelism only: the planner does not execute
+tasks, assign priorities, estimate effort or duration, or inspect the QA model.
+No REST endpoint, persistence, or LLM processing is included yet.
 
 ## Smoke suite
 
