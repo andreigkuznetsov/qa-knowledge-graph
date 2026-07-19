@@ -6,6 +6,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import ru.kuznetsov.qagraph.service.InvalidQaModelException;
+import ru.kuznetsov.qagraph.service.InvalidRequestParameterException;
+import ru.kuznetsov.qagraph.service.QaModelNodeNotFoundException;
 import ru.kuznetsov.qagraph.service.QaModelNotFoundException;
 import ru.kuznetsov.qagraph.validationcore.model.QaModelValidationResult;
 
@@ -29,6 +31,28 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                 "error", "MODEL_NOT_FOUND",
                 "message", exception.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(QaModelNodeNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNodeNotFound(
+            QaModelNodeNotFoundException exception
+    ) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "error", "NODE_NOT_FOUND",
+                "message", exception.getMessage(),
+                "nodeId", exception.nodeId()
+        ));
+    }
+
+    @ExceptionHandler(InvalidRequestParameterException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidParameter(
+            InvalidRequestParameterException exception
+    ) {
+        return ResponseEntity.badRequest().body(Map.of(
+                "error", "INVALID_REQUEST_PARAMETER",
+                "message", exception.getMessage(),
+                "parameter", exception.parameter()
         ));
     }
 

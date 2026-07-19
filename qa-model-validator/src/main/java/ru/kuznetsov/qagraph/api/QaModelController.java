@@ -8,9 +8,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import ru.kuznetsov.qagraph.registration.ModelDescriptor;
 import ru.kuznetsov.qagraph.service.QaModelRegistrationService;
+import ru.kuznetsov.qagraph.service.QaModelTraceService;
 
 import java.net.URI;
 import java.util.List;
@@ -20,11 +22,14 @@ import java.util.List;
 public class QaModelController {
 
     private final QaModelRegistrationService registrationService;
+    private final QaModelTraceService traceService;
 
     public QaModelController(
-            QaModelRegistrationService registrationService
+            QaModelRegistrationService registrationService,
+            QaModelTraceService traceService
     ) {
         this.registrationService = registrationService;
+        this.traceService = traceService;
     }
 
     @PostMapping(
@@ -62,5 +67,23 @@ public class QaModelController {
     )
     public ModelDescriptor getInfo(@PathVariable String modelId) {
         return registrationService.getInfo(modelId);
+    }
+
+    @GetMapping(
+            value = "/{modelId}/trace",
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public TraceResponse trace(
+            @PathVariable String modelId,
+            @RequestParam(name = "from", required = false)
+            String fromNodeId,
+            @RequestParam(name = "to", required = false)
+            String toNodeId
+    ) {
+        return traceService.trace(
+                modelId,
+                fromNodeId,
+                toNodeId
+        );
     }
 }
