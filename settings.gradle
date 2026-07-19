@@ -10,6 +10,7 @@ include 'qa-findings-engine'
 include 'qa-roadmap-engine'
 include 'qa-execution-planner'
 include 'qa-impact-analysis'
+include 'qa-model-simulation'
 include 'qaip-core'
 
 include 'qaip-analysis'
