@@ -1,0 +1,192 @@
+{
+  "schemaVersion": "0.1",
+  "experimentId": "EXP-0001",
+  "experimentVersion": "1.0.0",
+  "experimentDefinition": {
+    "id": "EXPERIMENT-DEFINITION",
+    "locator": "experiments/EXP-0001/experiment.json",
+    "checksum": {
+      "algorithm": "SHA-256",
+      "value": "1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    "description": "Frozen illustrative definition"
+  },
+  "executionId": "EXEC-20260719-0001",
+  "resultVersion": "1.0.0",
+  "status": "COMPLETED",
+  "implementation": {
+    "repositoryCommit": "abc123",
+    "repositoryBranch": "feature/qaip-0.7-ep-0001",
+    "workingTreeState": "CLEAN",
+    "remote": "https://example.invalid/qaip.git",
+    "release": "QAIP 0.6 RC1",
+    "modelVersions": {
+      "qaModelSchema": "0.1",
+      "experimentSchema": "0.1"
+    }
+  },
+  "startedAt": "2026-07-19T13:00:00+03:00",
+  "finishedAt": "2026-07-19T13:10:00+03:00",
+  "environment": {
+    "operatingSystem": {
+      "name": "Windows",
+      "version": "11"
+    },
+    "architecture": "x86_64",
+    "java": {
+      "name": "Eclipse Temurin",
+      "version": "21.0.7"
+    },
+    "locale": "en-US / UTF-8",
+    "timezone": "Europe/Moscow",
+    "hardware": "Illustrative controlled worker",
+    "dependencies": [
+      {
+        "name": "Gradle Wrapper",
+        "version": "8.14.3"
+      }
+    ]
+  },
+  "dataset": {
+    "datasetId": "QAIP-DETERMINISM-CALIBRATION",
+    "version": "1.0.0",
+    "locator": "experiments/EXP-0001/dataset.md",
+    "integrityReference": {
+      "id": "DATASET-MANIFEST",
+      "locator": "experiments/EXP-0001/inputs/SHA256SUMS",
+      "checksum": {
+        "algorithm": "SHA-256",
+        "value": "3333333333333333333333333333333333333333333333333333333333333333"
+      }
+    }
+  },
+  "protocol": {
+    "version": "1.0.0",
+    "locator": "experiments/EXP-0001/protocol.md",
+    "checksum": {
+      "algorithm": "SHA-256",
+      "value": "2222222222222222222222222222222222222222222222222222222222222222"
+    }
+  },
+  "actualParameters": {
+    "command": ".\\gradlew.bat :qaip-analysis:test --tests *IllustrativeExperiment*",
+    "workingDirectory": "repository root",
+    "configuration": {
+      "canonicalization": "ordered JSON fields"
+    },
+    "seeds": [],
+    "repetitions": 10,
+    "timeout": "Five minutes per repetition",
+    "retryBehavior": "No replacement runs",
+    "externalServices": []
+  },
+  "rawArtifacts": [
+    {
+      "id": "RAW-OUTPUTS",
+      "kind": "canonical outputs",
+      "locator": "artifact:EXEC-20260719-0001/raw/outputs",
+      "checksum": {
+        "algorithm": "SHA-256",
+        "value": "4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "retention": "One year",
+      "access": "Project artifact-store readers"
+    },
+    {
+      "id": "RAW-LOGS",
+      "kind": "execution logs",
+      "locator": "artifact:EXEC-20260719-0001/raw/logs",
+      "checksum": {
+        "algorithm": "SHA-256",
+        "value": "5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      "retention": "One year",
+      "access": "Project artifact-store readers"
+    }
+  ],
+  "observations": [
+    {
+      "id": "OBS-DIGESTS",
+      "description": "Ten illustrative canonical output digests were recorded.",
+      "value": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "artifactRefs": [
+        "RAW-OUTPUTS"
+      ]
+    }
+  ],
+  "metrics": [
+    {
+      "metricId": "METRIC-UNIQUE-DIGESTS",
+      "definitionOrFormula": "count(distinct SHA-256(canonical output))",
+      "value": 1,
+      "unit": "count",
+      "tolerance": "exact",
+      "evidenceRefs": [
+        "RAW-OUTPUTS",
+        "OBS-DIGESTS"
+      ]
+    },
+    {
+      "metricId": "METRIC-VALID-RUNS",
+      "definitionOrFormula": "count(runs with exit code 0 and complete output)",
+      "value": 10,
+      "unit": "count",
+      "tolerance": "exact",
+      "evidenceRefs": [
+        "RAW-OUTPUTS",
+        "RAW-LOGS"
+      ]
+    }
+  ],
+  "deviations": [],
+  "failures": [],
+  "anomalies": [],
+  "criteriaEvaluation": [
+    {
+      "criterionId": "CRIT-001",
+      "evidenceRefs": [
+        "RAW-OUTPUTS",
+        "OBS-DIGESTS"
+      ],
+      "met": true,
+      "rationale": "The illustrative metric contains one unique digest."
+    },
+    {
+      "criterionId": "CRIT-002",
+      "evidenceRefs": [
+        "RAW-OUTPUTS"
+      ],
+      "met": false,
+      "rationale": "No second digest is represented."
+    },
+    {
+      "criterionId": "CRIT-003",
+      "evidenceRefs": [
+        "RAW-OUTPUTS",
+        "RAW-LOGS"
+      ],
+      "met": false,
+      "rationale": "The illustrative record contains ten completed runs and no deviation."
+    }
+  ],
+  "outcome": "SUPPORTED",
+  "conclusion": "In this illustrative record only, the preserved values meet the frozen structural-identity criterion under the stated conditions.",
+  "interpretationLimits": "This example is schema calibration data, not evidence that an experiment occurred, and says nothing about semantic correctness or scientific validity of QAIP metrics.",
+  "observedThreats": [],
+  "reviewer": {
+    "reviewer": {
+      "displayName": "QAIP result reviewer",
+      "role": "Result reviewer"
+    },
+    "decidedAt": "2026-07-19T14:00:00+03:00",
+    "decision": "ACCEPTED",
+    "rationale": "Illustrative record is internally structured for schema validation."
+  },
+  "repeatability": {
+    "status": "NOT_ATTEMPTED",
+    "replicationRefs": []
+  },
+  "corrections": []
+}

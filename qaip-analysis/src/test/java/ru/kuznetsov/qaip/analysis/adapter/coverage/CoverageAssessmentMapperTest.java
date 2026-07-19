@@ -9,6 +9,7 @@ import ru.kuznetsov.qaip.core.analysis.AssessmentStatus;
 import ru.kuznetsov.qaip.core.finding.FindingCategory;
 import ru.kuznetsov.qaip.core.finding.FindingSeverity;
 import ru.kuznetsov.qaip.coverage.model.CoverageMetric;
+import ru.kuznetsov.qaip.coverage.model.CoverageMetricCode;
 import ru.kuznetsov.qaip.coverage.model.CoverageProblem;
 import ru.kuznetsov.qaip.coverage.model.CoverageProblemType;
 import ru.kuznetsov.qaip.coverage.model.CoverageReport;
@@ -233,7 +234,7 @@ class CoverageAssessmentMapperTest {
             int uncovered
     ) {
         return new CoverageMetric(
-                code,
+                CoverageMetricCode.valueOf(code),
                 code,
                 total,
                 covered,

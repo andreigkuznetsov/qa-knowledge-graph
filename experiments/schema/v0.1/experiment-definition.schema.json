@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qaip.dev/schemas/experiments/v0.1/experiment-definition.schema.json",
+  "title": "QAIP Experiment Definition v0.1",
+  "description": "Structural contract for one version of a QAIP research experiment definition. Validation does not establish scientific validity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "experimentId", "title", "version", "status", "owner", "dates", "related", "researchQuestion", "hypothesis", "motivation", "scope", "variables", "assumptions", "requiredEvidence", "criteria", "threatsToValidity", "considerations", "protocol", "dataset", "reproducibility", "relatedArtifacts", "changeHistory"],
+  "properties": {
+    "schemaVersion": { "const": "0.1" },
+    "experimentId": { "$ref": "#/$defs/experimentId" },
+    "title": { "$ref": "#/$defs/nonBlank" },
+    "version": { "$ref": "#/$defs/semanticVersion" },
+    "status": { "$ref": "#/$defs/repositoryStatus" },
+    "owner": { "$ref": "#/$defs/personOrRole" },
+    "dates": {
+      "type": "object", "additionalProperties": false,
+      "required": ["created", "lastUpdated"],
+      "properties": { "created": { "$ref": "#/$defs/isoDate" }, "lastUpdated": { "$ref": "#/$defs/isoDate" } }
+    },
+    "related": {
+      "type": "object", "additionalProperties": false,
+      "required": ["release", "relatedExperimentIds"],
+      "properties": {
+        "epicId": { "$ref": "#/$defs/epicId" },
+        "release": { "$ref": "#/$defs/nonBlank" },
+        "relatedExperimentIds": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/experimentId" } }
+      }
+    },
+    "researchQuestion": { "$ref": "#/$defs/nonBlank" },
+    "hypothesis": {
+      "type": "object", "additionalProperties": false,
+      "required": ["statement", "nullHypothesis", "rationale", "frozen"],
+      "properties": {
+        "statement": { "$ref": "#/$defs/nonBlank" }, "nullHypothesis": { "$ref": "#/$defs/nonBlank" },
+        "rationale": { "$ref": "#/$defs/nonBlank" }, "frozen": { "type": "boolean" },
+        "frozenAt": { "$ref": "#/$defs/isoTimestamp" }, "freezeReference": { "$ref": "#/$defs/artifactReference" }
+      },
+      "allOf": [{ "if": { "properties": { "frozen": { "const": true } }, "required": ["frozen"] }, "then": { "required": ["frozenAt", "freezeReference"] } }]
+    },
+    "motivation": { "$ref": "#/$defs/nonBlank" },
+    "scope": {
+      "type": "object", "additionalProperties": false, "required": ["included", "excluded"],
+      "properties": { "included": { "$ref": "#/$defs/nonEmptyStrings" }, "excluded": { "$ref": "#/$defs/nonEmptyStrings" } }
+    },
+    "variables": {
+      "type": "object", "additionalProperties": false, "required": ["independent", "dependent", "controlled"],
+      "properties": {
+        "independent": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/variable" } },
+        "dependent": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/variable" } },
+        "controlled": { "type": "array", "items": { "$ref": "#/$defs/variable" } }
+      }
+    },
+    "assumptions": { "type": "array", "items": { "$ref": "#/$defs/assumption" } },
+    "requiredEvidence": { "type": "array", "items": { "$ref": "#/$defs/evidenceRequirement" } },
+    "criteria": {
+      "type": "object", "additionalProperties": false, "required": ["supported", "notSupported", "inconclusive"],
+      "properties": {
+        "supported": { "type": "array", "items": { "$ref": "#/$defs/criterion" } },
+        "notSupported": { "type": "array", "items": { "$ref": "#/$defs/criterion" } },
+        "inconclusive": { "type": "array", "items": { "$ref": "#/$defs/criterion" } }
+      }
+    },
+    "metricDefinitions": { "type": "array", "items": { "$ref": "#/$defs/metricDefinition" } },
+    "threatsToValidity": { "type": "array", "items": { "$ref": "#/$defs/threatToValidity" } },
+    "considerations": {
+      "type": "object", "additionalProperties": false, "required": ["ethical", "security", "confidentiality"],
+      "properties": { "ethical": { "$ref": "#/$defs/nonBlank" }, "security": { "$ref": "#/$defs/nonBlank" }, "confidentiality": { "$ref": "#/$defs/nonBlank" } }
+    },
+    "protocol": { "$ref": "#/$defs/draftArtifactVersion" },
+    "dataset": { "$ref": "#/$defs/draftDatasetReference" },
+    "reproducibility": { "$ref": "#/$defs/draftReproducibility" },
+    "resultReferences": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/artifactReference" } },
+    "invalidation": { "$ref": "#/$defs/invalidation" },
+    "supersession": { "$ref": "#/$defs/supersession" },
+    "relatedArtifacts": { "type": "array", "items": { "$ref": "#/$defs/artifactReference" } },
+    "changeHistory": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/changeHistoryRecord" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "enum": ["READY", "RUNNING", "COMPLETED"] } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "hypothesis": { "properties": { "frozen": { "const": true } }, "required": ["frozenAt", "freezeReference"] },
+          "protocol": { "$ref": "#/$defs/frozenArtifactVersion" },
+          "dataset": { "$ref": "#/$defs/datasetReference" },
+          "criteria": { "properties": { "supported": { "minItems": 1 }, "notSupported": { "minItems": 1 }, "inconclusive": { "minItems": 1 } } },
+          "requiredEvidence": { "minItems": 1 },
+          "reproducibility": { "$ref": "#/$defs/reproducibility" }
+        }
+      }
+    },
+    { "if": { "properties": { "status": { "const": "COMPLETED" } }, "required": ["status"] }, "then": { "required": ["resultReferences"] } },
+    { "if": { "properties": { "status": { "const": "INVALIDATED" } }, "required": ["status"] }, "then": { "required": ["invalidation"] } },
+    { "if": { "properties": { "status": { "const": "SUPERSEDED" } }, "required": ["status"] }, "then": { "required": ["supersession"] } }
+  ],
+  "$defs": {
+    "nonBlank": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" },
+    "semanticVersion": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$" },
+    "isoDate": { "type": "string", "format": "date", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "isoTimestamp": { "type": "string", "format": "date-time", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*(?:Z|[+-][0-9]{2}:[0-9]{2})$" },
+    "experimentId": { "type": "string", "pattern": "^EXP-[0-9]{4}$" },
+    "epicId": { "type": "string", "pattern": "^EP-[0-9]{4}$" },
+    "repositoryStatus": { "enum": ["DRAFT", "READY", "RUNNING", "COMPLETED", "INVALIDATED", "SUPERSEDED"] },
+    "experimentOutcome": { "enum": ["SUPPORTED", "NOT_SUPPORTED", "INCONCLUSIVE"] },
+    "identifier": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]{0,119}$" },
+    "criterionId": { "type": "string", "pattern": "^CRIT-[0-9]{3,4}$" },
+    "personOrRole": {
+      "type": "object", "additionalProperties": false, "required": ["displayName", "role"],
+      "properties": { "displayName": { "$ref": "#/$defs/nonBlank" }, "role": { "$ref": "#/$defs/nonBlank" }, "contact": { "type": "string", "format": "uri-reference" } }
+    },
+    "checksum": {
+      "type": "object", "additionalProperties": false, "required": ["algorithm", "value"],
+      "properties": { "algorithm": { "enum": ["SHA-256", "SHA-384", "SHA-512"] }, "value": { "type": "string", "pattern": "^[A-Fa-f0-9]{64,128}$" } },
+      "allOf": [
+        { "if": { "properties": { "algorithm": { "const": "SHA-256" } } }, "then": { "properties": { "value": { "minLength": 64, "maxLength": 64 } } } },
+        { "if": { "properties": { "algorithm": { "const": "SHA-384" } } }, "then": { "properties": { "value": { "minLength": 96, "maxLength": 96 } } } },
+        { "if": { "properties": { "algorithm": { "const": "SHA-512" } } }, "then": { "properties": { "value": { "minLength": 128, "maxLength": 128 } } } }
+      ]
+    },
+    "artifactReference": {
+      "type": "object", "additionalProperties": false, "required": ["id", "locator"],
+      "properties": { "id": { "$ref": "#/$defs/identifier" }, "locator": { "type": "string", "format": "uri-reference" }, "checksum": { "$ref": "#/$defs/checksum" }, "description": { "$ref": "#/$defs/nonBlank" } }
+    },
+    "nonEmptyStrings": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/nonBlank" } },
+    "variable": {
+      "type": "object", "additionalProperties": false, "required": ["name", "definition", "measurementOrControl"],
+      "properties": { "name": { "$ref": "#/$defs/nonBlank" }, "definition": { "$ref": "#/$defs/nonBlank" }, "measurementOrControl": { "$ref": "#/$defs/nonBlank" } }
+    },
+    "assumption": {
+      "type": "object", "additionalProperties": false, "required": ["id", "statement", "violationDetection"],
+      "properties": { "id": { "$ref": "#/$defs/identifier" }, "statement": { "$ref": "#/$defs/nonBlank" }, "violationDetection": { "$ref": "#/$defs/nonBlank" } }
+    },
+    "evidenceRequirement": {
+      "type": "object", "additionalProperties": false, "required": ["id", "description", "collectionMethod", "retention"],
+      "properties": { "id": { "$ref": "#/$defs/identifier" }, "description": { "$ref": "#/$defs/nonBlank" }, "collectionMethod": { "$ref": "#/$defs/nonBlank" }, "retention": { "$ref": "#/$defs/nonBlank" } }
+    },
+    "comparison": {
+      "type": "object", "additionalProperties": false, "required": ["operator"],
+      "properties": { "operator": { "enum": ["EQ", "NE", "GT", "GTE", "LT", "LTE", "IN", "NOT_IN", "EXISTS", "NOT_EXISTS"] }, "threshold": {}, "expectedValue": {} },
+      "allOf": [{ "if": { "properties": { "operator": { "enum": ["EQ", "NE", "GT", "GTE", "LT", "LTE", "IN", "NOT_IN"] } } }, "then": { "anyOf": [{ "required": ["threshold"] }, { "required": ["expectedValue"] }] } }]
+    },
+    "criterion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "description", "requiredEvidenceIds", "metricRefs", "assessmentMode", "required", "rationale"],
+      "properties": {
+        "id": { "$ref": "#/$defs/criterionId" }, "description": { "$ref": "#/$defs/nonBlank" },
+        "requiredEvidenceIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/identifier" } },
+        "metricRefs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/identifier" } },
+        "assessmentMode": { "enum": ["AUTOMATED", "REVIEWER"] }, "comparison": { "$ref": "#/$defs/comparison" },
+        "reviewProcedure": { "$ref": "#/$defs/nonBlank" }, "required": { "type": "boolean" }, "rationale": { "$ref": "#/$defs/nonBlank" }
+      },
+      "allOf": [
+        { "if": { "properties": { "assessmentMode": { "const": "AUTOMATED" } }, "required": ["assessmentMode"] }, "then": { "required": ["comparison"] } },
+        { "if": { "properties": { "assessmentMode": { "const": "REVIEWER" } }, "required": ["assessmentMode"] }, "then": { "required": ["reviewProcedure"] } }
+      ]
+    },
+    "metricDefinition": {
+      "type": "object", "additionalProperties": false, "required": ["id", "name", "formula", "unit", "precision", "tolerance"],
+      "properties": { "id": { "$ref": "#/$defs/identifier" }, "name": { "$ref": "#/$defs/nonBlank" }, "formula": { "$ref": "#/$defs/nonBlank" }, "unit": { "$ref": "#/$defs/nonBlank" }, "precision": { "$ref": "#/$defs/nonBlank" }, "tolerance": { "$ref": "#/$defs/nonBlank" } }
+    },
+    "threatToValidity": {
+      "type": "object", "additionalProperties": false, "required": ["id", "category", "description", "mitigation", "residualRisk"],
+      "properties": { "id": { "$ref": "#/$defs/identifier" }, "category": { "enum": ["INTERNAL", "EXTERNAL", "CONSTRUCT", "CONCLUSION"] }, "description": { "$ref": "#/$defs/nonBlank" }, "mitigation": { "$ref": "#/$defs/nonBlank" }, "residualRisk": { "$ref": "#/$defs/nonBlank" } }
+    },
+    "draftArtifactVersion": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "version": { "$ref": "#/$defs/semanticVersion" }, "locator": { "type": "string", "format": "uri-reference" }, "checksum": { "$ref": "#/$defs/checksum" } }
+    },
+    "frozenArtifactVersion": {
+      "type": "object", "additionalProperties": false, "required": ["version", "locator", "checksum"],
+      "properties": { "version": { "$ref": "#/$defs/semanticVersion" }, "locator": { "type": "string", "format": "uri-reference" }, "checksum": { "$ref": "#/$defs/checksum" } }
+    },
+    "draftDatasetReference": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "datasetId": { "$ref": "#/$defs/identifier" }, "version": { "$ref": "#/$defs/semanticVersion" }, "locator": { "type": "string", "format": "uri-reference" }, "integrityReference": { "$ref": "#/$defs/artifactReference" } }
+    },
+    "datasetReference": {
+      "type": "object", "additionalProperties": false, "required": ["datasetId", "version", "locator", "integrityReference"],
+      "properties": { "datasetId": { "$ref": "#/$defs/identifier" }, "version": { "$ref": "#/$defs/semanticVersion" }, "locator": { "type": "string", "format": "uri-reference" }, "integrityReference": { "$ref": "#/$defs/artifactReference" } }
+    },
+    "repositoryState": {
+      "type": "object", "additionalProperties": false, "required": ["commitSha", "branch", "workingTreeState"],
+      "properties": { "commitSha": { "type": "string", "pattern": "^[A-Fa-f0-9]{40}$" }, "branch": { "$ref": "#/$defs/nonBlank" }, "workingTreeState": { "enum": ["CLEAN", "DIRTY"] }, "dirtyDetails": { "$ref": "#/$defs/nonBlank" }, "remote": { "type": "string", "format": "uri-reference" } },
+      "allOf": [{ "if": { "properties": { "workingTreeState": { "const": "DIRTY" } }, "required": ["workingTreeState"] }, "then": { "required": ["dirtyDetails"] } }]
+    },
+    "softwareComponent": {
+      "type": "object", "additionalProperties": false, "required": ["name", "version"],
+      "properties": { "name": { "$ref": "#/$defs/nonBlank" }, "version": { "$ref": "#/$defs/nonBlank" }, "verification": { "$ref": "#/$defs/nonBlank" } }
+    },
+    "environment": {
+      "type": "object", "additionalProperties": false, "required": ["operatingSystem", "architecture", "java"],
+      "properties": { "operatingSystem": { "$ref": "#/$defs/softwareComponent" }, "architecture": { "$ref": "#/$defs/nonBlank" }, "java": { "$ref": "#/$defs/softwareComponent" }, "hardware": { "$ref": "#/$defs/nonBlank" } }
+    },
+    "promptReference": {
+      "type": "object", "additionalProperties": false, "required": ["locator", "checksum"],
+      "properties": { "locator": { "type": "string", "format": "uri-reference" }, "checksum": { "$ref": "#/$defs/checksum" } }
+    },
+    "externalService": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["type", "name", "version", "availabilityStrategy"],
+          "properties": { "type": { "const": "OTHER" }, "name": { "$ref": "#/$defs/nonBlank" }, "version": { "$ref": "#/$defs/nonBlank" }, "availabilityStrategy": { "$ref": "#/$defs/nonBlank" } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["type", "name", "version", "availabilityStrategy", "provider", "model", "systemPrompt", "userPrompt", "temperature", "topP", "maxOutputTokens", "tools", "responseFormat", "retries", "knownProviderSettings"],
+          "properties": {
+            "type": { "const": "LLM" }, "name": { "$ref": "#/$defs/nonBlank" }, "version": { "$ref": "#/$defs/nonBlank" }, "availabilityStrategy": { "$ref": "#/$defs/nonBlank" },
+            "provider": { "$ref": "#/$defs/nonBlank" }, "model": { "$ref": "#/$defs/nonBlank" }, "modelVersion": { "$ref": "#/$defs/nonBlank" },
+            "systemPrompt": { "$ref": "#/$defs/promptReference" }, "userPrompt": { "$ref": "#/$defs/promptReference" },
+            "temperature": { "type": "number", "minimum": 0 }, "topP": { "type": "number", "minimum": 0, "maximum": 1 }, "seed": { "type": "integer" },
+            "maxOutputTokens": { "type": "integer", "minimum": 1 }, "tools": { "type": "object" }, "responseFormat": { "$ref": "#/$defs/nonBlank" },
+            "retries": { "type": "integer", "minimum": 0 }, "knownProviderSettings": { "type": "object" }
+          }
+        }
+      ]
+    },
+    "artifactPolicy": {
+      "type": "object", "additionalProperties": false, "required": ["format", "location", "retention", "accessControl", "checksumAlgorithm"],
+      "properties": { "format": { "$ref": "#/$defs/nonBlank" }, "location": { "type": "string", "format": "uri-reference" }, "retention": { "$ref": "#/$defs/nonBlank" }, "accessControl": { "$ref": "#/$defs/nonBlank" }, "checksumAlgorithm": { "enum": ["SHA-256", "SHA-384", "SHA-512"] } }
+    },
+    "draftReproducibility": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "repository": { "$ref": "#/$defs/repositoryState" }, "environment": { "$ref": "#/$defs/environment" },
+        "dependencies": { "type": "array", "items": { "$ref": "#/$defs/softwareComponent" } },
+        "locale": { "$ref": "#/$defs/nonBlank" }, "timezone": { "$ref": "#/$defs/nonBlank" }, "deterministicOrdering": { "$ref": "#/$defs/nonBlank" },
+        "randomness": {
+          "oneOf": [
+            { "type": "object", "additionalProperties": false, "required": ["used", "absenceReason"], "properties": { "used": { "const": false }, "absenceReason": { "$ref": "#/$defs/nonBlank" } } },
+            { "type": "object", "additionalProperties": false, "required": ["used", "seeds", "algorithm"], "properties": { "used": { "const": true }, "seeds": { "type": "array", "minItems": 1, "items": { "type": "integer" } }, "algorithm": { "$ref": "#/$defs/nonBlank" } } }
+          ]
+        },
+        "externalServices": { "type": "array", "items": { "$ref": "#/$defs/externalService" } }, "executionCommand": { "$ref": "#/$defs/nonBlank" },
+        "repeatCount": { "type": "integer", "minimum": 1 }, "timeouts": { "$ref": "#/$defs/nonBlank" }, "retryPolicy": { "$ref": "#/$defs/nonBlank" },
+        "secretsHandling": { "$ref": "#/$defs/nonBlank" }, "rawArtifactPolicy": { "$ref": "#/$defs/artifactPolicy" },
+        "generatedReportPolicy": { "$ref": "#/$defs/artifactPolicy" }, "metricTolerancePolicy": { "$ref": "#/$defs/nonBlank" }
+      }
+    },
+    "reproducibility": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repository", "environment", "dependencies", "locale", "timezone", "deterministicOrdering", "randomness", "externalServices", "executionCommand", "repeatCount", "timeouts", "retryPolicy", "secretsHandling", "rawArtifactPolicy", "generatedReportPolicy", "metricTolerancePolicy"],
+      "properties": {
+        "repository": { "$ref": "#/$defs/repositoryState" }, "environment": { "$ref": "#/$defs/environment" },
+        "dependencies": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/softwareComponent" } },
+        "locale": { "$ref": "#/$defs/nonBlank" }, "timezone": { "$ref": "#/$defs/nonBlank" }, "deterministicOrdering": { "$ref": "#/$defs/nonBlank" },
+        "randomness": {
+          "oneOf": [
+            { "type": "object", "additionalProperties": false, "required": ["used", "absenceReason"], "properties": { "used": { "const": false }, "absenceReason": { "$ref": "#/$defs/nonBlank" } } },
+            { "type": "object", "additionalProperties": false, "required": ["used", "seeds", "algorithm"], "properties": { "used": { "const": true }, "seeds": { "type": "array", "minItems": 1, "items": { "type": "integer" } }, "algorithm": { "$ref": "#/$defs/nonBlank" } } }
+          ]
+        },
+        "externalServices": { "type": "array", "items": { "$ref": "#/$defs/externalService" } }, "executionCommand": { "$ref": "#/$defs/nonBlank" },
+        "repeatCount": { "type": "integer", "minimum": 1 }, "timeouts": { "$ref": "#/$defs/nonBlank" }, "retryPolicy": { "$ref": "#/$defs/nonBlank" },
+        "secretsHandling": { "$ref": "#/$defs/nonBlank" }, "rawArtifactPolicy": { "$ref": "#/$defs/artifactPolicy" },
+        "generatedReportPolicy": { "$ref": "#/$defs/artifactPolicy" }, "metricTolerancePolicy": { "$ref": "#/$defs/nonBlank" }
+      }
+    },
+    "invalidation": {
+      "type": "object", "additionalProperties": false, "required": ["reason", "decidedBy", "decidedAt", "affectedConclusions"],
+      "properties": { "reason": { "$ref": "#/$defs/nonBlank" }, "decidedBy": { "$ref": "#/$defs/personOrRole" }, "decidedAt": { "$ref": "#/$defs/isoTimestamp" }, "affectedConclusions": { "$ref": "#/$defs/nonEmptyStrings" }, "successorExperimentId": { "$ref": "#/$defs/experimentId" } }
+    },
+    "supersession": {
+      "type": "object", "additionalProperties": false, "required": ["reason", "supersededBy", "decidedBy", "decidedAt"],
+      "properties": { "reason": { "$ref": "#/$defs/nonBlank" }, "supersededBy": { "$ref": "#/$defs/experimentId" }, "decidedBy": { "$ref": "#/$defs/personOrRole" }, "decidedAt": { "$ref": "#/$defs/isoTimestamp" } }
+    },
+    "reviewRecord": {
+      "type": "object", "additionalProperties": false, "required": ["reviewer", "decidedAt", "decision", "rationale"],
+      "properties": { "reviewer": { "$ref": "#/$defs/personOrRole" }, "decidedAt": { "$ref": "#/$defs/isoTimestamp" }, "decision": { "enum": ["APPROVED", "CHANGES_REQUESTED", "REJECTED"] }, "rationale": { "$ref": "#/$defs/nonBlank" } }
+    },
+    "changeHistoryRecord": {
+      "type": "object", "additionalProperties": false, "required": ["date", "version", "author", "change", "freezeImpact"],
+      "properties": { "date": { "$ref": "#/$defs/isoDate" }, "version": { "$ref": "#/$defs/semanticVersion" }, "author": { "$ref": "#/$defs/personOrRole" }, "change": { "$ref": "#/$defs/nonBlank" }, "freezeImpact": { "$ref": "#/$defs/nonBlank" } }
+    }
+  }
+}

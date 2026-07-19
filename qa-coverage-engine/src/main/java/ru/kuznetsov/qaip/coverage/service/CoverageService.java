@@ -8,6 +8,7 @@ import ru.kuznetsov.qaip.coverage.analyzer.RuleCoverageAnalyzer;
 import ru.kuznetsov.qaip.coverage.analyzer.ScenarioCoverageAnalyzer;
 import ru.kuznetsov.qaip.coverage.model.CoverageAnalysisResult;
 import ru.kuznetsov.qaip.coverage.model.CoverageMetric;
+import ru.kuznetsov.qaip.coverage.model.CoverageMetricCode;
 import ru.kuznetsov.qaip.coverage.model.CoverageProblem;
 import ru.kuznetsov.qaip.coverage.model.CoverageReport;
 import ru.kuznetsov.qaip.coverage.model.CoverageSummary;
@@ -120,7 +121,7 @@ public class CoverageService {
 
     private CoverageMetric findMetric(
             List<CoverageMetric> metrics,
-            String code
+            CoverageMetricCode code
     ) {
         return metrics.stream()
                 .filter(metric -> code.equals(metric.code()))

@@ -1,0 +1,17 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'Deterministic actionable findings for validated QA models'
+
+dependencies {
+    api(project(':qa-coverage-engine')) {
+        transitive = false
+    }
+    api project(':qa-model-validation-core')
+    api 'com.fasterxml.jackson.core:jackson-databind:2.19.2'
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.mockito:mockito-core:5.14.2'
+}

@@ -13,4 +13,5 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    systemProperty 'qaip.repositoryRoot', rootProject.projectDir.absolutePath
 }

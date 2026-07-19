@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "0.1",
+  "experimentId": "EXP-0001",
+  "title": "Illustrative Unified Analysis determinism calibration",
+  "version": "1.0.0",
+  "status": "READY",
+  "owner": { "displayName": "QAIP research owner", "role": "Owner" },
+  "dates": { "created": "2026-07-19", "lastUpdated": "2026-07-19" },
+  "related": { "epicId": "EP-0001", "release": "QAIP 0.7", "relatedExperimentIds": [] },
+  "researchQuestion": "Does repeated Unified Analysis of the same frozen input produce structurally identical findings and metrics under a controlled deterministic environment?",
+  "hypothesis": {
+    "statement": "Ten repeated Unified Analysis executions produce structurally identical ordered findings and metrics for the same frozen input and environment.",
+    "nullHypothesis": "At least one of ten repeated Unified Analysis executions differs in ordered findings or metrics.",
+    "rationale": "Deterministic ordering is expected to make identical controlled executions structurally repeatable; this record is illustrative and not evidence of execution.",
+    "frozen": true,
+    "frozenAt": "2026-07-19T12:00:00+03:00",
+    "freezeReference": { "id": "FREEZE-01", "locator": "git:experiments/EXP-0001@1111111111111111111111111111111111111111", "checksum": { "algorithm": "SHA-256", "value": "1111111111111111111111111111111111111111111111111111111111111111" } }
+  },
+  "motivation": "Calibrate reproducible execution records against the QAIP 0.6 RC1 unified-analysis pipeline.",
+  "scope": { "included": ["Validation and Coverage findings and metrics from Unified Analysis"], "excluded": ["Runtime performance", "Scientific validity of coverage metrics", "Other environments"] },
+  "variables": {
+    "independent": [{ "name": "Execution repetition", "definition": "Invocation number from one through ten", "measurementOrControl": "Exactly ten sequential invocations" }],
+    "dependent": [{ "name": "Structural output identity", "definition": "Exact equality of normalized ordered findings and metrics", "measurementOrControl": "SHA-256 of canonical JSON output" }],
+    "controlled": [{ "name": "Input and implementation", "definition": "Frozen QA Model input and repository commit", "measurementOrControl": "Verify checksums before every run" }]
+  },
+  "assumptions": [{ "id": "ASSUMPTION-01", "statement": "Canonical serialization removes irrelevant formatting differences.", "violationDetection": "A semantic-equivalence review identifies a formatting-only digest difference." }],
+  "requiredEvidence": [
+    { "id": "EVIDENCE-OUTPUTS", "description": "Canonical output and checksum for every repetition", "collectionMethod": "Preserve each output before comparison", "retention": "Commit small illustrative outputs or retain in the controlled artifact store for one year" },
+    { "id": "EVIDENCE-LOGS", "description": "Command, exit code, stdout, and stderr for every repetition", "collectionMethod": "Capture per execution", "retention": "Retain with raw outputs for one year" }
+  ],
+  "criteria": {
+    "supported": [{ "id": "CRIT-001", "description": "All ten output digests are equal.", "requiredEvidenceIds": ["EVIDENCE-OUTPUTS"], "metricRefs": ["METRIC-UNIQUE-DIGESTS"], "assessmentMode": "AUTOMATED", "comparison": { "operator": "EQ", "expectedValue": 1 }, "required": true, "rationale": "One unique digest represents structural identity across repetitions." }],
+    "notSupported": [{ "id": "CRIT-002", "description": "More than one output digest is observed without a protocol deviation.", "requiredEvidenceIds": ["EVIDENCE-OUTPUTS"], "metricRefs": ["METRIC-UNIQUE-DIGESTS"], "assessmentMode": "AUTOMATED", "comparison": { "operator": "GT", "threshold": 1 }, "required": true, "rationale": "Multiple digests contradict the frozen hypothesis under controlled conditions." }],
+    "inconclusive": [{ "id": "CRIT-003", "description": "Fewer than ten valid outputs are available or a material deviation occurred.", "requiredEvidenceIds": ["EVIDENCE-OUTPUTS", "EVIDENCE-LOGS"], "metricRefs": ["METRIC-VALID-RUNS"], "assessmentMode": "REVIEWER", "reviewProcedure": "Confirm run completeness and assess recorded deviations against the frozen protocol.", "required": true, "rationale": "Incomplete or materially deviating evidence cannot resolve the hypothesis." }]
+  },
+  "metricDefinitions": [
+    { "id": "METRIC-UNIQUE-DIGESTS", "name": "Unique output digests", "formula": "count(distinct SHA-256(canonical output))", "unit": "count", "precision": "integer", "tolerance": "exact" },
+    { "id": "METRIC-VALID-RUNS", "name": "Valid completed runs", "formula": "count(runs with exit code 0 and complete output)", "unit": "count", "precision": "integer", "tolerance": "exact" }
+  ],
+  "threatsToValidity": [{ "id": "THREAT-01", "category": "CONSTRUCT", "description": "Canonicalization may omit meaningful output fields.", "mitigation": "Review the canonicalization field list before freeze.", "residualRisk": "Unmodeled semantic differences remain outside the conclusion." }],
+  "considerations": { "ethical": "No human subjects are involved.", "security": "Inputs and logs are checked for secrets before retention.", "confidentiality": "Only repository-owned frozen test data is used." },
+  "protocol": { "version": "1.0.0", "locator": "experiments/EXP-0001/protocol.md", "checksum": { "algorithm": "SHA-256", "value": "2222222222222222222222222222222222222222222222222222222222222222" } },
+  "dataset": { "datasetId": "QAIP-DETERMINISM-CALIBRATION", "version": "1.0.0", "locator": "experiments/EXP-0001/dataset.md", "integrityReference": { "id": "DATASET-MANIFEST", "locator": "experiments/EXP-0001/inputs/SHA256SUMS", "checksum": { "algorithm": "SHA-256", "value": "3333333333333333333333333333333333333333333333333333333333333333" } } },
+  "reproducibility": {
+    "repository": { "commitSha": "1111111111111111111111111111111111111111", "branch": "feature/qaip-0.7-ep-0001", "workingTreeState": "CLEAN", "remote": "https://example.invalid/qaip.git" },
+    "environment": { "operatingSystem": { "name": "Windows", "version": "11" }, "architecture": "x86_64", "java": { "name": "Eclipse Temurin", "version": "21.0.7" }, "hardware": "Controlled CI worker class" },
+    "dependencies": [{ "name": "Gradle Wrapper", "version": "8.14.3", "verification": "gradlew.bat --version" }],
+    "locale": "en-US / UTF-8", "timezone": "Europe/Moscow; synchronized clock", "deterministicOrdering": "Preserve engine order and documented finding tie-breakers.",
+    "randomness": { "used": false, "absenceReason": "The pipeline and comparison use no randomized operation." },
+    "externalServices": [], "executionCommand": ".\\gradlew.bat :qaip-analysis:test --tests *IllustrativeExperiment*", "repeatCount": 10,
+    "timeouts": "Five minutes per repetition; a timeout is a failed run.", "retryPolicy": "No replacement of failed runs; one diagnostic retry is retained separately.",
+    "secretsHandling": "No secrets are required; scan retained logs before publication.",
+    "rawArtifactPolicy": { "format": "JSON and UTF-8 text", "location": "experiments/EXP-0001/results/", "retention": "One year", "accessControl": "Repository or project artifact-store readers", "checksumAlgorithm": "SHA-256" },
+    "generatedReportPolicy": { "format": "JSON and Markdown", "location": "experiments/EXP-0001/results/", "retention": "One year", "accessControl": "Repository readers", "checksumAlgorithm": "SHA-256" },
+    "metricTolerancePolicy": "All count and digest comparisons are exact."
+  },
+  "relatedArtifacts": [{ "id": "QAIP-PIPELINE", "locator": "qaip-analysis/src/main/java/ru/kuznetsov/qaip/analysis/config/UnifiedAnalysisFactory.java", "description": "Unified Analysis composition root" }],
+  "changeHistory": [{ "date": "2026-07-19", "version": "1.0.0", "author": { "displayName": "QAIP research owner", "role": "Owner" }, "change": "Illustrative contract frozen for schema validation.", "freezeImpact": "Initial freeze; no execution is claimed." }]
+}

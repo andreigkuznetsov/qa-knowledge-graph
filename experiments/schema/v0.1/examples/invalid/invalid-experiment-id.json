@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "0.1",
+  "experimentId": "EP-0001",
+  "title": "Illustrative Unified Analysis determinism calibration",
+  "version": "0.1.0",
+  "status": "DRAFT",
+  "owner": {
+    "displayName": "QAIP research owner",
+    "role": "Owner"
+  },
+  "dates": {
+    "created": "2026-07-19",
+    "lastUpdated": "2026-07-19"
+  },
+  "related": {
+    "epicId": "EP-0001",
+    "release": "QAIP 0.7",
+    "relatedExperimentIds": []
+  },
+  "researchQuestion": "Does repeated Unified Analysis of the same frozen input produce structurally identical findings and metrics under a controlled deterministic environment?",
+  "hypothesis": {
+    "statement": "Repeated Unified Analysis produces structurally identical findings and metrics for the same frozen input and environment.",
+    "nullHypothesis": "At least one repeated Unified Analysis result differs structurally under the same frozen input and environment.",
+    "rationale": "The current analysis pipeline defines deterministic finding ordering, but this illustrative experiment has not been executed.",
+    "frozen": false
+  },
+  "motivation": "Calibrate the experiment contract using an existing QAIP analysis capability without claiming a completed experiment.",
+  "scope": {
+    "included": [
+      "Unified Analysis Validation and Coverage outputs"
+    ],
+    "excluded": [
+      "Performance and scientific validity of coverage metrics"
+    ]
+  },
+  "variables": {
+    "independent": [
+      {
+        "name": "Execution repetition",
+        "definition": "Repeated invocation number",
+        "measurementOrControl": "Enumerated from 1 to the planned repeat count"
+      }
+    ],
+    "dependent": [
+      {
+        "name": "Structural output identity",
+        "definition": "Equality of normalized findings and metrics",
+        "measurementOrControl": "Comparison method remains to be frozen"
+      }
+    ],
+    "controlled": [
+      {
+        "name": "Input model",
+        "definition": "One frozen QA Model document",
+        "measurementOrControl": "Dataset reference will be frozen before READY"
+      }
+    ]
+  },
+  "assumptions": [
+    {
+      "id": "ASSUMPTION-01",
+      "statement": "The analysis input can be frozen.",
+      "violationDetection": "Input checksum changes between repetitions."
+    }
+  ],
+  "requiredEvidence": [],
+  "criteria": {
+    "supported": [],
+    "notSupported": [],
+    "inconclusive": []
+  },
+  "threatsToValidity": [
+    {
+      "id": "THREAT-01",
+      "category": "CONSTRUCT",
+      "description": "Structural identity may not imply semantic equivalence.",
+      "mitigation": "Limit the conclusion to structural identity.",
+      "residualRisk": "Normalization may hide relevant differences."
+    }
+  ],
+  "considerations": {
+    "ethical": "No human subjects are planned.",
+    "security": "No secrets may be included in inputs or artifacts.",
+    "confidentiality": "Only repository-owned illustrative data is planned."
+  },
+  "protocol": {},
+  "dataset": {},
+  "reproducibility": {},
+  "relatedArtifacts": [],
+  "changeHistory": [
+    {
+      "date": "2026-07-19",
+      "version": "0.1.0",
+      "author": {
+        "displayName": "QAIP research owner",
+        "role": "Owner"
+      },
+      "change": "Created illustrative draft.",
+      "freezeImpact": "No frozen contract."
+    }
+  ]
+}
