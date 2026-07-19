@@ -14,6 +14,8 @@ import ru.kuznetsov.qaip.findings.model.FindingsReport;
 import ru.kuznetsov.qaip.findings.model.FindingsSummary;
 import ru.kuznetsov.qaip.impact.mapping.RemediationImpactCatalog;
 import ru.kuznetsov.qaip.impact.model.ImpactChangeType;
+import ru.kuznetsov.qaip.impact.model.ImpactReport;
+import ru.kuznetsov.qaip.impact.model.ImpactSummary;
 import ru.kuznetsov.qaip.impact.model.RelationEndpointRole;
 import ru.kuznetsov.qaip.impact.model.ResolutionExpectation;
 import ru.kuznetsov.qaip.impact.model.TaskImpact;
@@ -320,21 +322,8 @@ class ImpactAnalyzerTest {
     }
 
     @Test
-    void inconsistentHeadersSummariesAndTaskSemanticsShouldFail() {
+    void inconsistentRoadmapSummaryAndTaskSemanticsShouldFail() {
         RoadmapReport roadmap = roadmap(List.of(supportedTasks().getFirst()));
-        ExecutionPlan wrongSchema = new ExecutionPlan(
-                true,
-                "9.9",
-                new ExecutionPlanSummary(0, 0, 0, 0, 0),
-                List.of(),
-                roadmap.summary()
-        );
-        assertFailure(
-                ImpactAnalysisErrorCode.INCONSISTENT_INPUT,
-                "schema versions",
-                () -> analyzer.analyze(roadmap, wrongSchema)
-        );
-
         RoadmapReport wrongRoadmapSummary = new RoadmapReport(
                 true,
                 "0.1",
@@ -349,19 +338,6 @@ class ImpactAnalyzerTest {
                         wrongRoadmapSummary,
                         plan(wrongRoadmapSummary, List.of())
                 )
-        );
-
-        ExecutionPlan wrongPlanSummary = new ExecutionPlan(
-                true,
-                "0.1",
-                new ExecutionPlanSummary(99, 99, 99, 99, 99),
-                List.of(new ExecutionWave(1, List.of("TASK-TEST"))),
-                roadmap.summary()
-        );
-        assertFailure(
-                ImpactAnalysisErrorCode.INCONSISTENT_INPUT,
-                "Execution plan summary",
-                () -> analyzer.analyze(roadmap, wrongPlanSummary)
         );
 
         RemediationTask wrongFinding = task(
@@ -386,6 +362,42 @@ class ImpactAnalyzerTest {
     }
 
     @Test
+    void differentRoadmapAndExecutionSchemaVersionsShouldBeCompatible() {
+        RoadmapReport roadmap = roadmap(List.of(supportedTasks().getFirst()));
+        ExecutionPlan executionPlan = new ExecutionPlan(
+                true,
+                "execution-plan-2.0",
+                new ExecutionPlanSummary(1, 1, 0, 1, 1),
+                List.of(new ExecutionWave(1, List.of("TASK-TEST"))),
+                roadmap.summary()
+        );
+
+        var report = analyzer.analyze(roadmap, executionPlan);
+
+        assertTrue(report.analyzed());
+        assertEquals("0.1", report.schemaVersion());
+        assertEquals(List.of("TASK-TEST"), report.taskImpacts().stream()
+                .map(TaskImpact::taskId).toList());
+    }
+
+    @Test
+    void executionPlannerShouldRemainOwnerOfSummarySemantics() {
+        RoadmapReport roadmap = roadmap(List.of(supportedTasks().getFirst()));
+        ExecutionPlan executionPlan = new ExecutionPlan(
+                true,
+                "0.1",
+                new ExecutionPlanSummary(99, 98, 42, 97, 96),
+                List.of(new ExecutionWave(1, List.of("TASK-TEST"))),
+                roadmap.summary()
+        );
+
+        var report = analyzer.analyze(roadmap, executionPlan);
+
+        assertEquals(42, report.summary().parallelizableTasks());
+        assertEquals(1, report.summary().totalTasks());
+    }
+
+    @Test
     void nullInputsShouldBeRejectedClearly() {
         NullPointerException roadmap = assertThrows(
                 NullPointerException.class,
@@ -399,6 +411,37 @@ class ImpactAnalyzerTest {
                 () -> analyzer.analyze(validRoadmap, null)
         );
         assertEquals("executionPlan must not be null", plan.getMessage());
+    }
+
+    @Test
+    void nullDomainCollectionsShouldBeRejectedWithExplicitMessages() {
+        TaskImpact impact = analyzeSingle(supportedTasks().getFirst());
+
+        NullPointerException dependencies = assertThrows(
+                NullPointerException.class,
+                () -> new TaskImpact(
+                        impact.taskId(),
+                        impact.taskType(),
+                        impact.targetNodeId(),
+                        impact.sourceFindingCode(),
+                        impact.structuralGap(),
+                        impact.expectedChange(),
+                        impact.executionWave(),
+                        null
+                )
+        );
+        assertEquals("dependsOn must not be null", dependencies.getMessage());
+
+        NullPointerException taskImpacts = assertThrows(
+                NullPointerException.class,
+                () -> new ImpactReport(
+                        true,
+                        "0.1",
+                        new ImpactSummary(0, 0, 0, 0, 0, 0, 0, 0),
+                        null
+                )
+        );
+        assertEquals("taskImpacts must not be null", taskImpacts.getMessage());
     }
 
     @Test

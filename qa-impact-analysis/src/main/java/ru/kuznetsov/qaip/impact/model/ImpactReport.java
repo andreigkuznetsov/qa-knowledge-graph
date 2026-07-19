@@ -13,6 +13,8 @@ public record ImpactReport(
         Objects.requireNonNull(schemaVersion,
                 "schemaVersion must not be null");
         Objects.requireNonNull(summary, "summary must not be null");
+        Objects.requireNonNull(taskImpacts,
+                "taskImpacts must not be null");
         taskImpacts = List.copyOf(taskImpacts);
     }
 }

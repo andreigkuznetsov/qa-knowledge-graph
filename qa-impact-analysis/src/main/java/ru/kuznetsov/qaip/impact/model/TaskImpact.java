@@ -26,6 +26,7 @@ public record TaskImpact(
                 "structuralGap must not be null");
         Objects.requireNonNull(expectedChange,
                 "expectedChange must not be null");
+        Objects.requireNonNull(dependsOn, "dependsOn must not be null");
         dependsOn = List.copyOf(dependsOn);
     }
 }

@@ -2,7 +2,6 @@ package ru.kuznetsov.qaip.impact.service;
 
 import ru.kuznetsov.qagraph.model.NodeType;
 import ru.kuznetsov.qaip.execution.model.ExecutionPlan;
-import ru.kuznetsov.qaip.execution.model.ExecutionPlanSummary;
 import ru.kuznetsov.qaip.execution.model.ExecutionWave;
 import ru.kuznetsov.qaip.impact.mapping.RemediationImpactCatalog;
 import ru.kuznetsov.qaip.impact.mapping.RemediationImpactDefinition;
@@ -38,7 +37,6 @@ public class ImpactAnalyzer {
         validateReportHeaders(roadmapReport, executionPlan);
         Map<String, RemediationTask> tasks = indexTasks(roadmapReport);
         validateRoadmapSummary(roadmapReport, tasks.values());
-        validateExecutionSummary(executionPlan);
 
         List<TaskImpact> impacts = new ArrayList<>();
         Set<String> assignedTaskIds = new HashSet<>();
@@ -131,12 +129,6 @@ public class ImpactAnalyzer {
                     "Roadmap and execution plan must both be planned"
             );
         }
-        if (!roadmap.schemaVersion().equals(plan.schemaVersion())) {
-            throw failure(
-                    ImpactAnalysisErrorCode.INCONSISTENT_INPUT,
-                    "Roadmap and execution plan schema versions differ"
-            );
-        }
         if (!roadmap.summary().equals(plan.sourceRoadmapSummary())) {
             throw failure(
                     ImpactAnalysisErrorCode.INCONSISTENT_INPUT,
@@ -188,37 +180,6 @@ public class ImpactAnalyzer {
             throw failure(
                     ImpactAnalysisErrorCode.INCONSISTENT_INPUT,
                     "Roadmap summary does not match roadmap tasks"
-            );
-        }
-    }
-
-    private void validateExecutionSummary(ExecutionPlan plan) {
-        int totalTasks = 0;
-        int parallelizable = 0;
-        int sequential = 0;
-        int maximumParallelism = 0;
-        for (ExecutionWave wave : plan.waves()) {
-            Objects.requireNonNull(wave, "execution wave must not be null");
-            int size = wave.taskIds().size();
-            totalTasks += size;
-            if (size > 1) {
-                parallelizable += size;
-            } else if (size == 1) {
-                sequential++;
-            }
-            maximumParallelism = Math.max(maximumParallelism, size);
-        }
-        ExecutionPlanSummary actual = new ExecutionPlanSummary(
-                totalTasks,
-                plan.waves().size(),
-                parallelizable,
-                sequential,
-                maximumParallelism
-        );
-        if (!actual.equals(plan.summary())) {
-            throw failure(
-                    ImpactAnalysisErrorCode.INCONSISTENT_INPUT,
-                    "Execution plan summary does not match execution waves"
             );
         }
     }
