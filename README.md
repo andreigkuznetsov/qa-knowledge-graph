@@ -233,6 +233,32 @@ The endpoint does not execute or persist plans or tasks. It has no progress
 state, priority or effort estimation, and uses no LLM. Execution Plan is not
 included in Assessment, and the existing Roadmap response remains unchanged.
 
+## MVP 0.8 — Deterministic Remediation Impact Analysis
+
+Impact Analysis describes the expected structural effect of planned
+remediation without claiming that remediation has already succeeded:
+
+```text
+Validation → Coverage → Findings → Assessment → Roadmap
+    → Execution Planner → Impact Analysis
+
+RoadmapReport + ExecutionPlan → ImpactAnalyzer → ImpactReport
+```
+
+The current deterministic mappings are:
+
+| Remediation task | Expected structural change |
+| --- | --- |
+| `CREATE_SCENARIO` | Create a `SCENARIO` with `COVERS` targeting the affected `BUSINESS_RULE` |
+| `CREATE_TEST_IMPLEMENTATION` | Create a `TEST_IMPLEMENTATION` with `VALIDATES` targeting the affected `SCENARIO` |
+| `CREATE_CHECK` | Create a `CHECK` targeted by `HAS_CHECK` from the affected `TEST_IMPLEMENTATION` |
+
+Every impact uses the conditional expectation
+`FINDING_EXPECTED_TO_BE_RESOLVED_AFTER_VALID_COMPLETION`. Impact Analysis does
+not simulate model changes, create future node IDs, calculate projected
+coverage improvements, prioritize work, estimate effort, persist reports, or
+use an LLM. MVP 0.8 is a pure Java domain capability and has no REST endpoint.
+
 ## Smoke suite
 
 The smoke suite checks:
