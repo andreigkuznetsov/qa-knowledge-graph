@@ -22,6 +22,9 @@ repositories {
 dependencies {
     implementation project(':qa-model')
     implementation project(':qa-model-validation-core')
+    implementation(project(':qa-coverage-engine')) {
+        transitive = false
+    }
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17'

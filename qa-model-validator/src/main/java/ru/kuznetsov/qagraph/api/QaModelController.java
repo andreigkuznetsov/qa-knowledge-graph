@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ru.kuznetsov.qagraph.registration.ModelDescriptor;
 import ru.kuznetsov.qagraph.service.QaModelRegistrationService;
 import ru.kuznetsov.qagraph.service.QaModelTraceService;
+import ru.kuznetsov.qagraph.service.RegisteredModelCoverageService;
 
 import java.net.URI;
 import java.util.List;
@@ -23,13 +24,16 @@ public class QaModelController {
 
     private final QaModelRegistrationService registrationService;
     private final QaModelTraceService traceService;
+    private final RegisteredModelCoverageService coverageService;
 
     public QaModelController(
             QaModelRegistrationService registrationService,
-            QaModelTraceService traceService
+            QaModelTraceService traceService,
+            RegisteredModelCoverageService coverageService
     ) {
         this.registrationService = registrationService;
         this.traceService = traceService;
+        this.coverageService = coverageService;
     }
 
     @PostMapping(
@@ -85,5 +89,15 @@ public class QaModelController {
                 fromNodeId,
                 toNodeId
         );
+    }
+
+    @GetMapping(
+            value = "/{modelId}/coverage",
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public RegisteredModelCoverageResponse coverage(
+            @PathVariable String modelId
+    ) {
+        return coverageService.analyze(modelId);
     }
 }

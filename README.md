@@ -17,6 +17,8 @@ Pure Java module containing:
 Spring Boot REST service containing:
 
 - `POST /api/v1/qa-model/validate`;
+- registration, retrieval, listing, and tracing of in-memory QA models;
+- `GET /api/v1/models/{modelId}/coverage` for registered-model coverage;
 - JSON Schema Draft 2020-12 validation;
 - semantic graph validation;
 - integration and smoke tests.
@@ -65,6 +67,20 @@ Example request is located at:
 docs/qa-model-v0.1.example.json
 ```
 
+Registered-model coverage is available after `POST /api/v1/models`:
+
+```http
+GET /api/v1/models/{modelId}/coverage
+```
+
+The response reports three structural metrics in stable order:
+`RULE_SCENARIO_COVERAGE`, `SCENARIO_TEST_COVERAGE`, and
+`TEST_CHECK_COVERAGE`. They describe explicit relationships in the model;
+they do not represent test execution status or successful test results. The
+current model does not prove that a particular `CHECK` validates a particular
+`BUSINESS_RULE`. Empty node categories are represented by
+`coveragePercent: 0.0`.
+
 ## Smoke suite
 
 The smoke suite checks:
@@ -78,4 +94,6 @@ The smoke suite checks:
 
 ## Current boundary
 
-The project validates a serialized QA graph but does not persist it yet. Neo4j and importers should be added only after the model and validation rules are stable.
+The project keeps registered QA models in memory. Coverage is calculated on
+demand with the existing coverage engine. No external database or inferred
+graph relationships are used.
