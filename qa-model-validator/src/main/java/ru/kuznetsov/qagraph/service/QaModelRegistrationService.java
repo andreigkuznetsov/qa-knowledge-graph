@@ -3,8 +3,11 @@ package ru.kuznetsov.qagraph.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Service;
 import ru.kuznetsov.qagraph.api.ModelRegistrationResponse;
+import ru.kuznetsov.qagraph.registration.ModelDescriptor;
 import ru.kuznetsov.qagraph.repository.InMemoryQaModelRepository;
 import ru.kuznetsov.qagraph.validationcore.model.QaModelValidationResult;
+
+import java.util.List;
 
 @Service
 public class QaModelRegistrationService {
@@ -28,18 +31,32 @@ public class QaModelRegistrationService {
             throw new InvalidQaModelException(validationResult);
         }
 
-        String modelId = repository.save(model);
+        ModelDescriptor descriptor = repository.save(
+                model,
+                validationResult.summary().warnings()
+        );
 
         return new ModelRegistrationResponse(
-                modelId,
-                model.path("nodes").size(),
-                model.path("relationships").size(),
-                validationResult.summary().warnings()
+                descriptor.modelId(),
+                descriptor.nodeCount(),
+                descriptor.relationshipCount(),
+                descriptor.warningCount()
         );
     }
 
     public JsonNode get(String modelId) {
         return repository.findById(modelId)
+                .orElseThrow(() ->
+                        new QaModelNotFoundException(modelId)
+                );
+    }
+
+    public List<ModelDescriptor> list() {
+        return repository.findAllDescriptors();
+    }
+
+    public ModelDescriptor getInfo(String modelId) {
+        return repository.findDescriptorById(modelId)
                 .orElseThrow(() ->
                         new QaModelNotFoundException(modelId)
                 );

@@ -9,9 +9,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import ru.kuznetsov.qagraph.registration.ModelDescriptor;
 import ru.kuznetsov.qagraph.service.QaModelRegistrationService;
 
 import java.net.URI;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/models")
@@ -47,5 +49,18 @@ public class QaModelController {
     )
     public JsonNode get(@PathVariable String modelId) {
         return registrationService.get(modelId);
+    }
+
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+    public List<ModelDescriptor> list() {
+        return registrationService.list();
+    }
+
+    @GetMapping(
+            value = "/{modelId}/info",
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ModelDescriptor getInfo(@PathVariable String modelId) {
+        return registrationService.getInfo(modelId);
     }
 }

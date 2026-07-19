@@ -4,10 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import ru.kuznetsov.qagraph.repository.InMemoryQaModelRepository;
+import ru.kuznetsov.qagraph.registration.ModelDescriptor;
 import ru.kuznetsov.qagraph.validationcore.model.QaModelValidationResult;
 import ru.kuznetsov.qagraph.validationcore.model.ValidationSummary;
 
 import java.util.List;
+import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -44,6 +46,11 @@ class QaModelRegistrationServiceTest {
         assertEquals(2, response.relationshipCount());
         assertEquals(2, response.warnings());
         assertEquals(model, service.get(response.modelId()));
+        assertEquals(
+                response.modelId(),
+                service.getInfo(response.modelId()).modelId()
+        );
+        assertEquals(1, service.list().size());
     }
 
     @Test
@@ -66,7 +73,54 @@ class QaModelRegistrationServiceTest {
                 InvalidQaModelException.class,
                 () -> service.register(model)
         );
-        verify(repository, never()).save(model);
+        verify(repository, never()).save(model, 0);
+    }
+
+    @Test
+    void shouldDelegateDescriptorQueriesToRepository() {
+        QaModelValidationService validationService =
+                mock(QaModelValidationService.class);
+        InMemoryQaModelRepository repository =
+                mock(InMemoryQaModelRepository.class);
+        QaModelRegistrationService service =
+                new QaModelRegistrationService(
+                        validationService,
+                        repository
+                );
+        ModelDescriptor descriptor = new ModelDescriptor(
+                "model-1",
+                Instant.parse("2026-07-19T10:00:00Z"),
+                1,
+                2,
+                3
+        );
+        when(repository.findAllDescriptors())
+                .thenReturn(List.of(descriptor));
+        when(repository.findDescriptorById("model-1"))
+                .thenReturn(java.util.Optional.of(descriptor));
+
+        assertEquals(List.of(descriptor), service.list());
+        assertEquals(descriptor, service.getInfo("model-1"));
+    }
+
+    @Test
+    void shouldThrowWhenDescriptorDoesNotExist() {
+        QaModelValidationService validationService =
+                mock(QaModelValidationService.class);
+        InMemoryQaModelRepository repository =
+                mock(InMemoryQaModelRepository.class);
+        QaModelRegistrationService service =
+                new QaModelRegistrationService(
+                        validationService,
+                        repository
+                );
+        when(repository.findDescriptorById("unknown"))
+                .thenReturn(java.util.Optional.empty());
+
+        assertThrows(
+                QaModelNotFoundException.class,
+                () -> service.getInfo("unknown")
+        );
     }
 
     private QaModelValidationResult validationResult(
