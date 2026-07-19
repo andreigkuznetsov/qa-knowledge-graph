@@ -24,6 +24,7 @@ import java.util.TreeMap;
  */
 final class QaModelFingerprintCalculator {
     private static final String PREFIX = "qamodel-c14n-v1:";
+    // Configured once, then used only through thread-safe read/write operations.
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     String calculate(JsonNode model) {

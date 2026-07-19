@@ -46,11 +46,12 @@ class QaModelFingerprintCalculatorTest {
     @Test
     void numericallyEquivalentJsonNumbersShouldHaveSameFingerprint()
             throws Exception {
-        String expected = fingerprint("{\"n\":1}");
-        assertEquals(expected, fingerprint("{\"n\":1.0}"));
-        assertEquals(expected, fingerprint("{\"n\":1.00}"));
-        assertEquals(expected, fingerprint("{\"n\":1e0}"));
-        assertNotEquals(expected, fingerprint("{\"n\":1.01}"));
+        assertEquivalentNumbers("0", "-0");
+        assertEquivalentNumbers("1", "1.0", "1.00", "1e0", "1000e-3");
+        assertNotEquals(fingerprint("{\"n\":1}"),
+                fingerprint("{\"n\":1.01}"));
+        assertNotEquals(fingerprint("{\"n\":1}"),
+                fingerprint("{\"n\":\"1\"}"));
     }
 
     @Test
@@ -86,5 +87,14 @@ class QaModelFingerprintCalculatorTest {
 
     private String fingerprint(String json) throws Exception {
         return calculator.calculate(mapper.readTree(json));
+    }
+
+    private void assertEquivalentNumbers(String expected, String... variants)
+            throws Exception {
+        String expectedFingerprint = fingerprint("{\"n\":" + expected + "}");
+        for (String variant : variants) {
+            assertEquals(expectedFingerprint,
+                    fingerprint("{\"n\":" + variant + "}"));
+        }
     }
 }

@@ -19,6 +19,10 @@ public record SimulationResult(
     public SimulationResult {
         requireNonBlank(simulationContractVersion,
                 "simulationContractVersion");
+        if (!CONTRACT_VERSION.equals(simulationContractVersion)) {
+            throw new IllegalArgumentException(
+                    "simulationContractVersion must be " + CONTRACT_VERSION);
+        }
         requireNonBlank(baseModelFingerprint, "baseModelFingerprint");
         requireNonBlank(futureModelFingerprint, "futureModelFingerprint");
         Objects.requireNonNull(futureModel, "futureModel must not be null");
@@ -27,11 +31,23 @@ public record SimulationResult(
         Objects.requireNonNull(validation, "validation must not be null");
         futureModel = futureModel.deepCopy();
         appliedMaterializations = List.copyOf(appliedMaterializations);
+        validation = immutableValidation(validation);
     }
 
     @Override
     public JsonNode futureModel() {
         return futureModel.deepCopy();
+    }
+
+    private static QaModelValidationResult immutableValidation(
+            QaModelValidationResult validation
+    ) {
+        return new QaModelValidationResult(
+                validation.valid(),
+                validation.schemaVersion(),
+                validation.summary(),
+                List.copyOf(validation.issues())
+        );
     }
 
     private static void requireNonBlank(String value, String name) {

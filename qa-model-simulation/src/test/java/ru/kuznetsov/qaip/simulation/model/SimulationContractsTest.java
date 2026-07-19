@@ -3,7 +3,10 @@ package ru.kuznetsov.qaip.simulation.model;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import ru.kuznetsov.qagraph.validationcore.model.QaModelValidationResult;
+import ru.kuznetsov.qagraph.validationcore.model.ValidationIssue;
 import ru.kuznetsov.qagraph.validationcore.model.ValidationSummary;
+import ru.kuznetsov.qaip.simulation.error.SimulationErrorCode;
+import ru.kuznetsov.qaip.simulation.error.SimulationException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -85,6 +88,39 @@ class SimulationContractsTest {
         assertThrows(UnsupportedOperationException.class,
                 () -> result.appliedMaterializations().clear());
         assertEquals(validation, result.validation());
+    }
+
+    @Test
+    void simulationResultShouldRequireItsOwnContractVersion() {
+        var validation = new QaModelValidationResult(
+                true, "model-0.1", new ValidationSummary(0, 0, 0), List.of());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new SimulationResult(
+                        "simulation-9.0", "base", "future",
+                        mapper.createObjectNode(), List.of(), validation));
+    }
+
+    @Test
+    void validationIssuesShouldNotLeakFromResultsOrExceptions() {
+        List<ValidationIssue> issues = new ArrayList<>();
+        var validation = new QaModelValidationResult(
+                true, "model-0.1", new ValidationSummary(0, 0, 0), issues);
+        var result = new SimulationResult(
+                SimulationResult.CONTRACT_VERSION, "base", "future",
+                mapper.createObjectNode(), List.of(), validation);
+        var exception = new SimulationException(
+                SimulationErrorCode.INVALID_SIMULATION_INPUT,
+                "invalid", null, null, validation);
+
+        issues.add(null);
+
+        assertEquals(List.of(), result.validation().issues());
+        assertEquals(List.of(), exception.validation().issues());
+        assertThrows(UnsupportedOperationException.class,
+                () -> result.validation().issues().clear());
+        assertThrows(UnsupportedOperationException.class,
+                () -> exception.validation().issues().clear());
     }
 
     @Test

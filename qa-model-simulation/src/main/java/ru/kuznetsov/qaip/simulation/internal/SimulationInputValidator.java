@@ -142,7 +142,7 @@ final class SimulationInputValidator {
         JsonNode idNode = node.get("id");
         String nodeId = idNode != null && idNode.isTextual()
                 ? idNode.textValue() : null;
-        if (!QaModelIdentifier.isValid(nodeId)) {
+        if (!QaModelIdentifierValidator.isValid(nodeId)) {
             throw failure(
                     SimulationErrorCode.MATERIALIZATION_INVALID_NODE_ID,
                     "Future node has a missing or invalid id for task " + taskId,
