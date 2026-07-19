@@ -1,0 +1,18 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'Deterministic remediation roadmap domain'
+
+dependencies {
+    api(project(':qa-findings-engine')) {
+        transitive = false
+    }
+
+    testImplementation platform('org.junit:junit-bom:5.12.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation(project(':qa-model-validation-core')) {
+        transitive = false
+    }
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}

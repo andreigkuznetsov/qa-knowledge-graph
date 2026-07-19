@@ -100,6 +100,22 @@ validation, coverage, and findings results and adds an overall `PASS`,
 `WARNING`, or `FAIL` health value. It does not introduce another analysis or
 include exploratory trace results.
 
+## MVP 0.6.1 — Roadmap Domain Foundation
+
+Findings identify what is wrong. Roadmap converts findings into deterministic
+remediation tasks:
+
+| Finding | Remediation task |
+| --- | --- |
+| `BUSINESS_RULE_WITHOUT_SCENARIO` | `CREATE_SCENARIO` |
+| `SCENARIO_WITHOUT_TEST` | `CREATE_TEST_IMPLEMENTATION` |
+| `TEST_WITHOUT_CHECK` | `CREATE_CHECK` |
+
+Roadmap is not exposed through REST yet and never modifies the QA model. It
+does not generate scenarios, tests, or checks. All tasks are `PLANNED`;
+dependencies are not inferred while future node identities are unknown. No
+priorities, effort estimates, persistence, or LLM processing are included.
+
 ## Smoke suite
 
 The smoke suite checks:
