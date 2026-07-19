@@ -7,6 +7,7 @@ import ru.kuznetsov.qagraph.repository.InMemoryQaModelRepository;
 import ru.kuznetsov.qagraph.validationcore.model.QaModelValidationResult;
 import ru.kuznetsov.qagraph.validationcore.model.ValidationSummary;
 import ru.kuznetsov.qaip.coverage.model.CoverageMetric;
+import ru.kuznetsov.qaip.coverage.model.CoverageMetricCode;
 import ru.kuznetsov.qaip.coverage.model.CoverageReport;
 import ru.kuznetsov.qaip.coverage.service.CoverageService;
 
@@ -36,9 +37,9 @@ class RegisteredModelCoverageServiceTest {
         );
         String modelId = repository.save(model, 0).modelId();
         when(coverageService.analyze(any())).thenReturn(report(
-                new CoverageMetric("TEST_CHECK_COVERAGE", "checks", 4, 3, 1, 75.0),
-                new CoverageMetric("RULE_SCENARIO_COVERAGE", "rules", 2, 1, 1, 50.0),
-                new CoverageMetric("SCENARIO_TEST_COVERAGE", "scenarios", 3, 2, 1, 66.67)
+                new CoverageMetric(CoverageMetricCode.TEST_CHECK_COVERAGE, "checks", 4, 3, 1, 75.0),
+                new CoverageMetric(CoverageMetricCode.RULE_SCENARIO_COVERAGE, "rules", 2, 1, 1, 50.0),
+                new CoverageMetric(CoverageMetricCode.SCENARIO_TEST_COVERAGE, "scenarios", 3, 2, 1, 66.67)
         ));
         RegisteredModelCoverageService service =
                 new RegisteredModelCoverageService(repository, coverageService);
@@ -71,9 +72,9 @@ class RegisteredModelCoverageServiceTest {
         );
         String modelId = repository.save(model, 0).modelId();
         when(coverageService.analyze(any())).thenReturn(report(
-                new CoverageMetric("RULE_SCENARIO_COVERAGE", "rules", 0, 0, 0, 100.0),
-                new CoverageMetric("SCENARIO_TEST_COVERAGE", "scenarios", 0, 0, 0, 100.0),
-                new CoverageMetric("TEST_CHECK_COVERAGE", "checks", 0, 0, 0, 100.0)
+                new CoverageMetric(CoverageMetricCode.RULE_SCENARIO_COVERAGE, "rules", 0, 0, 0, 100.0),
+                new CoverageMetric(CoverageMetricCode.SCENARIO_TEST_COVERAGE, "scenarios", 0, 0, 0, 100.0),
+                new CoverageMetric(CoverageMetricCode.TEST_CHECK_COVERAGE, "checks", 0, 0, 0, 100.0)
         ));
         RegisteredModelCoverageService service =
                 new RegisteredModelCoverageService(repository, coverageService);
@@ -99,6 +100,40 @@ class RegisteredModelCoverageServiceTest {
         assertThrows(
                 QaModelNotFoundException.class,
                 () -> service.analyze("unknown")
+        );
+    }
+
+    @Test
+    void shouldThrowDedicatedExceptionWhenMetricIsMissing()
+            throws Exception {
+        InMemoryQaModelRepository repository =
+                new InMemoryQaModelRepository();
+        CoverageService coverageService = mock(CoverageService.class);
+        JsonNode model = objectMapper.readTree(
+                "{\"nodes\":[],\"relationships\":[]}"
+        );
+        String modelId = repository.save(model, 0).modelId();
+        when(coverageService.analyze(any())).thenReturn(report(
+                new CoverageMetric(
+                        CoverageMetricCode.RULE_SCENARIO_COVERAGE,
+                        "rules",
+                        1,
+                        1,
+                        0,
+                        100.0
+                )
+        ));
+        RegisteredModelCoverageService service =
+                new RegisteredModelCoverageService(repository, coverageService);
+
+        CoverageMetricMissingException exception = assertThrows(
+                CoverageMetricMissingException.class,
+                () -> service.analyze(modelId)
+        );
+
+        assertEquals(
+                "Coverage metric is missing: SCENARIO_TEST_COVERAGE",
+                exception.getMessage()
         );
     }
 

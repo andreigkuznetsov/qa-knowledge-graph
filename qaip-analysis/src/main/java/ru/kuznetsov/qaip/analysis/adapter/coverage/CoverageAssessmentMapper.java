@@ -70,7 +70,7 @@ final class CoverageAssessmentMapper
     private AnalysisMetric mapMetric(CoverageMetric metric) {
         return new AnalysisMetric(
                 ENGINE_ID,
-                metric.code(),
+                metric.code().name(),
                 metric.name(),
                 metric.percentage(),
                 "%",

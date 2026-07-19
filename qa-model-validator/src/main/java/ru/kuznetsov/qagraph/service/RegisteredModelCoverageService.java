@@ -6,19 +6,15 @@ import ru.kuznetsov.qagraph.api.CoverageMetricResponse;
 import ru.kuznetsov.qagraph.api.RegisteredModelCoverageResponse;
 import ru.kuznetsov.qagraph.repository.InMemoryQaModelRepository;
 import ru.kuznetsov.qaip.coverage.model.CoverageMetric;
+import ru.kuznetsov.qaip.coverage.model.CoverageMetricCode;
 import ru.kuznetsov.qaip.coverage.model.CoverageReport;
 import ru.kuznetsov.qaip.coverage.service.CoverageService;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Service
 public class RegisteredModelCoverageService {
-
-    private static final List<String> METRIC_ORDER = List.of(
-            "RULE_SCENARIO_COVERAGE",
-            "SCENARIO_TEST_COVERAGE",
-            "TEST_CHECK_COVERAGE"
-    );
 
     private final InMemoryQaModelRepository repository;
     private final CoverageService coverageService;
@@ -42,7 +38,8 @@ public class RegisteredModelCoverageService {
             throw new InvalidQaModelException(report.validation());
         }
 
-        List<CoverageMetricResponse> metrics = METRIC_ORDER.stream()
+        List<CoverageMetricResponse> metrics =
+                Arrays.stream(CoverageMetricCode.values())
                 .map(code -> findMetric(report, code))
                 .map(this::toResponse)
                 .toList();
@@ -59,27 +56,22 @@ public class RegisteredModelCoverageService {
 
     private CoverageMetric findMetric(
             CoverageReport report,
-            String code
+            CoverageMetricCode code
     ) {
         return report.metrics().stream()
                 .filter(metric -> code.equals(metric.code()))
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException(
-                        "Coverage metric is missing: " + code
-                ));
+                .orElseThrow(() ->
+                        new CoverageMetricMissingException(code));
     }
 
     private CoverageMetricResponse toResponse(CoverageMetric metric) {
-        double percentage = metric.total() == 0
-                ? 0.0
-                : metric.percentage();
-
         return new CoverageMetricResponse(
-                metric.code(),
+                metric.code().name(),
                 metric.total(),
                 metric.covered(),
                 metric.uncovered(),
-                percentage
+                metric.safePercentage()
         );
     }
 }

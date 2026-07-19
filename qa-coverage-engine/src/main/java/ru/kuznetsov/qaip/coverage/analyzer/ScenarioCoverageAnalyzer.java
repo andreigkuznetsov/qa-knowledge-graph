@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Component;
 import ru.kuznetsov.qaip.coverage.model.CoverageAnalysisResult;
 import ru.kuznetsov.qaip.coverage.model.CoverageMetric;
+import ru.kuznetsov.qaip.coverage.model.CoverageMetricCode;
 import ru.kuznetsov.qaip.coverage.model.CoverageProblem;
 import ru.kuznetsov.qaip.coverage.model.CoverageProblemType;
 import ru.kuznetsov.qaip.coverage.model.CoverageSeverity;
@@ -19,8 +20,8 @@ import java.util.Set;
 @Component
 public class ScenarioCoverageAnalyzer implements CoverageAnalyzer {
 
-    public static final String METRIC_CODE =
-            "SCENARIO_TEST_COVERAGE";
+    public static final CoverageMetricCode METRIC_CODE =
+            CoverageMetricCode.SCENARIO_TEST_COVERAGE;
 
     @Override
     public CoverageAnalysisResult analyze(JsonNode qaModel) {

@@ -1,7 +1,7 @@
 package ru.kuznetsov.qaip.coverage.analyzer;
 import com.fasterxml.jackson.databind.JsonNode; import org.springframework.stereotype.Component; import ru.kuznetsov.qaip.coverage.model.*; import java.util.*;
 @Component public class RuleCoverageAnalyzer implements CoverageAnalyzer {
- public static final String METRIC_CODE="RULE_SCENARIO_COVERAGE";
+ public static final CoverageMetricCode METRIC_CODE=CoverageMetricCode.RULE_SCENARIO_COVERAGE;
  public CoverageAnalysisResult analyze(JsonNode qaModel){
   Map<String,NodeInfo> rules=indexRules(qaModel.path("nodes")); Set<String> covered=findCovered(qaModel.path("nodes"),qaModel.path("relationships")); List<CoverageProblem> problems=new ArrayList<>();
   for(NodeInfo rule:rules.values()) if(!covered.contains(rule.id())) problems.add(new CoverageProblem(CoverageProblemType.MISSING_SCENARIO,CoverageSeverity.WARNING,rule.id(),"BUSINESS_RULE",rule.name(),"Для бизнес-правила отсутствует покрывающий BDD-сценарий","BUSINESS_RULE покрыт, только если существует связь SCENARIO --COVERS--> BUSINESS_RULE.",rule.path()));
