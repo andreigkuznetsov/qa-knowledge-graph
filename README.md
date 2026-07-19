@@ -25,6 +25,13 @@ Spring Boot REST service containing:
 - semantic graph validation;
 - integration and smoke tests.
 
+## Architecture documentation
+
+- [System architecture](docs/architecture/system-architecture.md)
+- [Module responsibilities](docs/architecture/module-responsibilities.md)
+- [Pipeline contracts](docs/architecture/pipeline-contracts.md)
+- [Architecture Decision Records](docs/architecture/adr/)
+
 ## Required local files
 
 Add Gradle Wrapper files from another Gradle project:
