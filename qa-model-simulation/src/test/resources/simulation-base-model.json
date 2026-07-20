@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "0.1",
+  "project": {
+    "id": "ORDER-SERVICE",
+    "name": "Order Service"
+  },
+  "sources": [],
+  "nodes": [
+    {
+      "id": "OP-CANCEL-ORDER",
+      "type": "BUSINESS_OPERATION",
+      "name": "Cancel order",
+      "operation": {
+        "code": "CANCEL_ORDER"
+      }
+    },
+    {
+      "id": "BR-CANCEL-PENDING",
+      "type": "BUSINESS_RULE",
+      "name": "Only pending orders can be cancelled",
+      "rule": {
+        "code": "CANCEL_PENDING_ONLY",
+        "ruleType": "PRECONDITION",
+        "text": "An order must be pending before cancellation"
+      }
+    },
+    {
+      "id": "SC-CANCEL-PENDING",
+      "type": "SCENARIO",
+      "name": "Cancel a pending order",
+      "scenario": {
+        "code": "CANCEL_PENDING_ORDER",
+        "given": [
+          {
+            "id": "STEP-PENDING",
+            "text": "The order is pending"
+          }
+        ],
+        "when": [
+          {
+            "id": "STEP-CANCEL",
+            "text": "The customer cancels the order"
+          }
+        ],
+        "then": [
+          {
+            "id": "STEP-CANCELLED",
+            "text": "The order becomes cancelled"
+          }
+        ]
+      }
+    },
+    {
+      "id": "TEST-CANCEL-EXISTING",
+      "type": "TEST_IMPLEMENTATION",
+      "name": "Existing cancellation API test",
+      "testImplementation": {
+        "code": "CANCEL_ORDER_API_EXISTING",
+        "executionType": "AUTOMATED",
+        "preconditions": [],
+        "steps": [
+          {
+            "order": 1,
+            "action": "Call the cancellation API",
+            "expectedResult": "The order is cancelled"
+          }
+        ]
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL-OP-RULE",
+      "from": "OP-CANCEL-ORDER",
+      "type": "GOVERNED_BY",
+      "to": "BR-CANCEL-PENDING"
+    },
+    {
+      "id": "REL-OP-SCENARIO",
+      "from": "OP-CANCEL-ORDER",
+      "type": "SPECIFIED_BY",
+      "to": "SC-CANCEL-PENDING"
+    },
+    {
+      "id": "REL-SCENARIO-RULE",
+      "from": "SC-CANCEL-PENDING",
+      "type": "COVERS",
+      "to": "BR-CANCEL-PENDING"
+    },
+    {
+      "id": "REL-EXISTING-TEST",
+      "from": "TEST-CANCEL-EXISTING",
+      "type": "VALIDATES",
+      "to": "SC-CANCEL-PENDING"
+    }
+  ]
+}

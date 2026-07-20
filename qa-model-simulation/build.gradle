@@ -1,0 +1,24 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'Deterministic normalized QA-model simulation contracts and boundary validation'
+
+dependencies {
+    api(project(':qa-impact-analysis')) {
+        transitive = false
+    }
+    api project(':qa-model-validation-core')
+    implementation project(':qa-model')
+    api 'com.fasterxml.jackson.core:jackson-databind:2.18.3'
+
+    testImplementation platform('org.junit:junit-bom:5.12.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation(project(':qa-findings-engine')) {
+        transitive = false
+    }
+    testImplementation(project(':qa-roadmap-engine')) {
+        transitive = false
+    }
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
