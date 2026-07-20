@@ -14,6 +14,8 @@ import java.nio.charset.StandardCharsets;
 
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.contains;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -45,6 +47,10 @@ class QaModelValidationSmokeTest {
                 .andExpect(jsonPath(
                         "$.issues[*].layer",
                         hasItem("JSON_SCHEMA")
+                ))
+                .andExpect(jsonPath(
+                        "$.issues[*].layer",
+                        not(hasItem("SEMANTIC"))
                 ));
     }
 
@@ -62,6 +68,9 @@ class QaModelValidationSmokeTest {
                         .value("SEMANTIC"))
                 .andExpect(jsonPath("$.issues[0].code")
                         .value("UNKNOWN_TO_NODE"))
+                .andExpect(jsonPath("$.issues[0].message")
+                        .value("Связь указывает на отсутствующий "
+                                + "to-узел: BO-404"))
                 .andExpect(jsonPath("$.issues[0].objectId")
                         .value("REL-001"))
                 .andExpect(jsonPath("$.issues[0].path")
@@ -78,6 +87,12 @@ class QaModelValidationSmokeTest {
                 .andExpect(jsonPath(
                         "$.issues[*].code",
                         hasItem("RELATIONSHIP_NOT_ALLOWED")
+                ))
+                .andExpect(jsonPath(
+                        "$.issues[?(@.code == 'RELATIONSHIP_NOT_ALLOWED')]"
+                                + ".message",
+                        hasItem("Недопустимая связь: BUSINESS_OPERATION "
+                                + "--DESCRIBES--> USER_STORY")
                 ));
     }
 
@@ -96,7 +111,31 @@ class QaModelValidationSmokeTest {
                 .andExpect(jsonPath(
                         "$.issues[*].code",
                         hasItem("SCENARIO_WITHOUT_TEST")
-                ));
+                ))
+                .andExpect(jsonPath(
+                        "$.issues[?(@.code == 'SCENARIO_WITHOUT_TEST')]"
+                                + ".message",
+                        hasItem("BDD-сценарий не покрыт тестовой "
+                                + "реализацией")
+                ))
+                .andExpect(jsonPath("$.issues.length()",
+                        greaterThan(1)))
+                .andExpect(jsonPath("$.issues[*].code", contains(
+                        "CONFIRMED_WITHOUT_SOURCE",
+                        "CONFIRMED_WITHOUT_SOURCE",
+                        "CONFIRMED_WITHOUT_SOURCE",
+                        "SCENARIO_WITHOUT_TEST",
+                        "CONFIRMED_WITHOUT_SOURCE",
+                        "CONFIRMED_WITHOUT_SOURCE"
+                )))
+                .andExpect(jsonPath("$.issues[*].objectId", contains(
+                        "BO-001",
+                        "CHK-001",
+                        "SC-001",
+                        "SC-001",
+                        "TC-001",
+                        "TI-UI-001"
+                )));
     }
 
     @Test
