@@ -8,6 +8,7 @@ import ru.kuznetsov.qagraph.validationcore.model.ValidationIssue;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class SemanticQaModelValidatorTest {
 
@@ -73,5 +74,25 @@ class SemanticQaModelValidatorTest {
                 .anyMatch(issue ->
                         issue.code().equals("SCENARIO_WITHOUT_TEST")
                 ));
+    }
+
+    @Test
+    void repeatedValidationShouldProduceEquivalentFindings()
+            throws Exception {
+        JsonNode document = objectMapper.readTree("""
+                {
+                  "sources": [],
+                  "nodes": [
+                    {"id":"SC-002","type":"SCENARIO","status":"DRAFT",
+                     "sourceReferences":[]},
+                    {"id":"SC-001","type":"SCENARIO","status":"DRAFT",
+                     "sourceReferences":[]}
+                  ],
+                  "relationships": []
+                }
+                """);
+
+        assertEquals(validator.validate(document),
+                validator.validate(document));
     }
 }

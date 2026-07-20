@@ -32,6 +32,9 @@ an ownership boundary, not necessarily a compile-time enforcement mechanism.
 
 - Owns schema-validity and semantic-validity rules.
 - Produces `QaModelValidationResult` through `QaModelValidationEngine`.
+- Executes semantic checks through the framework-independent
+  `SemanticValidationEngine` and explicitly ordered `KnowledgeRule` instances;
+  see [Semantic Validation Core](semantic-validation-core.md).
 - Must not calculate coverage, findings, remediation, execution waves, or
   expected impact.
 
