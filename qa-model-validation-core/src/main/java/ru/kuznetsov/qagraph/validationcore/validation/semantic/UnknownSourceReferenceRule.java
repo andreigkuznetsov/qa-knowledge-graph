@@ -8,9 +8,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public final class SourceReferenceRule implements KnowledgeRule {
+public final class UnknownSourceReferenceRule implements KnowledgeRule {
 
-    public static final String CODE = "SOURCE_REFERENCE_VALIDITY";
+    public static final String CODE = "UNKNOWN_SOURCE_REFERENCE";
 
     @Override
     public String code() {
@@ -23,26 +23,16 @@ public final class SourceReferenceRule implements KnowledgeRule {
         for (JsonNode source : model.path("sources")) {
             sourceIds.add(SemanticModel.text(source, "id"));
         }
-
         List<ValidationIssue> findings = new ArrayList<>();
         for (JsonNode node : model.path("nodes")) {
-            String nodeId = SemanticModel.text(node, "id");
-            JsonNode references = node.path("sourceReferences");
-            if ("CONFIRMED".equals(SemanticModel.text(node, "status"))
-                    && references.isEmpty()) {
-                findings.add(ValidationIssue.semanticWarning(
-                        "CONFIRMED_WITHOUT_SOURCE",
-                        "Подтверждённый узел не имеет ссылки на источник",
-                        nodeId));
-            }
-            for (JsonNode reference : references) {
+            for (JsonNode reference : node.path("sourceReferences")) {
                 String sourceId = SemanticModel.text(reference, "sourceId");
                 if (!sourceIds.contains(sourceId)) {
                     findings.add(ValidationIssue.semanticError(
-                            "UNKNOWN_SOURCE_REFERENCE",
+                            CODE,
                             "Ссылка указывает на отсутствующий источник: "
                                     + sourceId,
-                            nodeId));
+                            SemanticModel.text(node, "id")));
                 }
             }
         }

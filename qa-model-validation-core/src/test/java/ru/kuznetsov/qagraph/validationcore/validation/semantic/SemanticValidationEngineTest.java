@@ -52,6 +52,35 @@ class SemanticValidationEngineTest {
                         .validate(model));
     }
 
+    @Test
+    void defaultRegistrationContainsEveryLegacyCodeExactlyOnce() {
+        List<String> codes = SemanticValidationRules.defaults().stream()
+                .map(KnowledgeRule::code)
+                .toList();
+
+        assertEquals(List.of(
+                "DUPLICATE_NODE_ID",
+                "CONFIRMED_WITHOUT_SOURCE",
+                "UNKNOWN_SOURCE_REFERENCE",
+                "DUPLICATE_RELATIONSHIP_ID",
+                "UNKNOWN_FROM_NODE",
+                "UNKNOWN_TO_NODE",
+                "RELATIONSHIP_NOT_ALLOWED",
+                "SELF_REFERENCE_NOT_ALLOWED",
+                "DUPLICATE_RELATIONSHIP",
+                "DUPLICATE_TEST_STEP_ORDER",
+                "OPERATION_WITHOUT_RULE",
+                "OPERATION_WITHOUT_SCENARIO",
+                "OPERATION_WITHOUT_IMPLEMENTATION",
+                "OPERATION_WITHOUT_STORY",
+                "SCENARIO_WITHOUT_TEST",
+                "RULE_WITHOUT_SCENARIO",
+                "TEST_WITHOUT_CHECK",
+                "ORPHAN_CHECK"
+        ), codes);
+        assertEquals(codes.size(), codes.stream().distinct().count());
+    }
+
     private KnowledgeRule rule(String ruleCode, String... findingCodes) {
         return new KnowledgeRule() {
             @Override

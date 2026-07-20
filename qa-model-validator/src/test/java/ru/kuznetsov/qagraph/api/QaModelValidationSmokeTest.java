@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.contains;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -118,7 +119,23 @@ class QaModelValidationSmokeTest {
                                 + "реализацией")
                 ))
                 .andExpect(jsonPath("$.issues.length()",
-                        greaterThan(1)));
+                        greaterThan(1)))
+                .andExpect(jsonPath("$.issues[*].code", contains(
+                        "CONFIRMED_WITHOUT_SOURCE",
+                        "CONFIRMED_WITHOUT_SOURCE",
+                        "CONFIRMED_WITHOUT_SOURCE",
+                        "SCENARIO_WITHOUT_TEST",
+                        "CONFIRMED_WITHOUT_SOURCE",
+                        "CONFIRMED_WITHOUT_SOURCE"
+                )))
+                .andExpect(jsonPath("$.issues[*].objectId", contains(
+                        "BO-001",
+                        "CHK-001",
+                        "SC-001",
+                        "SC-001",
+                        "TC-001",
+                        "TI-UI-001"
+                )));
     }
 
     @Test

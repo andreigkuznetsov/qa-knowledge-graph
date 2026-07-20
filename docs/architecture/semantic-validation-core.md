@@ -7,26 +7,40 @@ existing validation policy and public response contract.
 
 ## Semantic components
 
-- `KnowledgeRule` is the contract for one identifiable semantic rule. A rule
-  receives the model as a Jackson `JsonNode` and returns existing
-  `ValidationIssue` values. Ordinary violations are findings, not exceptions.
+- `KnowledgeRule` is the contract for one identifiable semantic invariant. A
+  rule receives the model as a Jackson `JsonNode`, and `code()` returns the one
+  existing finding code emitted by that rule. Ordinary violations are returned
+  as existing `ValidationIssue` values, not exceptions.
 - `SemanticValidationEngine` executes an immutable ordered list of rules and
   concatenates their findings in rule and finding order. It contains no
   rule-specific decisions and requires no Spring context.
 - `SemanticValidationRules.defaults()` is the explicit registration point for
   the built-in rules. Its list order is stable.
 - `SemanticQaModelValidator` remains the compatibility entry point used by
-  `QaModelValidationEngine` and delegates to the semantic engine.
+  `QaModelValidationEngine` and delegates evaluation directly to the semantic
+  engine.
 
-The built-in rules preserve the existing checks for node identity, source
-references, relationship integrity and compatibility, test-step order, and the
-existing operation, scenario, business-rule, test, and check association
-warnings. In particular, `UNKNOWN_TO_NODE`, `RELATIONSHIP_NOT_ALLOWED`, and
-`SCENARIO_WITHOUT_TEST` retain their codes, messages, severity, and context.
+Each built-in rule represents exactly one pre-existing finding code. Together
+they preserve the checks for node identity, source references, relationship
+integrity and compatibility, test-step order, and the existing operation,
+scenario, business-rule, test, and check association warnings. No completeness
+or coverage analysis has been added.
 
-The public validation engine applies its existing final ordering by severity,
-layer, object ID, and finding code. Consequently, REST output remains stable
-even though semantic execution order is now explicit independently.
+## Ordering boundaries
+
+### Internal semantic ordering
+
+Semantic rules are registered explicitly in an immutable, deterministic list.
+The semantic engine executes them sequentially and aggregates findings in rule
+registration order. Findings produced by an individual rule preserve that
+rule's deterministic traversal of the model. The former monolithic validator's
+cross-rule encounter interleaving is not a supported contract.
+
+### Supported application ordering
+
+`QaModelValidationEngine` owns canonical result ordering. It sorts the final
+supported result by severity, layer, object ID, and finding code. REST clients
+observe this canonical application ordering.
 
 ## Adding a semantic rule
 

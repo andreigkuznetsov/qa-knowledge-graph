@@ -10,15 +10,23 @@ public final class SemanticValidationRules {
     public static List<KnowledgeRule> defaults() {
         return List.of(
                 new DuplicateNodeIdRule(),
-                new SourceReferenceRule(),
-                new RelationshipIntegrityRule(),
+                new ConfirmedWithoutSourceRule(),
+                new UnknownSourceReferenceRule(),
+                new DuplicateRelationshipIdRule(),
+                new UnknownFromNodeRule(),
                 new UnknownToNodeRule(),
                 new RelationshipNotAllowedRule(),
+                new SelfReferenceNotAllowedRule(),
+                new DuplicateRelationshipRule(),
                 new TestStepOrderRule(),
-                new BusinessOperationCoverageRule(),
+                new OperationWithoutRuleRule(),
+                new OperationWithoutScenarioRule(),
+                new OperationWithoutImplementationRule(),
+                new OperationWithoutStoryRule(),
                 new ScenarioWithoutTestRule(),
                 new BusinessRuleWithoutScenarioRule(),
-                new TestCheckCoverageRule()
+                new TestWithoutCheckRule(),
+                new OrphanCheckRule()
         );
     }
 }

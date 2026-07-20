@@ -92,7 +92,14 @@ class SemanticQaModelValidatorTest {
                 }
                 """);
 
-        assertEquals(validator.validate(document),
-                validator.validate(document));
+        List<ValidationIssue> first = validator.validate(document);
+        List<ValidationIssue> second = validator.validate(document);
+
+        assertEquals(first, second);
+        assertEquals(List.of("SC-002", "SC-001"), first.stream()
+                .map(ValidationIssue::objectId)
+                .toList());
+        assertTrue(first.stream().allMatch(issue ->
+                issue.code().equals("SCENARIO_WITHOUT_TEST")));
     }
 }

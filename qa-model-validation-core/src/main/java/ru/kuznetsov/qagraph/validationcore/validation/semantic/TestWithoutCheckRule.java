@@ -10,9 +10,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public final class TestCheckCoverageRule implements KnowledgeRule {
+public final class TestWithoutCheckRule implements KnowledgeRule {
 
-    public static final String CODE = "TEST_CHECK_ASSOCIATION";
+    public static final String CODE = "TEST_WITHOUT_CHECK";
 
     @Override
     public String code() {
@@ -23,26 +23,15 @@ public final class TestCheckCoverageRule implements KnowledgeRule {
     public List<ValidationIssue> evaluate(JsonNode model) {
         Map<String, Set<RelationshipType>> outgoing =
                 SemanticModel.relationshipsByEndpoint(model, "from");
-        Map<String, Set<RelationshipType>> incoming =
-                SemanticModel.relationshipsByEndpoint(model, "to");
         List<ValidationIssue> findings = new ArrayList<>();
         for (JsonNode node : model.path("nodes")) {
             String id = SemanticModel.text(node, "id");
-            NodeType type = SemanticModel.nodeType(node);
-            if (type == NodeType.TEST_IMPLEMENTATION
+            if (SemanticModel.nodeType(node) == NodeType.TEST_IMPLEMENTATION
                     && !outgoing.getOrDefault(id, Set.of())
                     .contains(RelationshipType.HAS_CHECK)) {
                 findings.add(ValidationIssue.semanticWarning(
-                        "TEST_WITHOUT_CHECK",
+                        CODE,
                         "Тестовая реализация не содержит проверок",
-                        id));
-            }
-            if (type == NodeType.CHECK
-                    && !incoming.getOrDefault(id, Set.of())
-                    .contains(RelationshipType.HAS_CHECK)) {
-                findings.add(ValidationIssue.semanticWarning(
-                        "ORPHAN_CHECK",
-                        "Проверка не привязана к тестовой реализации",
                         id));
             }
         }
