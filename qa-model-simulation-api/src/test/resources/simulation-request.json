@@ -1,0 +1,115 @@
+{
+  "currentModel": {
+    "schemaVersion": "0.1",
+    "project": {"id": "ORDER-SERVICE", "name": "Order Service"},
+    "sources": [],
+    "nodes": [
+      {
+        "id": "OP-CANCEL-ORDER",
+        "type": "BUSINESS_OPERATION",
+        "name": "Cancel order",
+        "operation": {"code": "CANCEL_ORDER"}
+      },
+      {
+        "id": "BR-CANCEL-PENDING",
+        "type": "BUSINESS_RULE",
+        "name": "Only pending orders can be cancelled",
+        "rule": {
+          "code": "CANCEL_PENDING_ONLY",
+          "ruleType": "PRECONDITION",
+          "text": "An order must be pending before cancellation"
+        }
+      },
+      {
+        "id": "SC-CANCEL-PENDING",
+        "type": "SCENARIO",
+        "name": "Cancel a pending order",
+        "scenario": {
+          "code": "CANCEL_PENDING_ORDER",
+          "given": [{"id": "STEP-PENDING", "text": "The order is pending"}],
+          "when": [{"id": "STEP-CANCEL", "text": "The customer cancels the order"}],
+          "then": [{"id": "STEP-CANCELLED", "text": "The order becomes cancelled"}]
+        }
+      },
+      {
+        "id": "TEST-CANCEL-EXISTING",
+        "type": "TEST_IMPLEMENTATION",
+        "name": "Existing cancellation API test",
+        "testImplementation": {
+          "code": "CANCEL_ORDER_API_EXISTING",
+          "executionType": "AUTOMATED",
+          "preconditions": [],
+          "steps": [{
+            "order": 1,
+            "action": "Call the cancellation API",
+            "expectedResult": "The order is cancelled"
+          }]
+        }
+      }
+    ],
+    "relationships": [
+      {"id": "REL-OP-RULE", "from": "OP-CANCEL-ORDER", "type": "GOVERNED_BY", "to": "BR-CANCEL-PENDING"},
+      {"id": "REL-OP-SCENARIO", "from": "OP-CANCEL-ORDER", "type": "SPECIFIED_BY", "to": "SC-CANCEL-PENDING"},
+      {"id": "REL-SCENARIO-RULE", "from": "SC-CANCEL-PENDING", "type": "COVERS", "to": "BR-CANCEL-PENDING"},
+      {"id": "REL-EXISTING-TEST", "from": "TEST-CANCEL-EXISTING", "type": "VALIDATES", "to": "SC-CANCEL-PENDING"}
+    ]
+  },
+  "impactReport": {
+    "analyzed": true,
+    "schemaVersion": "impact-0.1",
+    "summary": {
+      "totalTasks": 1,
+      "addressedFindingInstances": 1,
+      "businessRulesAffected": 0,
+      "scenariosAffected": 1,
+      "testImplementationsAffected": 0,
+      "wavesAffected": 1,
+      "tasksWithDependencies": 0,
+      "parallelizableTasks": 0
+    },
+    "taskImpacts": [{
+      "taskId": "TASK-TEST",
+      "taskType": "CREATE_TEST_IMPLEMENTATION",
+      "targetNodeId": "SC-CANCEL-PENDING",
+      "sourceFindingCode": "SCENARIO_WITHOUT_TEST",
+      "structuralGap": {
+        "affectedNodeType": "SCENARIO",
+        "requiredNodeType": "TEST_IMPLEMENTATION",
+        "requiredRelationshipType": "VALIDATES",
+        "affectedNodeRelationRole": "TARGET"
+      },
+      "expectedChange": {
+        "changeType": "CREATE_RELATED_NODE",
+        "nodeTypeToCreate": "TEST_IMPLEMENTATION",
+        "relationTypeToCreate": "VALIDATES",
+        "existingNodeId": "SC-CANCEL-PENDING",
+        "existingNodeRelationRole": "TARGET",
+        "resolutionExpectation": "FINDING_EXPECTED_TO_BE_RESOLVED_AFTER_VALID_COMPLETION"
+      },
+      "executionWave": 1,
+      "dependsOn": []
+    }]
+  },
+  "taskMaterializationSet": {
+    "materializationContractVersion": "0.1",
+    "baseModelFingerprint": "qamodel-c14n-v1:849e250cfe6c81edf87c663ce9139a078f257e01854deec5a2d9c9b8c2f98302",
+    "materializations": [{
+      "taskId": "TASK-TEST",
+      "futureNode": {
+        "id": "TEST-CANCEL-NEW",
+        "type": "TEST_IMPLEMENTATION",
+        "name": "Cancellation API regression test",
+        "testImplementation": {
+          "code": "CANCEL_ORDER_API_NEW",
+          "executionType": "AUTOMATED",
+          "preconditions": [],
+          "steps": [{
+            "order": 1,
+            "action": "Call cancellation API for a pending order",
+            "expectedResult": "The order is cancelled"
+          }]
+        }
+      }
+    }]
+  }
+}

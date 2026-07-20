@@ -1,0 +1,20 @@
+plugins {
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+}
+
+description = 'Spring MVC transport adapter for deterministic QA-model simulation'
+
+dependencies {
+    implementation project(':qa-model-simulation')
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17'
+    runtimeOnly(project(':qa-findings-engine')) {
+        transitive = false
+    }
+    runtimeOnly(project(':qa-roadmap-engine')) {
+        transitive = false
+    }
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
