@@ -1,4 +1,4 @@
-package ru.kuznetsov.qaip.simulation.internal;
+package ru.kuznetsov.qaip.simulation;
 
 import java.util.regex.Pattern;
 

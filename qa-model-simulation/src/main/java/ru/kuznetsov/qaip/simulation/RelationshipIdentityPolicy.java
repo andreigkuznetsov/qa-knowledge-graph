@@ -1,4 +1,4 @@
-package ru.kuznetsov.qaip.simulation.internal;
+package ru.kuznetsov.qaip.simulation;
 
 import ru.kuznetsov.qagraph.model.RelationshipType;
 import ru.kuznetsov.qaip.simulation.error.SimulationErrorCode;

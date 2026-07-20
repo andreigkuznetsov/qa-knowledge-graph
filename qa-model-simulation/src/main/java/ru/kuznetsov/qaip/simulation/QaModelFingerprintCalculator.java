@@ -1,4 +1,4 @@
-package ru.kuznetsov.qaip.simulation.internal;
+package ru.kuznetsov.qaip.simulation;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;

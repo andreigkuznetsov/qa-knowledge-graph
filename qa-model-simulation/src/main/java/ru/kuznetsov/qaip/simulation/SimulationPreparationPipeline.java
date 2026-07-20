@@ -1,4 +1,4 @@
-package ru.kuznetsov.qaip.simulation.internal;
+package ru.kuznetsov.qaip.simulation;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import ru.kuznetsov.qaip.impact.model.ImpactReport;
@@ -10,13 +10,19 @@ final class SimulationPreparationPipeline {
     private final CandidateModelMaterializer materializer =
             new CandidateModelMaterializer();
 
-    JsonNode prepareCandidate(
+    SimulationPreparation prepareCandidate(
             JsonNode currentModel,
             ImpactReport impactReport,
             TaskMaterializationSet materializationSet
     ) {
         var matches = inputValidator.validateAndMatch(
                 currentModel, impactReport, materializationSet);
-        return materializer.materialize(currentModel, matches);
+        CandidateMaterialization materialization =
+                materializer.materialize(currentModel, matches);
+        return new SimulationPreparation(
+                materialization.candidateModel(),
+                materializationSet.baseModelFingerprint(),
+                materialization.appliedMaterializations()
+        );
     }
 }

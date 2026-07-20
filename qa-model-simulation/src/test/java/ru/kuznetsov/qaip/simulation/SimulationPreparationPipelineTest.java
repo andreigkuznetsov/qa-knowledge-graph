@@ -1,4 +1,4 @@
-package ru.kuznetsov.qaip.simulation.internal;
+package ru.kuznetsov.qaip.simulation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -46,8 +46,9 @@ class SimulationPreparationPipelineTest {
                 "0.1", new QaModelFingerprintCalculator().calculate(model),
                 List.of(new TaskMaterialization("TASK-1", futureNode)));
 
-        var candidate = new SimulationPreparationPipeline()
+        var preparation = new SimulationPreparationPipeline()
                 .prepareCandidate(model, report, set);
+        var candidate = preparation.candidateModel();
 
         assertEquals(2, candidate.path("nodes").size());
         assertEquals("SC-1", candidate.path("nodes").get(1)

@@ -1,4 +1,4 @@
-package ru.kuznetsov.qaip.simulation.internal;
+package ru.kuznetsov.qaip.simulation;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -8,7 +8,9 @@ import ru.kuznetsov.qaip.impact.model.ImpactChangeType;
 import ru.kuznetsov.qaip.impact.model.RelationEndpointRole;
 import ru.kuznetsov.qaip.simulation.error.SimulationErrorCode;
 import ru.kuznetsov.qaip.simulation.error.SimulationException;
+import ru.kuznetsov.qaip.simulation.model.AppliedMaterialization;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -24,7 +26,7 @@ final class CandidateModelMaterializer {
         this.identityPolicy = identityPolicy;
     }
 
-    JsonNode materialize(
+    CandidateMaterialization materialize(
             JsonNode currentModel,
             List<MatchedMaterialization> matchedMaterializations
     ) {
@@ -32,6 +34,8 @@ final class CandidateModelMaterializer {
         ArrayNode nodes = requiredArray(candidate, "nodes");
         ArrayNode relationships = requiredArray(candidate, "relationships");
         RelationshipIndex relationshipIndex = index(relationships);
+        List<AppliedMaterialization> appliedMaterializations =
+                new ArrayList<>();
 
         for (MatchedMaterialization match : matchedMaterializations) {
             nodes.add(match.taskMaterialization().futureNode().deepCopy());
@@ -40,8 +44,15 @@ final class CandidateModelMaterializer {
             ObjectNode relationship = relationshipFor(match);
             relationshipIndex.reserve(relationship, match.taskImpact().taskId());
             relationships.add(relationship);
+            appliedMaterializations.add(new AppliedMaterialization(
+                    match.taskImpact().taskId(),
+                    match.taskMaterialization().futureNode()
+                            .path("id").textValue(),
+                    relationship.path("id").textValue()
+            ));
         }
-        return candidate;
+        return new CandidateMaterialization(
+                candidate, appliedMaterializations);
     }
 
     private ObjectNode candidateCopy(JsonNode currentModel) {

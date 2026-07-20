@@ -1,4 +1,4 @@
-package ru.kuznetsov.qaip.simulation.internal;
+package ru.kuznetsov.qaip.simulation;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,7 +48,8 @@ class CandidateModelMaterializerTest {
                 match(scenarioImpact("TASK-2", "BR-2"), secondPayload),
                 match(scenarioImpact("TASK-1", "BR-1"), firstPayload));
 
-        JsonNode candidate = materializer.materialize(current, matches);
+        JsonNode candidate = materializer.materialize(current, matches)
+                .candidateModel();
 
         assertEquals(List.of("BR-1", "BR-2", "SC-2", "SC-1"),
                 ids(candidate.path("nodes")));
@@ -80,7 +81,7 @@ class CandidateModelMaterializerTest {
                         node("CHECK-NEW", "CHECK", "New check")));
 
         JsonNode relationships = materializer.materialize(current, matches)
-                .path("relationships");
+                .candidateModel().path("relationships");
 
         assertRelationship(relationships.get(0),
                 "SC-NEW", "COVERS", "BR-1");
@@ -97,8 +98,10 @@ class CandidateModelMaterializerTest {
                 scenarioImpact("TASK-1", "BR-1"),
                 node("SC-1", "SCENARIO", "Scenario")));
 
-        JsonNode first = materializer.materialize(current, matches);
-        JsonNode second = materializer.materialize(current, matches);
+        JsonNode first = materializer.materialize(current, matches)
+                .candidateModel();
+        JsonNode second = materializer.materialize(current, matches)
+                .candidateModel();
 
         assertEquals(first, second);
         assertNotSame(first, second);
@@ -117,7 +120,7 @@ class CandidateModelMaterializerTest {
                 scenarioImpact("TASK-1", "BR-1"), materialization);
 
         JsonNode candidate = this.materializer.materialize(
-                current, List.of(match));
+                current, List.of(match)).candidateModel();
         sourceFuture.put("name", "Changed source");
         ObjectNode exposed = (ObjectNode) materialization.futureNode();
         exposed.put("name", "Changed accessor");

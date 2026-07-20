@@ -1,4 +1,4 @@
-package ru.kuznetsov.qaip.simulation.internal;
+package ru.kuznetsov.qaip.simulation;
 
 import ru.kuznetsov.qaip.impact.model.TaskImpact;
 import ru.kuznetsov.qaip.simulation.model.TaskMaterialization;
