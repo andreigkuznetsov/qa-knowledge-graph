@@ -17,3 +17,9 @@ values. Intrinsic validation returns expected declaration failures as explicit,
 deterministically ordered outcomes and does not consult a Base Model. Passing
 intrinsic validation does not produce a verified change; Base Model verification
 and Proposed Model construction remain deferred.
+
+Phase 4 verifies intrinsically valid declarations against an immutable Base
+artifact index. `ADDED` requires target absence; `MODIFIED` and `REMOVED`
+require target existence and a semantically matching before state. A
+Base-verified candidate is not globally verified, and no Proposed Model is
+built. Validation Core integration and aggregate validation remain deferred.
