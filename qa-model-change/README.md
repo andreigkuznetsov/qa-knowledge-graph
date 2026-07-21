@@ -37,3 +37,11 @@ resolve exactly to a Node in the final model; intermediate application order is
 irrelevant and no cascading occurs. Aggregate-valid still does not mean complete
 Canonical QA Model validity. Validation Core and final verification remain
 deferred.
+
+Phase 7 extracts a complete immutable Base root context together with its
+artifact index, carries that exact evidence through the successful pipeline,
+and deterministically reconstructs a full Proposed root after aggregate
+validation. Root metadata is preserved exactly, while `schemaVersion`, `nodes`,
+and `relationships` are reconstructed from version and Proposed artifact
+evidence. Reconstruction is not complete Canonical QA Model validation;
+Validation Core integration and final verification remain deferred.

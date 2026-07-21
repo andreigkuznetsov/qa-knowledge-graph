@@ -10,6 +10,7 @@ import ru.kuznetsov.qagraph.change.validation.ChangeDiagnosticCode;
 import ru.kuznetsov.qagraph.change.validation.ChangeFailureClassification;
 import ru.kuznetsov.qagraph.change.validation.IntrinsicChangeSetResult;
 import ru.kuznetsov.qagraph.change.validation.IntrinsicallyValidChange;
+import ru.kuznetsov.qagraph.change.root.CanonicalBaseModelEvidence;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,19 +36,43 @@ import static ru.kuznetsov.qagraph.change.validation.ChangeFailureClassification
 public final class BaseChangeVerifier {
 
     private final BaseArtifactIndex baseIndex;
+    private final Optional<CanonicalBaseModelEvidence> baseEvidence;
     private final ArtifactSemanticEquality semanticEquality;
 
     public BaseChangeVerifier(BaseArtifactIndex baseIndex) {
-        this(baseIndex, new ArtifactSemanticEquality());
+        this(baseIndex, Optional.empty(), new ArtifactSemanticEquality());
+    }
+
+    public BaseChangeVerifier(CanonicalBaseModelEvidence baseEvidence) {
+        this(
+                Objects.requireNonNull(
+                        baseEvidence,
+                        "baseEvidence must not be null"
+                ).artifactIndex(),
+                Optional.of(baseEvidence),
+                new ArtifactSemanticEquality()
+        );
     }
 
     BaseChangeVerifier(
             BaseArtifactIndex baseIndex,
             ArtifactSemanticEquality semanticEquality
     ) {
+        this(baseIndex, Optional.empty(), semanticEquality);
+    }
+
+    private BaseChangeVerifier(
+            BaseArtifactIndex baseIndex,
+            Optional<CanonicalBaseModelEvidence> baseEvidence,
+            ArtifactSemanticEquality semanticEquality
+    ) {
         this.baseIndex = Objects.requireNonNull(
                 baseIndex,
                 "baseIndex must not be null"
+        );
+        this.baseEvidence = Objects.requireNonNull(
+                baseEvidence,
+                "baseEvidence must not be null"
         );
         this.semanticEquality = Objects.requireNonNull(
                 semanticEquality,
@@ -168,6 +193,7 @@ public final class BaseChangeVerifier {
         }
         return new BaseChangeSetResult(
                 baseIndex,
+                baseEvidence,
                 intrinsic.failedDeclarations(),
                 intrinsic.ambiguities(),
                 verified,

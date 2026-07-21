@@ -144,11 +144,14 @@ public final class ProposedModelMaterializer {
                 );
             }
         }
-        return new ProposedModelMaterialized(new ProposedArtifactModel(
-                baseIndex.schemaVersion(),
-                nodes,
-                relationships
-        ));
+        return new ProposedModelMaterialized(
+                new ProposedArtifactModel(
+                        baseIndex.schemaVersion(),
+                        nodes,
+                        relationships
+                ),
+                changeSetResult.baseEvidence()
+        );
     }
 
     private Optional<ProposedModelMaterializationFailure> apply(

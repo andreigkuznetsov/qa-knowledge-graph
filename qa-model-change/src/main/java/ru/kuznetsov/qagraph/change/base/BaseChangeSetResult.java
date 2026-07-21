@@ -2,16 +2,19 @@ package ru.kuznetsov.qagraph.change.base;
 
 import ru.kuznetsov.qagraph.change.validation.ChangeSetAmbiguity;
 import ru.kuznetsov.qagraph.change.validation.IntrinsicallyInvalidChange;
+import ru.kuznetsov.qagraph.change.root.CanonicalBaseModelEvidence;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Structured immutable Phase 3 and Base verification outcomes.
  */
 public record BaseChangeSetResult(
         BaseArtifactIndex baseIndex,
+        Optional<CanonicalBaseModelEvidence> baseEvidence,
         List<IntrinsicallyInvalidChange> intrinsicFailures,
         List<ChangeSetAmbiguity> ambiguities,
         List<BaseVerifiedChange> baseVerifiedCandidates,
@@ -20,6 +23,13 @@ public record BaseChangeSetResult(
 
     public BaseChangeSetResult {
         Objects.requireNonNull(baseIndex, "baseIndex must not be null");
+        Objects.requireNonNull(baseEvidence, "baseEvidence must not be null");
+        if (baseEvidence.isPresent()
+                && baseEvidence.orElseThrow().artifactIndex() != baseIndex) {
+            throw new IllegalArgumentException(
+                    "baseEvidence must own the exact baseIndex"
+            );
+        }
         intrinsicFailures = copy(
                 intrinsicFailures,
                 "intrinsicFailures"
@@ -41,6 +51,23 @@ public record BaseChangeSetResult(
                         .thenComparingInt(value ->
                                 value.classification().precedence()))
                 .toList();
+    }
+
+    public BaseChangeSetResult(
+            BaseArtifactIndex baseIndex,
+            List<IntrinsicallyInvalidChange> intrinsicFailures,
+            List<ChangeSetAmbiguity> ambiguities,
+            List<BaseVerifiedChange> baseVerifiedCandidates,
+            List<BaseVerificationFailure> baseFailures
+    ) {
+        this(
+                baseIndex,
+                Optional.empty(),
+                intrinsicFailures,
+                ambiguities,
+                baseVerifiedCandidates,
+                baseFailures
+        );
     }
 
     private static <T> List<T> copy(List<T> values, String name) {
