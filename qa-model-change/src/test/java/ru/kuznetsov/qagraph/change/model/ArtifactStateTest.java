@@ -131,14 +131,10 @@ class ArtifactStateTest {
     }
 
     @Test
-    void relationshipStateShouldRejectNodeShapeAndMissingEndpoints() {
+    void relationshipStateShouldRejectNodeShape() {
         assertThrows(IllegalArgumentException.class,
                 () -> relationshipState("""
                         {"id":"N-1","type":"CHECK","name":"Check"}
-                        """));
-        assertThrows(IllegalArgumentException.class,
-                () -> relationshipState("""
-                        {"id":"R-1","from":"A","type":"HAS_CHECK"}
                         """));
     }
 

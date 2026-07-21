@@ -30,3 +30,10 @@ declared after state, `MODIFIED` replaces the target with its after state, and
 `REMOVED` deletes only the exact target without cascading. Materialized does not
 mean valid or verified; Validation Core and aggregate validation remain
 deferred.
+
+Phase 6 validates aggregate cross-artifact consistency of the materialized
+Proposed Artifact Model. Every Relationship `from` and `to` endpoint must
+resolve exactly to a Node in the final model; intermediate application order is
+irrelevant and no cascading occurs. Aggregate-valid still does not mean complete
+Canonical QA Model validity. Validation Core and final verification remain
+deferred.

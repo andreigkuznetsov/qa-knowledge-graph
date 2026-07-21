@@ -23,8 +23,6 @@ public final class RelationshipArtifactState implements ArtifactState {
                 "schemaVersion must not be null"
         );
         JsonNode copy = ArtifactStateSupport.objectCopy(snapshot);
-        ArtifactStateSupport.requiredText(copy, "from");
-        ArtifactStateSupport.requiredText(copy, "to");
         String type = ArtifactStateSupport.requiredText(copy, "type");
         if (RelationshipType.from(type) == null) {
             throw new IllegalArgumentException(
