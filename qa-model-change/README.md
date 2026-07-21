@@ -11,3 +11,9 @@ Artifact State construction establishes only a recognizable, defensively held
 snapshot. It does not imply complete-model validation or successful Canonical
 Change verification. Validation Core integration and the change-verification
 lifecycle are intentionally not implemented yet.
+
+Phase 3 adds immutable, untrusted Declared Change and Declared Change Set
+values. Intrinsic validation returns expected declaration failures as explicit,
+deterministically ordered outcomes and does not consult a Base Model. Passing
+intrinsic validation does not produce a verified change; Base Model verification
+and Proposed Model construction remain deferred.
