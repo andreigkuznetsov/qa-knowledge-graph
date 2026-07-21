@@ -6,6 +6,7 @@ description = 'Canonical QA Model change foundation and domain values'
 
 dependencies {
     implementation project(':qa-model')
+    implementation project(':qa-model-validation-core')
     api 'com.fasterxml.jackson.core:jackson-databind:2.19.2'
 
     testImplementation platform('org.junit:junit-bom:5.12.2')

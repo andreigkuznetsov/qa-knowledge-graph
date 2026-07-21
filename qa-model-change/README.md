@@ -45,3 +45,10 @@ validation. Root metadata is preserved exactly, while `schemaVersion`, `nodes`,
 and `relationships` are reconstructed from version and Proposed artifact
 evidence. Reconstruction is not complete Canonical QA Model validation;
 Validation Core integration and final verification remain deferred.
+
+Phase 8 validates the complete reconstructed Proposed root against the
+authoritative JSON Schema before executing the authoritative Semantic
+Validation Core. Schema and semantic evidence remain distinct, retained unknown
+properties are diagnosed instead of discarded, and no normalization, repair,
+or version migration is performed. Complete-valid does not mean persisted or
+published, and final verification remains deferred.
