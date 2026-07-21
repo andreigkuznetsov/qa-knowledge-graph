@@ -23,3 +23,10 @@ artifact index. `ADDED` requires target absence; `MODIFIED` and `REMOVED`
 require target existence and a semantically matching before state. A
 Base-verified candidate is not globally verified, and no Proposed Model is
 built. Validation Core integration and aggregate validation remain deferred.
+
+Phase 5 deterministically materializes an all-or-nothing candidate Proposed
+Artifact Model while leaving the Base Model unchanged. `ADDED` inserts the
+declared after state, `MODIFIED` replaces the target with its after state, and
+`REMOVED` deletes only the exact target without cascading. Materialized does not
+mean valid or verified; Validation Core and aggregate validation remain
+deferred.

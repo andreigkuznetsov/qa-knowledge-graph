@@ -167,6 +167,7 @@ public final class BaseChangeVerifier {
             }
         }
         return new BaseChangeSetResult(
+                baseIndex,
                 intrinsic.failedDeclarations(),
                 intrinsic.ambiguities(),
                 verified,

@@ -11,6 +11,7 @@ import java.util.Objects;
  * Structured immutable Phase 3 and Base verification outcomes.
  */
 public record BaseChangeSetResult(
+        BaseArtifactIndex baseIndex,
         List<IntrinsicallyInvalidChange> intrinsicFailures,
         List<ChangeSetAmbiguity> ambiguities,
         List<BaseVerifiedChange> baseVerifiedCandidates,
@@ -18,6 +19,7 @@ public record BaseChangeSetResult(
 ) {
 
     public BaseChangeSetResult {
+        Objects.requireNonNull(baseIndex, "baseIndex must not be null");
         intrinsicFailures = copy(
                 intrinsicFailures,
                 "intrinsicFailures"
