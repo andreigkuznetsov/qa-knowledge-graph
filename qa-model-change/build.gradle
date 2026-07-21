@@ -1,0 +1,13 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'Canonical QA Model change foundation and domain values'
+
+dependencies {
+    implementation project(':qa-model')
+
+    testImplementation platform('org.junit:junit-bom:5.12.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
