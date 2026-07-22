@@ -356,7 +356,7 @@ class CompleteProposedRootValidatorTest {
         CanonicalBaseModelEvidence evidence = extracted(minimalRoot());
         ProposedArtifactModel model = emptyModel(evidence);
         AggregateTransitionValid aggregate = aggregate(evidence, model);
-        return new ProposedRootReconstructed(
+        return ru.kuznetsov.qagraph.change.root.RootTestFixtures.reconstructed(
                 new ProposedCanonicalRoot(root),
                 evidence,
                 aggregate
@@ -384,7 +384,7 @@ class CompleteProposedRootValidatorTest {
             CanonicalBaseModelEvidence evidence,
             ProposedArtifactModel model
     ) {
-        return new AggregateTransitionValid(
+        return ru.kuznetsov.qagraph.change.aggregate.AggregateTestFixtures.valid(
                 ru.kuznetsov.qagraph.change.materialization.MaterializationTestFixtures.materialized(model, evidence));
     }
 

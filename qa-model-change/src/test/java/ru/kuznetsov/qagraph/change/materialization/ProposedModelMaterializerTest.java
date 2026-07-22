@@ -291,13 +291,8 @@ class ProposedModelMaterializerTest {
                 new CanonicalQaModelVersion("9.9"),
                 List.of()
         );
-        BaseChangeSetResult forged = new BaseChangeSetResult(
-                unsupported,
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of()
-        );
+        BaseChangeSetResult forged = forged(unsupported, List.of(
+                verifiedAdded(0, node("FIXTURE", "Fixture"))));
 
         failure(unsupported, forged, MATERIALIZATION_BASE_UNSUPPORTED);
     }
@@ -307,8 +302,8 @@ class ProposedModelMaterializerTest {
             throws Exception {
         NodeArtifactState existing = node("N-1", "Existing");
         BaseArtifactIndex base = base(existing);
-        BaseVerifiedChange forgedAdded = new BaseVerifiedChange(
-                new IntrinsicallyValidChange(
+        BaseVerifiedChange forgedAdded = ru.kuznetsov.qagraph.change.base.BaseTestFixtures.verified(
+                ru.kuznetsov.qagraph.change.validation.ValidationTestFixtures.candidate(
                         0,
                         added(node("N-1", "After"))
                 ),
@@ -321,16 +316,16 @@ class ProposedModelMaterializerTest {
         failure(base, addedPresent, MATERIALIZATION_ADDED_TARGET_PRESENT);
 
         BaseArtifactIndex empty = base();
-        BaseVerifiedChange forgedRemoved = new BaseVerifiedChange(
-                new IntrinsicallyValidChange(0, removed(existing)),
+        BaseVerifiedChange forgedRemoved = ru.kuznetsov.qagraph.change.base.BaseTestFixtures.verified(
+                ru.kuznetsov.qagraph.change.validation.ValidationTestFixtures.candidate(0, removed(existing)),
                 Optional.of(existing)
         );
         failure(empty, forged(empty, List.of(forgedRemoved)),
                 MATERIALIZATION_REMOVED_TARGET_MISSING);
 
         NodeArtifactState after = node("N-1", "After");
-        BaseVerifiedChange forgedModified = new BaseVerifiedChange(
-                new IntrinsicallyValidChange(
+        BaseVerifiedChange forgedModified = ru.kuznetsov.qagraph.change.base.BaseTestFixtures.verified(
+                ru.kuznetsov.qagraph.change.validation.ValidationTestFixtures.candidate(
                         0,
                         modified(existing, after)
                 ),
@@ -416,35 +411,36 @@ class ProposedModelMaterializerTest {
         IntrinsicChangeSetResult intrinsicResult = intrinsic.validate(
                 new DeclaredChangeSet(declarations)
         );
+        return new BaseChangeVerifier(evidence(base)).verify(intrinsicResult);
+    }
+
+    private ru.kuznetsov.qagraph.change.root.CanonicalBaseModelEvidence evidence(
+            BaseArtifactIndex base) {
         var retained = new com.fasterxml.jackson.databind.ObjectMapper()
                 .createObjectNode();
         retained.putObject("project").put("id", "P-1").put("name", "P");
         retained.putArray("sources");
-        var evidence = ru.kuznetsov.qagraph.change.root.RootTestFixtures
+        return ru.kuznetsov.qagraph.change.root.RootTestFixtures
                 .evidence(new ru.kuznetsov.qagraph.change.root.CanonicalRootContext(
                         base.schemaVersion(), retained), base);
-        return new BaseChangeVerifier(evidence).verify(intrinsicResult);
     }
 
     private BaseChangeSetResult forged(
             BaseArtifactIndex base,
             List<BaseVerifiedChange> changes
     ) {
-        return new BaseChangeSetResult(
-                base,
-                List.of(),
-                List.of(),
-                changes,
-                List.of()
-        );
+        var intrinsic = ru.kuznetsov.qagraph.change.validation.ValidationTestFixtures
+                .result(changes.stream().map(BaseVerifiedChange::candidate).toList());
+        return ru.kuznetsov.qagraph.change.base.BaseTestFixtures.result(
+                evidence(base), intrinsic, changes);
     }
 
     private BaseVerifiedChange verifiedAdded(
             int index,
             ArtifactState state
     ) {
-        return new BaseVerifiedChange(
-                new IntrinsicallyValidChange(index, added(state)),
+        return ru.kuznetsov.qagraph.change.base.BaseTestFixtures.verified(
+                ru.kuznetsov.qagraph.change.validation.ValidationTestFixtures.candidate(index, added(state)),
                 Optional.empty()
         );
     }

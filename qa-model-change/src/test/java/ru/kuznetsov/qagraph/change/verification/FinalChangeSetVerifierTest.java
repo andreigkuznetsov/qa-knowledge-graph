@@ -6,12 +6,16 @@ import org.junit.jupiter.api.Test;
 import ru.kuznetsov.qagraph.change.aggregate.AggregateTransitionValid;
 import ru.kuznetsov.qagraph.change.aggregate.AggregateTransitionValidator;
 import ru.kuznetsov.qagraph.change.base.BaseChangeVerifier;
+import ru.kuznetsov.qagraph.change.base.BaseChangeSetResult;
+import ru.kuznetsov.qagraph.change.base.BaseVerifiedChange;
 import ru.kuznetsov.qagraph.change.complete.*;
 import ru.kuznetsov.qagraph.change.materialization.ProposedModelMaterialized;
 import ru.kuznetsov.qagraph.change.materialization.ProposedModelMaterializer;
 import ru.kuznetsov.qagraph.change.model.*;
 import ru.kuznetsov.qagraph.change.root.*;
 import ru.kuznetsov.qagraph.change.validation.IntrinsicChangeValidator;
+import ru.kuznetsov.qagraph.change.validation.IntrinsicChangeSetResult;
+import ru.kuznetsov.qagraph.change.validation.IntrinsicallyValidChange;
 import ru.kuznetsov.qagraph.validationcore.model.ValidationSeverity;
 
 import java.lang.reflect.Modifier;
@@ -35,9 +39,9 @@ class FinalChangeSetVerifierTest {
 
         assertEquals(first, second);
         assertSame(first.declaredChangeSet(), first.intrinsicResult()
-                .declaredChangeSet().orElseThrow());
+                .declaredChangeSet());
         assertSame(first.baseEvidence(), first.baseResult()
-                .baseEvidence().orElseThrow());
+                .baseEvidence());
         assertEquals("0.1", first.schemaVersion().value());
         assertTrue(first.schemaEvidence().valid());
         assertTrue(first.semanticEvidence().valid());
@@ -79,6 +83,12 @@ class FinalChangeSetVerifierTest {
     @Test
     void successTypesShouldExposeNoPublicConstructionPath() {
         assertTrue(List.of(VerifiedChangeSet.class,
+                        IntrinsicallyValidChange.class,
+                        IntrinsicChangeSetResult.class,
+                        BaseVerifiedChange.class,
+                        BaseChangeSetResult.class,
+                        AggregateTransitionValid.class,
+                        ProposedRootReconstructed.class,
                         CompleteProposedRootValid.class,
                         SchemaValidationEvidence.class,
                         SemanticValidationEvidence.class,

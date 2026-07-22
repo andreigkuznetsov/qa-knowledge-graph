@@ -115,7 +115,7 @@ public final class IntrinsicChangeValidator {
         }
 
         return new IntrinsicChangeSetResult(
-                Optional.of(changeSet),
+                changeSet,
                 valid,
                 failed,
                 ambiguities

@@ -126,6 +126,10 @@ substituted in-process data. See ADR-001.
 Consumers read public outcome contracts and invoke public stage services.
 Package-owned implementations create successful provenance-bearing outcomes.
 No result is accepted from untrusted transport.
+Intrinsic Change Set success directly retains its mandatory declaration set.
+Base Change Set success directly retains its mandatory intrinsic result, exact
+Canonical Base evidence, and exact Base index. Success types are read contracts,
+not public construction APIs.
 
 ## 21. Known V0.1 Limitations
 
@@ -137,3 +141,24 @@ from independently reconstructed evidence after process restart.
 Persistence or distribution will require stable provenance. Simulation and
 Impact Analysis may consume verified evidence later but must not become part of
 verification semantics.
+
+## Release Test Coverage Map
+
+The integrated gate proves essential public boundaries; focused suites own
+exhaustive stage diagnostics and infrastructure variants.
+
+| Release claim | Primary end-to-end test | Focused supporting suite |
+|---|---|---|
+| Intrinsic validation | `CanonicalChangeReleaseGateTest` | `IntrinsicChangeValidatorTest`, `IntrinsicChangeSetValidationTest` |
+| Base truthfulness | `CanonicalChangeReleaseGateTest` | `BaseChangeVerifierTest`, `BaseChangeSetVerificationTest` |
+| Stale evidence | `CanonicalChangeReleaseGateTest` | `ProposedModelMaterializerTest` |
+| Materialization atomicity | `CanonicalChangeReleaseGateTest` | `ProposedModelMaterializerTest` |
+| Dangling references | mixed gate reaches aggregate success | `AggregateTransitionValidatorTest` |
+| Schema before semantic | schema rejection gate | `CompleteProposedRootValidatorTest` |
+| Schema and semantic failure | `CanonicalChangeReleaseGateTest` | `CompleteProposedRootValidatorTest` |
+| Warning success | mixed/final gates | `CompleteProposedRootValidatorTest`, `FinalChangeSetVerifierTest` |
+| Infrastructure failure | final classification contract | `CompleteProposedRootValidatorTest` |
+| Mutation safety | `CanonicalChangeReleaseGateTest` | artifact, materialization, root, and complete suites |
+| Deterministic ordering | permutation gate | intrinsic, materialization, aggregate, root, and complete suites |
+| Same-ID category safety | `CanonicalChangeReleaseGateTest` | `BaseArtifactIndexTest`, `ProposedModelMaterializerTest` |
+| Final provenance | substituted-evidence gate | `FinalChangeSetVerifierTest` API inventory |

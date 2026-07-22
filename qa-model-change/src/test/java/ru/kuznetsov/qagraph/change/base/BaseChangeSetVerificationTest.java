@@ -150,10 +150,18 @@ class BaseChangeSetVerificationTest {
     }
 
     private BaseChangeVerifier verifier(ArtifactState... states) {
-        return new BaseChangeVerifier(new BaseArtifactIndex(
+        BaseArtifactIndex index = new BaseArtifactIndex(
                 CanonicalQaModelVersion.V0_1,
                 List.of(states)
-        ));
+        );
+        var retained = new com.fasterxml.jackson.databind.ObjectMapper()
+                .createObjectNode();
+        retained.putObject("project").put("id", "P-1").put("name", "P");
+        retained.putArray("sources");
+        var evidence = ru.kuznetsov.qagraph.change.root.RootTestFixtures
+                .evidence(new ru.kuznetsov.qagraph.change.root.CanonicalRootContext(
+                        CanonicalQaModelVersion.V0_1, retained), index);
+        return new BaseChangeVerifier(evidence);
     }
 
     private DeclaredChange declaration(

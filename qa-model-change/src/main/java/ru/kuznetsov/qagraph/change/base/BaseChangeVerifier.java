@@ -193,8 +193,9 @@ public final class BaseChangeVerifier {
         }
         return new BaseChangeSetResult(
                 baseIndex,
-                baseEvidence,
-                Optional.of(intrinsic),
+                baseEvidence.orElseThrow(() -> new IllegalStateException(
+                        "Change Set verification requires Canonical Base evidence")),
+                intrinsic,
                 intrinsic.failedDeclarations(),
                 intrinsic.ambiguities(),
                 verified,

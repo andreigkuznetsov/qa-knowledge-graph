@@ -34,14 +34,8 @@ class ProposedCanonicalRootReconstructorTest {
     void materializerShouldCarryExactExtractedRootEvidence()
             throws Exception {
         CanonicalBaseModelEvidence evidence = evidence(root());
-        BaseChangeSetResult verified = new BaseChangeSetResult(
-                evidence.artifactIndex(),
-                Optional.of(evidence),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of()
-        );
+        BaseChangeSetResult verified =
+                ru.kuznetsov.qagraph.change.base.BaseTestFixtures.source(evidence);
 
         ProposedModelMaterialized materialized = assertInstanceOf(
                 ProposedModelMaterialized.class,
@@ -137,7 +131,7 @@ class ProposedCanonicalRootReconstructorTest {
         );
         ProposedRootReconstructionFailure absent = assertInstanceOf(
                 ProposedRootReconstructionFailure.class,
-                reconstructor.reconstruct(evidence, new AggregateTransitionValid(
+                reconstructor.reconstruct(evidence, ru.kuznetsov.qagraph.change.aggregate.AggregateTestFixtures.valid(
                         ru.kuznetsov.qagraph.change.materialization.MaterializationTestFixtures.materialized(model)))
         );
         assertEquals(BASE_ROOT_EVIDENCE_MISMATCH,
@@ -185,7 +179,7 @@ class ProposedCanonicalRootReconstructorTest {
 
         ProposedRootReconstructionFailure failure = assertInstanceOf(
                 ProposedRootReconstructionFailure.class,
-                reconstructor.reconstruct(evidence, new AggregateTransitionValid(
+                reconstructor.reconstruct(evidence, ru.kuznetsov.qagraph.change.aggregate.AggregateTestFixtures.valid(
                         ru.kuznetsov.qagraph.change.materialization.MaterializationTestFixtures.materialized(success.aggregateTransition()
                                 .materialization().proposedModel())))
         );
@@ -208,7 +202,7 @@ class ProposedCanonicalRootReconstructorTest {
             CanonicalBaseModelEvidence evidence,
             ProposedArtifactModel model
     ) {
-        return new AggregateTransitionValid(
+        return ru.kuznetsov.qagraph.change.aggregate.AggregateTestFixtures.valid(
                 ru.kuznetsov.qagraph.change.materialization.MaterializationTestFixtures.materialized(model, evidence));
     }
 

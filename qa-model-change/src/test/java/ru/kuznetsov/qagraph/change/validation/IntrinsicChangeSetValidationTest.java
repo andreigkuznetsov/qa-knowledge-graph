@@ -136,6 +136,7 @@ class IntrinsicChangeSetValidationTest {
         List<IntrinsicallyValidChange> source = new ArrayList<>();
         source.add(new IntrinsicallyValidChange(0, declaration));
         IntrinsicChangeSetResult result = new IntrinsicChangeSetResult(
+                new DeclaredChangeSet(List.of(declaration)),
                 source, List.of(), List.of());
         source.clear();
 

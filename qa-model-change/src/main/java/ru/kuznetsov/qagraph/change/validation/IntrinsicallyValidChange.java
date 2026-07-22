@@ -1,23 +1,19 @@
 package ru.kuznetsov.qagraph.change.validation;
 
 import ru.kuznetsov.qagraph.change.model.DeclaredChange;
-
 import java.util.Objects;
 
-/**
- * Declaration that passed Phase 3 checks; it is not a verified change.
- */
-public record IntrinsicallyValidChange(
-        int declarationIndex,
-        DeclaredChange declaration
-) implements IntrinsicChangeResult {
-
-    public IntrinsicallyValidChange {
-        if (declarationIndex < 0) {
-            throw new IllegalArgumentException(
-                    "declarationIndex must not be negative"
-            );
-        }
-        Objects.requireNonNull(declaration, "declaration must not be null");
+/** One declaration accepted by the owning intrinsic validator run. */
+public final class IntrinsicallyValidChange implements IntrinsicChangeResult {
+    private final int declarationIndex;
+    private final DeclaredChange declaration;
+    IntrinsicallyValidChange(int index, DeclaredChange declaration) {
+        if (index < 0) throw new IllegalArgumentException("declarationIndex must not be negative");
+        this.declarationIndex = index;
+        this.declaration = Objects.requireNonNull(declaration);
     }
+    public int declarationIndex() { return declarationIndex; }
+    public DeclaredChange declaration() { return declaration; }
+    @Override public boolean equals(Object o) { return o instanceof IntrinsicallyValidChange that && declarationIndex == that.declarationIndex && declaration.equals(that.declaration); }
+    @Override public int hashCode() { return Objects.hash(declarationIndex, declaration); }
 }

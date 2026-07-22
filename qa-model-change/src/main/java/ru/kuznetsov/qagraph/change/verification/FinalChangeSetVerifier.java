@@ -35,21 +35,14 @@ public final class FinalChangeSetVerifier {
         ProposedModelMaterialized materialization = root.aggregateTransition()
                 .materialization();
         BaseChangeSetResult base = materialization.sourceResult();
-        Optional<IntrinsicChangeSetResult> intrinsicOptional = base.intrinsicResult();
-        if (intrinsicOptional.isEmpty()) {
-            return inconsistent(result, "Intrinsic source evidence is missing");
-        }
-        IntrinsicChangeSetResult intrinsic = intrinsicOptional.orElseThrow();
-        Optional<DeclaredChangeSet> declaredOptional = intrinsic.declaredChangeSet();
-        if (declaredOptional.isEmpty()) {
-            return inconsistent(result, "Declared Change Set evidence is missing");
-        }
-        if (!consistent(valid, declaredOptional.orElseThrow(), intrinsic, base)) {
+        IntrinsicChangeSetResult intrinsic = base.intrinsicResult();
+        DeclaredChangeSet declared = intrinsic.declaredChangeSet();
+        if (!consistent(valid, declared, intrinsic, base)) {
             return inconsistent(result, "Retained success evidence is incoherent");
         }
         return new VerifiedChangeSet(
                 valid,
-                declaredOptional.orElseThrow(),
+                declared,
                 intrinsic,
                 base
         );
@@ -73,8 +66,7 @@ public final class FinalChangeSetVerifier {
                         candidate.declarationIndex()))
                 && base.baseVerifiedCandidates().size()
                 == intrinsic.validCandidates().size();
-        boolean evidenceBound = base.baseEvidence().filter(value ->
-                value == root.baseEvidence()).isPresent()
+        boolean evidenceBound = base.baseEvidence() == root.baseEvidence()
                 && base.baseIndex() == root.baseEvidence().artifactIndex()
                 && materialized.baseEvidence() == root.baseEvidence();
         JsonNode snapshot = root.proposedRoot().snapshot();

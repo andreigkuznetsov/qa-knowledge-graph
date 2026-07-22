@@ -215,7 +215,7 @@ class BaseChangeVerifierTest {
                         node("N-1", "After").snapshot()
                 ))
         );
-        IntrinsicallyValidChange candidate = new IntrinsicallyValidChange(
+        IntrinsicallyValidChange candidate = ru.kuznetsov.qagraph.change.validation.ValidationTestFixtures.candidate(
                 0,
                 declaration
         );

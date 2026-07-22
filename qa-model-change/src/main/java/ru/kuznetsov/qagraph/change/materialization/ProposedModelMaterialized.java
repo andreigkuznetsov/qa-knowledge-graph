@@ -16,7 +16,7 @@ public final class ProposedModelMaterialized implements ProposedModelMaterializa
         this.proposedModel = Objects.requireNonNull(model);
         this.baseEvidence = Objects.requireNonNull(baseEvidence);
         this.sourceResult = Objects.requireNonNull(sourceResult);
-        if (sourceResult.baseEvidence().filter(value -> value == baseEvidence).isEmpty())
+        if (sourceResult.baseEvidence() != baseEvidence)
             throw new IllegalArgumentException("sourceResult must own baseEvidence");
     }
     public ProposedArtifactModel proposedModel() { return proposedModel; }

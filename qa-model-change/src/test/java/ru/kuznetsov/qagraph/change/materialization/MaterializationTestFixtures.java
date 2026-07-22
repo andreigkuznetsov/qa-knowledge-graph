@@ -19,7 +19,7 @@ public final class MaterializationTestFixtures {
         } catch (Exception exception) { throw new IllegalStateException(exception); }
     }
     public static ProposedModelMaterialized materialized(ProposedArtifactModel model, CanonicalBaseModelEvidence evidence) {
-        BaseChangeSetResult source = new BaseChangeSetResult(evidence.artifactIndex(), Optional.of(evidence), List.of(), List.of(), List.of(), List.of());
+        BaseChangeSetResult source = ru.kuznetsov.qagraph.change.base.BaseTestFixtures.source(evidence);
         return new ProposedModelMaterialized(model, evidence, source);
     }
 }

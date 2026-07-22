@@ -77,14 +77,82 @@ class CanonicalChangeReleaseGateTest {
         assertEquals(first.schemaVersion(), permuted.schemaVersion());
         assertEquals(first, new FinalChangeSetVerifier().verify(
                 first.completeValidation()));
+        assertThrows(UnsupportedOperationException.class,
+                () -> first.warnings().clear());
+        var exposed = first.proposedRoot().snapshot();
+        exposed.remove("project");
+        assertTrue(first.proposedRoot().snapshot().has("project"));
         assertEquals("old", oldNode.snapshot().path("name").asText());
         assertEquals(4, base.artifactIndex().artifacts().stream()
                 .filter(value -> value.category() == ArtifactCategory.NODE)
                 .count());
     }
 
+    @Test
+    void schemaInvalidRootShouldReachSchemaFinalRejection() throws Exception {
+        var root = mapper.readTree("""
+            {"schemaVersion":"0.1","project":{"id":"P-1","name":"P"},
+             "sources":[],"nodes":[],"relationships":[],"unknown":true}
+            """);
+        CanonicalBaseModelEvidence base = ((CanonicalBaseEvidenceExtracted)
+                new CanonicalBaseEvidenceExtractor().extract(root)).evidence();
+        NodeArtifactState added = node("N-1", "added");
+        var complete = complete(base, List.of(change(ChangeKind.ADDED, null, added)));
+        RejectedChangeSet rejected = assertInstanceOf(RejectedChangeSet.class,
+                new FinalChangeSetVerifier().verify(complete));
+        assertEquals(FinalVerificationStage.SCHEMA_VALIDATION, rejected.stage());
+    }
+
+    @Test
+    void semanticInvalidRootShouldReachSemanticFinalRejection() throws Exception {
+        var root = mapper.readTree("""
+            {"schemaVersion":"0.1","project":{"id":"P-1","name":"P"},
+             "sources":[],"nodes":[
+              {"id":"N-1","type":"CHECK","name":"one","check":{"checkType":"SQL","assertion":"ok"}},
+              {"id":"N-2","type":"CHECK","name":"two","check":{"checkType":"SQL","assertion":"ok"}}],
+             "relationships":[{"id":"R-1","from":"N-1","type":"RELATED_TO","to":"N-2"}]}
+            """);
+        CanonicalBaseModelEvidence base = ((CanonicalBaseEvidenceExtracted)
+                new CanonicalBaseEvidenceExtractor().extract(root)).evidence();
+        ArtifactState before = ((BaseArtifactFound) base.artifactIndex().lookup(
+                ArtifactCategory.NODE, new CanonicalIdentity("N-1"))).state();
+        var complete = complete(base, List.of(change(
+                ChangeKind.MODIFIED, before, node("N-1", "changed"))));
+        RejectedChangeSet rejected = assertInstanceOf(RejectedChangeSet.class,
+                new FinalChangeSetVerifier().verify(complete));
+        assertEquals(FinalVerificationStage.SEMANTIC_VALIDATION, rejected.stage());
+    }
+
+    @Test
+    void substitutedBaseEvidenceShouldNotReachFinalSuccess() throws Exception {
+        var json = mapper.readTree("""
+            {"schemaVersion":"0.1","project":{"id":"P-1","name":"P"},
+             "sources":[],"nodes":[],"relationships":[]}
+            """);
+        CanonicalBaseModelEvidence first = ((CanonicalBaseEvidenceExtracted)
+                new CanonicalBaseEvidenceExtractor().extract(json)).evidence();
+        CanonicalBaseModelEvidence substituted = ((CanonicalBaseEvidenceExtracted)
+                new CanonicalBaseEvidenceExtractor().extract(json)).evidence();
+        NodeArtifactState added = node("N-1", "added");
+        var intrinsic = new IntrinsicChangeValidator().validate(
+                new DeclaredChangeSet(List.of(change(
+                        ChangeKind.ADDED, null, added))));
+        var verified = new BaseChangeVerifier(first).verify(intrinsic);
+        assertInstanceOf(ProposedModelMaterializationFailure.class,
+                new ProposedModelMaterializer().materialize(
+                        substituted.artifactIndex(), verified));
+    }
+
     private VerifiedChangeSet run(CanonicalBaseModelEvidence base,
                                   List<DeclaredChange> changes) {
+        CompleteProposedRootValid complete = assertInstanceOf(
+                CompleteProposedRootValid.class, complete(base, changes));
+        return assertInstanceOf(VerifiedChangeSet.class,
+                new FinalChangeSetVerifier().verify(complete));
+    }
+
+    private CompleteProposedRootValidationResult complete(
+            CanonicalBaseModelEvidence base, List<DeclaredChange> changes) {
         IntrinsicChangeSetResult intrinsic = new IntrinsicChangeValidator()
                 .validate(new DeclaredChangeSet(changes));
         BaseChangeSetResult verified = new BaseChangeVerifier(base)
@@ -102,11 +170,7 @@ class CanonicalChangeReleaseGateTest {
                         base, aggregate));
         CompleteProposedRootValidationResult completeResult =
                 new CompleteProposedRootValidator().validate(root);
-        CompleteProposedRootValid complete = assertInstanceOf(
-                CompleteProposedRootValid.class, completeResult,
-                completeResult::toString);
-        return assertInstanceOf(VerifiedChangeSet.class,
-                new FinalChangeSetVerifier().verify(complete));
+        return completeResult;
     }
 
     private DeclaredChange change(ChangeKind kind, ArtifactState before,
