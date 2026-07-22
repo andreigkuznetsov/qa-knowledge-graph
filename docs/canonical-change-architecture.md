@@ -29,13 +29,26 @@ Analysis, and persistence modules remain downstream or unrelated.
 ```mermaid
 flowchart TD
   D[DeclaredChangeSet] --> I[IntrinsicChangeValidator]
-  I --> B[BaseChangeVerifier]
-  B --> M[ProposedModelMaterializer]
-  M --> A[AggregateTransitionValidator]
-  A --> R[ProposedCanonicalRootReconstructor]
-  R --> C[CompleteProposedRootValidator]
-  C --> F[FinalChangeSetVerifier]
-  F --> V[VerifiedChangeSet or RejectedChangeSet]
+  I --> IR[IntrinsicChangeSetResult]
+  IR --> B[BaseChangeVerifier]
+  BE[CanonicalBaseModelEvidence] --> B
+  B --> BR[BaseChangeSetResult]
+  BR --> M[ProposedModelMaterializer]
+  M --> MR[ProposedModelMaterializationResult]
+  MR --> A[AggregateTransitionValidator]
+  A --> AR[AggregateTransitionValidationResult]
+  AR --> R[ProposedCanonicalRootReconstructor]
+  BE --> R
+  R --> RR[ProposedRootReconstructionResult]
+  RR --> C[CompleteProposedRootValidator]
+  VC[qa-model-validation-core<br/>authoritative schema + semantics] --> C
+  C --> CR[CompleteProposedRootValidationResult]
+  CR --> F[FinalChangeSetVerifier]
+  F --> V[VerifiedChangeSet]
+  F --> X[RejectedChangeSet]
+
+  N[Non-scope:<br/>persistence, publication, approval, deployment,<br/>simulation, impact analysis, migration, repair]
+  N -. excluded .- F
 ```
 
 ## 6. Stage Responsibilities

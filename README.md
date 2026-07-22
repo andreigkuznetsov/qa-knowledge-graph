@@ -1,284 +1,59 @@
 # QA Knowledge Graph
 
-Multi-module Gradle project for validating the Normalized QA Model before persistence in a graph database.
+QA Knowledge Graph is a multi-module Java 21 platform for deterministic
+validation, analysis, and planning over the Canonical QA Model.
 
-## Modules
+## Canonical Change v1.0.0
 
-### `qa-model`
+Canonical Change is the release-ready, framework-independent change-verification
+capability in [`qa-model-change`](qa-model-change/README.md). Software release
+**v1.0.0** supports the Canonical QA Model schema version **0.1**. These are
+separate version domains: v1.0.0 is the software release; 0.1 is the model
+contract accepted by this release.
 
-Pure Java module containing:
+The pipeline validates declared changes intrinsically, verifies Base truth,
+materializes the proposed model atomically, checks aggregate references,
+reconstructs the canonical root, delegates complete schema and semantic
+authority to Validation Core, and emits final verified or rejected evidence.
 
-- shared enums and validation response contracts;
-- `qa-model-v0.1.schema.json`;
-- no Spring Boot or database dependencies.
+## Release documentation
 
-### `qa-model-validator`
+- [Canonical Change v1.0.0 release notes](docs/releases/canonical-change-v1.0.0.md)
+- [Release manifest](docs/releases/canonical-change-v1.0.0-manifest.md)
+- [Canonical Change architecture](docs/canonical-change-architecture.md)
+- [Canonical Change ADR index](docs/adr/README.md)
+- [Changelog](CHANGELOG.md)
 
-Spring Boot REST service containing:
+## Repository modules
 
-- `POST /api/v1/qa-model/validate`;
-- registration, retrieval, listing, and tracing of in-memory QA models;
-- `GET /api/v1/models/{modelId}/coverage` for registered-model coverage;
-- `GET /api/v1/models/{modelId}/findings` for actionable structural gaps;
-- `GET /api/v1/models/{modelId}/assessment` for a unified model assessment;
-- JSON Schema Draft 2020-12 validation;
-- semantic graph validation;
-- integration and smoke tests.
+The release centers on `qa-model-change` and directly depends on `qa-model` and
+`qa-model-validation-core`. Other modules provide the validator service and
+downstream coverage, findings, roadmap, execution-planning, impact-analysis,
+simulation, extraction, story-analysis, and QA intelligence capabilities.
+See [module responsibilities](docs/architecture/module-responsibilities.md) and
+the [system architecture](docs/architecture/system-architecture.md).
 
-## Architecture documentation
+## Requirements
 
-- [System architecture](docs/architecture/system-architecture.md)
-- [Module responsibilities](docs/architecture/module-responsibilities.md)
-- [Pipeline contracts](docs/architecture/pipeline-contracts.md)
-- [Architecture Decision Records](docs/architecture/adr/)
+- JDK 21
+- the checked-in Gradle Wrapper (Gradle 8.14.3)
 
-## Required local files
+## Build and verification
 
-Add Gradle Wrapper files from another Gradle project:
-
-```text
-gradlew
-gradlew.bat
-gradle/wrapper/gradle-wrapper.jar
-gradle/wrapper/gradle-wrapper.properties
-```
-
-Use a Gradle 8.x wrapper compatible with Java 21 and Spring Boot 3.5.x.
-
-## Commands
-
-Windows:
+From the repository root on Windows:
 
 ```powershell
-.\gradlew.bat clean test
-.\gradlew.bat :qa-model-validator:smokeTest
-.\gradlew.bat :qa-model-validator:bootRun
+.\gradlew.bat clean :qa-model-change:test --no-daemon --console=plain
+.\gradlew.bat clean test --no-daemon --console=plain
+.\gradlew.bat :qa-model-change:check --no-daemon --console=plain
+git diff --check
 ```
 
-Linux/macOS:
+On Linux or macOS, replace `.\gradlew.bat` with `./gradlew`.
 
-```bash
-./gradlew clean test
-./gradlew :qa-model-validator:smokeTest
-./gradlew :qa-model-validator:bootRun
-```
+## Current boundaries
 
-## Endpoint
-
-```http
-POST /api/v1/qa-model/validate
-Content-Type: application/json
-```
-
-Example request is located at:
-
-```text
-docs/qa-model-v0.1.example.json
-```
-
-Registered-model coverage is available after `POST /api/v1/models`:
-
-```http
-GET /api/v1/models/{modelId}/coverage
-```
-
-The response reports three structural metrics in stable order:
-`RULE_SCENARIO_COVERAGE`, `SCENARIO_TEST_COVERAGE`, and
-`TEST_CHECK_COVERAGE`. They describe explicit relationships in the model;
-they do not represent test execution status or successful test results. The
-current model does not prove that a particular `CHECK` validates a particular
-`BUSINESS_RULE`. Empty node categories are represented by
-`coveragePercent: 0.0`.
-
-Registered-model findings use these stable codes and severities:
-
-- `BUSINESS_RULE_WITHOUT_SCENARIO` — `HIGH`;
-- `SCENARIO_WITHOUT_TEST` — `MEDIUM`;
-- `TEST_WITHOUT_CHECK` — `MEDIUM`.
-
-Validation determines whether a model is acceptable. Coverage measures
-structural completeness. Findings identify exact nodes that require action.
-Findings are structural: they do not represent test execution results, and the
-model cannot prove that a particular `CHECK` validates a particular
-`BUSINESS_RULE`.
-
-The assessment endpoint is an orchestration API: it aggregates the existing
-validation, coverage, and findings results and adds an overall `PASS`,
-`WARNING`, or `FAIL` health value. It does not introduce another analysis or
-include exploratory trace results.
-
-## MVP 0.6.1 — Roadmap Domain Foundation
-
-Findings identify what is wrong. Roadmap converts findings into deterministic
-remediation tasks:
-
-| Finding | Remediation task |
-| --- | --- |
-| `BUSINESS_RULE_WITHOUT_SCENARIO` | `CREATE_SCENARIO` |
-| `SCENARIO_WITHOUT_TEST` | `CREATE_TEST_IMPLEMENTATION` |
-| `TEST_WITHOUT_CHECK` | `CREATE_CHECK` |
-
-Roadmap never modifies the QA model or generates scenarios, tests, or checks.
-All tasks are `PLANNED`;
-dependencies are not inferred while future node identities are unknown. No
-priorities, effort estimates, persistence, or LLM processing are included.
-
-## MVP 0.6.2 — Registered Model Roadmap API
-
-```http
-GET /api/v1/models/{modelId}/roadmap
-```
-
-The endpoint follows `Registered model → Coverage → Findings → Roadmap`.
-Coverage is calculated once, Findings reuse the resulting `CoverageReport`,
-and Roadmap consumes that `FindingsReport`. Responses are deterministic; the
-model is not modified and tasks are not persisted. Every task remains
-`PLANNED`, dependencies remain empty, and priorities or effort estimates are
-not calculated. Roadmap is not included in Assessment yet, and no LLM is used.
-
-```json
-{
-  "modelId": "model-id",
-  "planned": true,
-  "summary": { "totalTasks": 1, "plannedTasks": 1,
-    "tasksWithDependencies": 0 },
-  "tasks": [
-    { "id": "TASK-CREATE-SCENARIO-BR-001",
-      "type": "CREATE_SCENARIO", "status": "PLANNED",
-      "targetNodeId": "BR-001", "dependsOn": [] }
-  ]
-}
-```
-
-## MVP 0.7 — Execution Planner Domain Foundation
-
-Roadmap identifies remediation tasks. Execution Planner groups those tasks
-into the earliest safe parallel waves using explicit dependencies only:
-
-```text
-RoadmapReport → ExecutionPlanner → ExecutionPlan → ExecutionWave[]
-```
-
-Independent tasks stay together, regardless of task type:
-
-```text
-A, B, C have no dependencies
-Wave 1: A, B, C
-```
-
-Explicit chain and diamond dependencies produce level-based waves:
-
-```text
-A → B → C                 A
-Wave 1: A                / \
-Wave 2: B               B   C
-Wave 3: C                \ /
-                          D
-                Wave 1: A; Wave 2: B, C; Wave 3: D
-```
-
-Dependencies are never inferred from task types. Current RoadmapService output
-normally produces one wave because all `dependsOn` lists are empty. The planner
-rejects missing dependencies, self-dependencies, duplicate task IDs, and
-cycles. Waves express structural parallelism only: the planner does not execute
-tasks, assign priorities, estimate effort or duration, or inspect the QA model.
-No REST endpoint, persistence, or LLM processing is included yet.
-
-## MVP 0.7.1 — Registered Model Execution Plan API
-
-```http
-GET /api/v1/models/{modelId}/execution-plan
-```
-
-The endpoint follows this deterministic application flow:
-
-```text
-Registered model → CoverageReport → FindingsReport → RoadmapReport
-    → ExecutionPlan
-```
-
-The model is loaded once and Coverage is calculated once. Findings reuse that
-exact `CoverageReport`, Roadmap reuses the resulting `FindingsReport`, and the
-Execution Planner reuses the resulting `RoadmapReport`; validation is also
-reused from Coverage. Each stage runs once per request. Wave grouping uses only
-explicit task dependencies and never infers dependencies from task types.
-Because the current RoadmapService creates dependency-free tasks, its normal
-output is one wave containing all tasks.
-
-```json
-{
-  "modelId": "model-id",
-  "planned": true,
-  "schemaVersion": "0.1",
-  "summary": {
-    "totalTasks": 3,
-    "totalWaves": 1,
-    "parallelizableTasks": 3,
-    "sequentialTasks": 0,
-    "maximumParallelism": 3
-  },
-  "waves": [
-    {
-      "number": 1,
-      "taskIds": [
-        "TASK-CREATE-SCENARIO-BR-001",
-        "TASK-CREATE-TEST-IMPLEMENTATION-SC-001",
-        "TASK-CREATE-CHECK-TC-001"
-      ]
-    }
-  ],
-  "sourceRoadmapSummary": {
-    "totalTasks": 3,
-    "plannedTasks": 3,
-    "tasksWithDependencies": 0
-  },
-  "validation": { "valid": true }
-}
-```
-
-The endpoint does not execute or persist plans or tasks. It has no progress
-state, priority or effort estimation, and uses no LLM. Execution Plan is not
-included in Assessment, and the existing Roadmap response remains unchanged.
-
-## MVP 0.8 — Deterministic Remediation Impact Analysis
-
-Impact Analysis describes the expected structural effect of planned
-remediation without claiming that remediation has already succeeded:
-
-```text
-Validation → Coverage → Findings → Assessment → Roadmap
-    → Execution Planner → Impact Analysis
-
-RoadmapReport + ExecutionPlan → ImpactAnalyzer → ImpactReport
-```
-
-The current deterministic mappings are:
-
-| Remediation task | Expected structural change |
-| --- | --- |
-| `CREATE_SCENARIO` | Create a `SCENARIO` with `COVERS` targeting the affected `BUSINESS_RULE` |
-| `CREATE_TEST_IMPLEMENTATION` | Create a `TEST_IMPLEMENTATION` with `VALIDATES` targeting the affected `SCENARIO` |
-| `CREATE_CHECK` | Create a `CHECK` targeted by `HAS_CHECK` from the affected `TEST_IMPLEMENTATION` |
-
-Every impact uses the conditional expectation
-`FINDING_EXPECTED_TO_BE_RESOLVED_AFTER_VALID_COMPLETION`. Impact Analysis does
-not simulate model changes, create future node IDs, calculate projected
-coverage improvements, prioritize work, estimate effort, persist reports, or
-use an LLM. MVP 0.8 is a pure Java domain capability and has no REST endpoint.
-
-## Smoke suite
-
-The smoke suite checks:
-
-1. valid model returns `valid=true`;
-2. JSON Schema violation returns `valid=false` and `JSON_SCHEMA` issue;
-3. unknown target node returns `UNKNOWN_TO_NODE`;
-4. invalid relationship direction returns `RELATIONSHIP_NOT_ALLOWED`;
-5. scenario without test returns warning while `valid=true`;
-6. malformed JSON returns HTTP 400.
-
-## Current boundary
-
-The project keeps registered QA models in memory. Coverage is calculated on
-demand with the existing coverage engine. No external database or inferred
-graph relationships are used.
+Canonical Change is a trusted, in-process verification library. It does not
+persist, publish, approve, deploy, execute, simulate, migrate, repair, or
+impact-assess a model. See the release notes for the complete limitations and
+public API summary.
