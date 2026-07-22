@@ -146,8 +146,7 @@ public final class CompleteProposedRootValidator {
                 && model.nodes().stream().allMatch(this::supported)
                 && model.relationships().stream().allMatch(this::supported)
                 && reconstructed.aggregateTransition().materialization()
-                .baseEvidence().filter(value ->
-                        value == reconstructed.baseEvidence()).isPresent();
+                .baseEvidence() == reconstructed.baseEvidence();
     }
 
     private boolean supported(ArtifactState artifact) {

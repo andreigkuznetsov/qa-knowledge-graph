@@ -308,7 +308,7 @@ class AggregateTransitionValidatorTest {
             List<NodeArtifactState> nodes,
             List<RelationshipArtifactState> relationships
     ) {
-        return new ProposedModelMaterialized(new ProposedArtifactModel(
+        return ru.kuznetsov.qagraph.change.materialization.MaterializationTestFixtures.materialized(new ProposedArtifactModel(
                 version,
                 nodes,
                 relationships

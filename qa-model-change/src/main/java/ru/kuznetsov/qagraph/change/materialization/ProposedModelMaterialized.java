@@ -1,38 +1,27 @@
 package ru.kuznetsov.qagraph.change.materialization;
 
-import ru.kuznetsov.qagraph.change.root.CanonicalBaseModelEvidence;
 import ru.kuznetsov.qagraph.change.base.BaseChangeSetResult;
-
+import ru.kuznetsov.qagraph.change.root.CanonicalBaseModelEvidence;
 import java.util.Objects;
-import java.util.Optional;
 
-/**
- * Deterministically materialized candidate artifact model.
- */
-public record ProposedModelMaterialized(
-        ProposedArtifactModel proposedModel,
-        Optional<CanonicalBaseModelEvidence> baseEvidence,
-        Optional<BaseChangeSetResult> sourceResult
-)
-        implements ProposedModelMaterializationResult {
+/** Successful materialization bound to mandatory source evidence. */
+public final class ProposedModelMaterialized implements ProposedModelMaterializationResult {
+    private final ProposedArtifactModel proposedModel;
+    private final CanonicalBaseModelEvidence baseEvidence;
+    private final BaseChangeSetResult sourceResult;
 
-    public ProposedModelMaterialized {
-        Objects.requireNonNull(
-                proposedModel,
-                "proposedModel must not be null"
-        );
-        Objects.requireNonNull(baseEvidence, "baseEvidence must not be null");
-        Objects.requireNonNull(sourceResult, "sourceResult must not be null");
+    ProposedModelMaterialized(ProposedArtifactModel model,
+                              CanonicalBaseModelEvidence baseEvidence,
+                              BaseChangeSetResult sourceResult) {
+        this.proposedModel = Objects.requireNonNull(model);
+        this.baseEvidence = Objects.requireNonNull(baseEvidence);
+        this.sourceResult = Objects.requireNonNull(sourceResult);
+        if (sourceResult.baseEvidence().filter(value -> value == baseEvidence).isEmpty())
+            throw new IllegalArgumentException("sourceResult must own baseEvidence");
     }
-
-    public ProposedModelMaterialized(
-            ProposedArtifactModel proposedModel,
-            Optional<CanonicalBaseModelEvidence> baseEvidence
-    ) {
-        this(proposedModel, baseEvidence, Optional.empty());
-    }
-
-    public ProposedModelMaterialized(ProposedArtifactModel proposedModel) {
-        this(proposedModel, Optional.empty(), Optional.empty());
-    }
+    public ProposedArtifactModel proposedModel() { return proposedModel; }
+    public CanonicalBaseModelEvidence baseEvidence() { return baseEvidence; }
+    public BaseChangeSetResult sourceResult() { return sourceResult; }
+    @Override public boolean equals(Object o) { return o instanceof ProposedModelMaterialized that && proposedModel.equals(that.proposedModel) && baseEvidence == that.baseEvidence && sourceResult.equals(that.sourceResult); }
+    @Override public int hashCode() { return Objects.hash(proposedModel, System.identityHashCode(baseEvidence), sourceResult); }
 }

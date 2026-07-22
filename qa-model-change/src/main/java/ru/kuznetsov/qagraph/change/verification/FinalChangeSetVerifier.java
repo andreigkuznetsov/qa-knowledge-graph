@@ -34,11 +34,7 @@ public final class FinalChangeSetVerifier {
         ProposedRootReconstructed root = valid.reconstructedRoot();
         ProposedModelMaterialized materialization = root.aggregateTransition()
                 .materialization();
-        Optional<BaseChangeSetResult> baseOptional = materialization.sourceResult();
-        if (baseOptional.isEmpty()) {
-            return inconsistent(result, "Materialization source evidence is missing");
-        }
-        BaseChangeSetResult base = baseOptional.orElseThrow();
+        BaseChangeSetResult base = materialization.sourceResult();
         Optional<IntrinsicChangeSetResult> intrinsicOptional = base.intrinsicResult();
         if (intrinsicOptional.isEmpty()) {
             return inconsistent(result, "Intrinsic source evidence is missing");
@@ -47,18 +43,6 @@ public final class FinalChangeSetVerifier {
         Optional<DeclaredChangeSet> declaredOptional = intrinsic.declaredChangeSet();
         if (declaredOptional.isEmpty()) {
             return inconsistent(result, "Declared Change Set evidence is missing");
-        }
-        if (!intrinsic.failedDeclarations().isEmpty()) {
-            return stage(result, FinalVerificationStage.INTRINSIC_VALIDATION,
-                    "Intrinsic validation contains failures");
-        }
-        if (!intrinsic.ambiguities().isEmpty()) {
-            return stage(result, FinalVerificationStage.CHANGE_SET_AMBIGUITY,
-                    "Change Set contains target ambiguity");
-        }
-        if (!base.baseFailures().isEmpty()) {
-            return stage(result, FinalVerificationStage.BASE_VERIFICATION,
-                    "Base verification contains failures");
         }
         if (!consistent(valid, declaredOptional.orElseThrow(), intrinsic, base)) {
             return inconsistent(result, "Retained success evidence is incoherent");
@@ -92,8 +76,7 @@ public final class FinalChangeSetVerifier {
         boolean evidenceBound = base.baseEvidence().filter(value ->
                 value == root.baseEvidence()).isPresent()
                 && base.baseIndex() == root.baseEvidence().artifactIndex()
-                && materialized.baseEvidence().filter(value ->
-                value == root.baseEvidence()).isPresent();
+                && materialized.baseEvidence() == root.baseEvidence();
         JsonNode snapshot = root.proposedRoot().snapshot();
         boolean rootMatches = snapshot.path("nodes").equals(
                 artifacts(model.nodes()))

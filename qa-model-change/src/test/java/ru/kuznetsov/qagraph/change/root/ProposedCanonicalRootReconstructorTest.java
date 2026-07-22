@@ -51,8 +51,7 @@ class ProposedCanonicalRootReconstructorTest {
                 )
         );
 
-        assertTrue(materialized.baseEvidence().isPresent());
-        assertTrue(materialized.baseEvidence().orElseThrow() == evidence);
+        assertTrue(evidence == materialized.baseEvidence());
     }
 
     @Test
@@ -139,7 +138,7 @@ class ProposedCanonicalRootReconstructorTest {
         ProposedRootReconstructionFailure absent = assertInstanceOf(
                 ProposedRootReconstructionFailure.class,
                 reconstructor.reconstruct(evidence, new AggregateTransitionValid(
-                        new ProposedModelMaterialized(model)))
+                        ru.kuznetsov.qagraph.change.materialization.MaterializationTestFixtures.materialized(model)))
         );
         assertEquals(BASE_ROOT_EVIDENCE_MISMATCH,
                 absent.diagnostics().getFirst().code());
@@ -187,7 +186,7 @@ class ProposedCanonicalRootReconstructorTest {
         ProposedRootReconstructionFailure failure = assertInstanceOf(
                 ProposedRootReconstructionFailure.class,
                 reconstructor.reconstruct(evidence, new AggregateTransitionValid(
-                        new ProposedModelMaterialized(success.aggregateTransition()
+                        ru.kuznetsov.qagraph.change.materialization.MaterializationTestFixtures.materialized(success.aggregateTransition()
                                 .materialization().proposedModel())))
         );
         assertThrows(UnsupportedOperationException.class,
@@ -209,10 +208,8 @@ class ProposedCanonicalRootReconstructorTest {
             CanonicalBaseModelEvidence evidence,
             ProposedArtifactModel model
     ) {
-        return new AggregateTransitionValid(new ProposedModelMaterialized(
-                model,
-                Optional.of(evidence)
-        ));
+        return new AggregateTransitionValid(
+                ru.kuznetsov.qagraph.change.materialization.MaterializationTestFixtures.materialized(model, evidence));
     }
 
     private CanonicalBaseModelEvidence evidence(ObjectNode root) {

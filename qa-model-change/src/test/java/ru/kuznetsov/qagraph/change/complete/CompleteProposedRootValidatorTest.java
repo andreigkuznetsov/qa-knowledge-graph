@@ -217,6 +217,47 @@ class CompleteProposedRootValidatorTest {
     }
 
     @Test
+    void warningOrderShouldBeDeterministicAndAuthoritativeFieldsBound()
+            throws Exception {
+        ValidationIssue z = ValidationIssue.semanticWarning(
+                "Z_WARNING", "last", "Z", "/z");
+        ValidationIssue a = ValidationIssue.semanticWarning(
+                "A_WARNING", "first", "A", "/a");
+        CountingBackend left = new CountingBackend();
+        left.semanticIssues = List.of(z, a);
+        CountingBackend right = new CountingBackend();
+        right.semanticIssues = List.of(a, z);
+
+        CompleteProposedRootValid first = assertInstanceOf(
+                CompleteProposedRootValid.class,
+                new CompleteProposedRootValidator(left)
+                        .validate(reconstructed(minimalRoot())));
+        CompleteProposedRootValid second = assertInstanceOf(
+                CompleteProposedRootValid.class,
+                new CompleteProposedRootValidator(right)
+                        .validate(reconstructed(minimalRoot())));
+
+        assertEquals(first.semanticEvidence().diagnostics(),
+                second.semanticEvidence().diagnostics());
+        assertEquals(List.of("A_WARNING", "Z_WARNING"),
+                first.semanticEvidence().diagnostics().stream()
+                        .map(CompleteValidationDiagnostic::code).toList());
+        assertTrue(first.semanticEvidence().diagnostics().stream().allMatch(d ->
+                d.severity() == d.authoritativeIssue().severity()
+                        && d.code().equals(d.authoritativeIssue().code())
+                        && d.message().equals(d.authoritativeIssue().message())
+                        && d.objectId().equals(
+                        d.authoritativeIssue().objectId())));
+        assertThrows(UnsupportedOperationException.class,
+                () -> first.semanticEvidence().diagnostics().clear());
+        assertThrows(IllegalArgumentException.class,
+                () -> new CompleteValidationDiagnostic(
+                        CompleteValidationDiagnosticOrigin.SEMANTIC,
+                        ru.kuznetsov.qagraph.validationcore.model.ValidationSeverity.WARNING,
+                        "CONFLICT", "/a", "first", "A", a));
+    }
+
+    @Test
     void infrastructureFailuresShouldRemainDistinctByStage()
             throws Exception {
         CountingBackend schemaFailure = new CountingBackend();
@@ -343,10 +384,8 @@ class CompleteProposedRootValidatorTest {
             CanonicalBaseModelEvidence evidence,
             ProposedArtifactModel model
     ) {
-        return new AggregateTransitionValid(new ProposedModelMaterialized(
-                model,
-                Optional.of(evidence)
-        ));
+        return new AggregateTransitionValid(
+                ru.kuznetsov.qagraph.change.materialization.MaterializationTestFixtures.materialized(model, evidence));
     }
 
     private ObjectNode minimalRoot() throws Exception {

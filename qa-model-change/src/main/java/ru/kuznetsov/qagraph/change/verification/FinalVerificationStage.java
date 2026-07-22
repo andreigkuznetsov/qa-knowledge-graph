@@ -1,12 +1,6 @@
 package ru.kuznetsov.qagraph.change.verification;
 
 public enum FinalVerificationStage {
-    INTRINSIC_VALIDATION,
-    CHANGE_SET_AMBIGUITY,
-    BASE_VERIFICATION,
-    MATERIALIZATION,
-    AGGREGATE_TRANSITION,
-    ROOT_RECONSTRUCTION,
     SCHEMA_VALIDATION,
     SEMANTIC_VALIDATION,
     VALIDATION_INFRASTRUCTURE,

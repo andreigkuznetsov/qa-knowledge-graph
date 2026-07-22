@@ -416,7 +416,14 @@ class ProposedModelMaterializerTest {
         IntrinsicChangeSetResult intrinsicResult = intrinsic.validate(
                 new DeclaredChangeSet(declarations)
         );
-        return new BaseChangeVerifier(base).verify(intrinsicResult);
+        var retained = new com.fasterxml.jackson.databind.ObjectMapper()
+                .createObjectNode();
+        retained.putObject("project").put("id", "P-1").put("name", "P");
+        retained.putArray("sources");
+        var evidence = ru.kuznetsov.qagraph.change.root.RootTestFixtures
+                .evidence(new ru.kuznetsov.qagraph.change.root.CanonicalRootContext(
+                        base.schemaVersion(), retained), base);
+        return new BaseChangeVerifier(evidence).verify(intrinsicResult);
     }
 
     private BaseChangeSetResult forged(

@@ -12,9 +12,9 @@ import ru.kuznetsov.qagraph.change.materialization.ProposedModelMaterializer;
 import ru.kuznetsov.qagraph.change.model.*;
 import ru.kuznetsov.qagraph.change.root.*;
 import ru.kuznetsov.qagraph.change.validation.IntrinsicChangeValidator;
-import ru.kuznetsov.qagraph.validationcore.model.ValidationIssue;
 import ru.kuznetsov.qagraph.validationcore.model.ValidationSeverity;
 
+import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Optional;
 
@@ -53,26 +53,12 @@ class FinalChangeSetVerifierTest {
 
     @Test
     void warningsShouldRemainSuccessfulAndUnchanged() throws Exception {
-        CompleteProposedRootValid clean = completeValid();
-        ValidationIssue warning = ValidationIssue.semanticWarning(
-                "WARN_CODE", "warning", "N-1", "/nodes/0");
-        CompleteValidationDiagnostic diagnostic =
-                new CompleteValidationDiagnostic(
-                        CompleteValidationDiagnosticOrigin.SEMANTIC,
-                        ValidationSeverity.WARNING,
-                        warning.code(), warning.path(), warning.message(),
-                        warning.objectId(), warning);
-        CompleteProposedRootValid warned = new CompleteProposedRootValid(
-                clean.reconstructedRoot(), clean.schemaEvidence(),
-                new SemanticValidationEvidence(
-                        List.of(warning), List.of(diagnostic)));
-
         VerifiedChangeSet result = assertInstanceOf(
-                VerifiedChangeSet.class, verifier.verify(warned));
+                VerifiedChangeSet.class, verifier.verify(completeValid()));
         assertTrue(result.hasWarnings());
-        assertSame(diagnostic, result.warnings().getFirst());
-        assertEquals("WARN_CODE", result.warnings().getFirst().code());
-        assertEquals("/nodes/0", result.warnings().getFirst().path());
+        CompleteValidationDiagnostic warning = result.warnings().getFirst();
+        assertEquals(warning.authoritativeIssue().code(), warning.code());
+        assertEquals(warning.authoritativeIssue().severity(), warning.severity());
     }
 
     @Test
@@ -91,25 +77,24 @@ class FinalChangeSetVerifierTest {
     }
 
     @Test
-    void manuallyAssembledSuccessWithoutEarlierEvidenceShouldReject() throws Exception {
-        CompleteProposedRootValid clean = completeValid();
-        ProposedRootReconstructed root = clean.reconstructedRoot();
-        AggregateTransitionValid forgedAggregate = new AggregateTransitionValid(
-                new ProposedModelMaterialized(
-                        root.aggregateTransition().materialization().proposedModel(),
-                        Optional.of(root.baseEvidence())));
-        CompleteProposedRootValid forged = new CompleteProposedRootValid(
-                new ProposedRootReconstructed(
-                        root.proposedRoot(), root.baseEvidence(), forgedAggregate),
-                clean.schemaEvidence(), clean.semanticEvidence());
-
-        RejectedChangeSet result = assertInstanceOf(
-                RejectedChangeSet.class, verifier.verify(forged));
-        assertEquals(FinalVerificationStage.FINAL_EVIDENCE_CONSISTENCY,
-                result.stage());
-        assertEquals("FINAL_VERIFICATION_EVIDENCE_INCONSISTENT",
-                result.diagnostics().getFirst().code());
-        assertEquals(result, verifier.verify(forged));
+    void successTypesShouldExposeNoPublicConstructionPath() {
+        assertTrue(List.of(VerifiedChangeSet.class,
+                        CompleteProposedRootValid.class,
+                        SchemaValidationEvidence.class,
+                        SemanticValidationEvidence.class,
+                        ProposedModelMaterialized.class).stream()
+                .flatMap(type -> List.of(type.getDeclaredConstructors()).stream())
+                .noneMatch(value -> Modifier.isPublic(value.getModifiers())));
+        assertTrue(List.of(VerifiedChangeSet.class,
+                        CompleteProposedRootValid.class,
+                        SchemaValidationEvidence.class,
+                        SemanticValidationEvidence.class,
+                        ProposedModelMaterialized.class).stream()
+                .flatMap(type -> List.of(type.getDeclaredMethods()).stream())
+                .filter(value -> Modifier.isStatic(value.getModifiers()))
+                .noneMatch(value -> Modifier.isPublic(value.getModifiers())
+                        && FinalChangeSetVerificationResult.class
+                        .isAssignableFrom(value.getReturnType())));
     }
 
     private CompleteProposedRootValid completeValid() throws Exception {

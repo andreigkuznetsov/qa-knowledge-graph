@@ -11,7 +11,7 @@ public record RootReconstructionDiagnostic(
 ) {
     public static final Comparator<RootReconstructionDiagnostic> ORDER =
             Comparator.comparing(RootReconstructionDiagnostic::path)
-                    .thenComparing(value -> value.code().ordinal());
+                    .thenComparingInt(value -> value.code().rank());
 
     public RootReconstructionDiagnostic {
         Objects.requireNonNull(code, "code must not be null");

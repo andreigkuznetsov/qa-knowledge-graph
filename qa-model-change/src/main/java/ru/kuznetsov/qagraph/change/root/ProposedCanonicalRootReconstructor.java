@@ -46,9 +46,8 @@ public final class ProposedCanonicalRootReconstructor {
                     "Base root evidence is not available"
             );
         }
-        if (aggregateTransition.materialization().baseEvidence().isEmpty()
-                || aggregateTransition.materialization().baseEvidence()
-                .orElseThrow() != baseEvidence) {
+        if (aggregateTransition.materialization().baseEvidence()
+                != baseEvidence) {
             return failure(
                     STALE_EVIDENCE,
                     BASE_ROOT_EVIDENCE_MISMATCH,
