@@ -32,6 +32,7 @@ module build files are shown.
 ```mermaid
 flowchart LR
     validator[qa-model-validator] --> model[qa-model]
+    change[qa-model-change] --> model
     validator --> validation[qa-model-validation-core]
     validator --> coverage[qa-coverage-engine]
     validator --> findings[qa-findings-engine]

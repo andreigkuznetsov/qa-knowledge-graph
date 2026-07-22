@@ -8,6 +8,7 @@ an ownership boundary, not necessarily a compile-time enforcement mechanism.
 | Module | Kind | Responsibility | Main input → output / entry point | Direct project dependencies |
 |---|---|---|---|---|
 | `qa-model` | Pure Java contract | Normalized node and relationship types plus JSON Schema resource | Model enums and schema | None |
+| `qa-model-change` | Pure Java domain foundation | Canonical Change Phase 1 artifact-category, change-kind, and identity values | `ArtifactCategory`, `ChangeKind`, `CanonicalIdentity` | `qa-model` |
 | `qa-model-validation-core` | Pure Java core | JSON Schema and semantic graph validation | `JsonNode` → `QaModelValidationResult`; `QaModelValidationEngine` | None |
 | `qa-coverage-engine` | Spring Boot + domain | Structural coverage metrics and problems | `JsonNode` → `CoverageReport`; `CoverageService` | `qa-model-validation-core` |
 | `qa-findings-engine` | Java library | Convert coverage problems into actionable findings | `CoverageReport` → `FindingsReport`; `FindingsService` | `qa-coverage-engine`, `qa-model-validation-core` |
@@ -27,6 +28,17 @@ an ownership boundary, not necessarily a compile-time enforcement mechanism.
 - Owns normalized QA model vocabulary and schema resources.
 - May be consumed by validation, extraction, APIs, and Impact Analysis.
 - Must not own validation results, analysis, remediation, or orchestration.
+
+### `qa-model-change`
+
+- Owns the framework-independent Canonical Change foundation and domain values.
+- Phase 1 contains only artifact categories, change kinds, and canonical
+  identity; Artifact State, verification, materialization, and verified result
+  contracts are intentionally not implemented yet.
+- Consumes Canonical QA Model semantics and must not redefine collection
+  meaning or model validity.
+- Must not depend on application, Simulation, Remediation Impact, persistence,
+  or transport concerns.
 
 ### `qa-model-validation-core`
 

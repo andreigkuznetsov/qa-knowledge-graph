@@ -28,10 +28,10 @@ public class QaModelValidationEngine {
 
     public QaModelValidationResult validate(JsonNode document) {
         List<ValidationIssue> issues =
-                new ArrayList<>(schemaValidator.validate(document));
+                new ArrayList<>(validateSchema(document));
 
         if (issues.isEmpty()) {
-            issues.addAll(semanticValidator.validate(document));
+            issues.addAll(validateSemantic(document));
         }
 
         List<ValidationIssue> sortedIssues = issues.stream()
@@ -65,6 +65,16 @@ public class QaModelValidationEngine {
                 ),
                 sortedIssues
         );
+    }
+
+    /** Executes only the authoritative complete JSON Schema validator. */
+    public List<ValidationIssue> validateSchema(JsonNode document) {
+        return schemaValidator.validate(document);
+    }
+
+    /** Executes only the authoritative semantic v0.1 rule set. */
+    public List<ValidationIssue> validateSemantic(JsonNode document) {
+        return semanticValidator.validate(document);
     }
 
     private JsonSchema loadSchema() {
