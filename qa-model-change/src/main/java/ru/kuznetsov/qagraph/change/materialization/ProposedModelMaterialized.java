@@ -1,6 +1,7 @@
 package ru.kuznetsov.qagraph.change.materialization;
 
 import ru.kuznetsov.qagraph.change.root.CanonicalBaseModelEvidence;
+import ru.kuznetsov.qagraph.change.base.BaseChangeSetResult;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -10,7 +11,8 @@ import java.util.Optional;
  */
 public record ProposedModelMaterialized(
         ProposedArtifactModel proposedModel,
-        Optional<CanonicalBaseModelEvidence> baseEvidence
+        Optional<CanonicalBaseModelEvidence> baseEvidence,
+        Optional<BaseChangeSetResult> sourceResult
 )
         implements ProposedModelMaterializationResult {
 
@@ -20,9 +22,17 @@ public record ProposedModelMaterialized(
                 "proposedModel must not be null"
         );
         Objects.requireNonNull(baseEvidence, "baseEvidence must not be null");
+        Objects.requireNonNull(sourceResult, "sourceResult must not be null");
+    }
+
+    public ProposedModelMaterialized(
+            ProposedArtifactModel proposedModel,
+            Optional<CanonicalBaseModelEvidence> baseEvidence
+    ) {
+        this(proposedModel, baseEvidence, Optional.empty());
     }
 
     public ProposedModelMaterialized(ProposedArtifactModel proposedModel) {
-        this(proposedModel, Optional.empty());
+        this(proposedModel, Optional.empty(), Optional.empty());
     }
 }

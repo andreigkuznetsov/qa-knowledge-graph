@@ -2,6 +2,7 @@ package ru.kuznetsov.qagraph.change.base;
 
 import ru.kuznetsov.qagraph.change.validation.ChangeSetAmbiguity;
 import ru.kuznetsov.qagraph.change.validation.IntrinsicallyInvalidChange;
+import ru.kuznetsov.qagraph.change.validation.IntrinsicChangeSetResult;
 import ru.kuznetsov.qagraph.change.root.CanonicalBaseModelEvidence;
 
 import java.util.Comparator;
@@ -15,6 +16,7 @@ import java.util.Optional;
 public record BaseChangeSetResult(
         BaseArtifactIndex baseIndex,
         Optional<CanonicalBaseModelEvidence> baseEvidence,
+        Optional<IntrinsicChangeSetResult> intrinsicResult,
         List<IntrinsicallyInvalidChange> intrinsicFailures,
         List<ChangeSetAmbiguity> ambiguities,
         List<BaseVerifiedChange> baseVerifiedCandidates,
@@ -24,6 +26,10 @@ public record BaseChangeSetResult(
     public BaseChangeSetResult {
         Objects.requireNonNull(baseIndex, "baseIndex must not be null");
         Objects.requireNonNull(baseEvidence, "baseEvidence must not be null");
+        Objects.requireNonNull(
+                intrinsicResult,
+                "intrinsicResult must not be null"
+        );
         if (baseEvidence.isPresent()
                 && baseEvidence.orElseThrow().artifactIndex() != baseIndex) {
             throw new IllegalArgumentException(
@@ -55,6 +61,7 @@ public record BaseChangeSetResult(
 
     public BaseChangeSetResult(
             BaseArtifactIndex baseIndex,
+            Optional<CanonicalBaseModelEvidence> baseEvidence,
             List<IntrinsicallyInvalidChange> intrinsicFailures,
             List<ChangeSetAmbiguity> ambiguities,
             List<BaseVerifiedChange> baseVerifiedCandidates,
@@ -62,6 +69,25 @@ public record BaseChangeSetResult(
     ) {
         this(
                 baseIndex,
+                baseEvidence,
+                Optional.empty(),
+                intrinsicFailures,
+                ambiguities,
+                baseVerifiedCandidates,
+                baseFailures
+        );
+    }
+
+    public BaseChangeSetResult(
+            BaseArtifactIndex baseIndex,
+            List<IntrinsicallyInvalidChange> intrinsicFailures,
+            List<ChangeSetAmbiguity> ambiguities,
+            List<BaseVerifiedChange> baseVerifiedCandidates,
+            List<BaseVerificationFailure> baseFailures
+    ) {
+        this(
+                baseIndex,
+                Optional.empty(),
                 Optional.empty(),
                 intrinsicFailures,
                 ambiguities,

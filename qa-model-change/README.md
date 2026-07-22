@@ -52,3 +52,12 @@ Validation Core. Schema and semantic evidence remain distinct, retained unknown
 properties are diagnosed instead of discarded, and no normalization, repair,
 or version migration is performed. Complete-valid does not mean persisted or
 published, and final verification remains deferred.
+
+Phase 9 composes the complete immutable Canonical Change evidence chain.
+`VerifiedChangeSet` means that every required intrinsic, ambiguity, Base,
+materialization, aggregate, reconstruction, schema, and semantic stage passed.
+Semantic warnings remain visible and do not automatically invalidate success.
+Verified does not mean persisted, published, committed, approved, or deployed.
+Rejected results retain the actual deepest failing stage and its authoritative
+evidence. Final verification is deterministic and introduces no transaction,
+identifier, timestamp, Simulation, or Impact Analysis state.

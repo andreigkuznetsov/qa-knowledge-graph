@@ -114,7 +114,12 @@ public final class IntrinsicChangeValidator {
             valid.removeIf(value -> indices.contains(value.declarationIndex()));
         }
 
-        return new IntrinsicChangeSetResult(valid, failed, ambiguities);
+        return new IntrinsicChangeSetResult(
+                Optional.of(changeSet),
+                valid,
+                failed,
+                ambiguities
+        );
     }
 
     private IntrinsicChangeResult validate(

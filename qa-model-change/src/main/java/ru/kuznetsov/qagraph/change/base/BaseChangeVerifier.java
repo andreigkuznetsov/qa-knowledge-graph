@@ -194,6 +194,7 @@ public final class BaseChangeVerifier {
         return new BaseChangeSetResult(
                 baseIndex,
                 baseEvidence,
+                Optional.of(intrinsic),
                 intrinsic.failedDeclarations(),
                 intrinsic.ambiguities(),
                 verified,

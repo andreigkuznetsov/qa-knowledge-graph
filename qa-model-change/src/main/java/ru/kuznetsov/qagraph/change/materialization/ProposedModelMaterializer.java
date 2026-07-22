@@ -150,7 +150,8 @@ public final class ProposedModelMaterializer {
                         nodes,
                         relationships
                 ),
-                changeSetResult.baseEvidence()
+                changeSetResult.baseEvidence(),
+                Optional.of(changeSetResult)
         );
     }
 
