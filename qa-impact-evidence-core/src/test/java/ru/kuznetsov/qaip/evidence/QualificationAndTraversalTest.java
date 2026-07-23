@@ -11,7 +11,7 @@ class QualificationAndTraversalTest {
  @Test void reportsAllStableQualificationReasons() throws Exception{
   var wrongType=new ArtifactIdentityAssertion("a-s",SNAPSHOT,"s",NodeType.CHECK,new ResolvedIdentity(new ru.kuznetsov.qagraph.change.model.CanonicalIdentity("BR-S")),H1,"p-1");
   var relation=new RelationshipEvidence("bad",SNAPSHOT,"s","c",RelationshipType.RELATED_TO,"related","old-normalizer",H2,"missing");
-  var conclusion=done(analyzer.analyze(request(verified("BR-C"),manifest(List.of(resolved("c","BR-C"),wrongType),List.of(relation)),"s")));
+  var conclusion=done(analyzer.analyze(request(verified("BR-C"),manifest(List.of(resolved("c","BR-C"),wrongType,resolved("subject","BR-SUBJECT")),List.of(relation)),"subject")));
   assertEquals(List.of(QualificationReason.MISSING_PROVENANCE,QualificationReason.WRONG_RELATIONSHIP_TYPE,QualificationReason.WRONG_SOURCE_ENDPOINT_TYPE,QualificationReason.UNSUPPORTED_NORMALIZATION),conclusion.rejectedEvidence().getFirst().reasons());
  }
  @Test void unresolvedEndpointNeverEntersProof() throws Exception{

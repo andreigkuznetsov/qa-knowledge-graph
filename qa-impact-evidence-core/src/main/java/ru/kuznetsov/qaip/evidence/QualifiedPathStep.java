@@ -8,11 +8,11 @@ public final class QualifiedPathStep {
     private final CanonicalIdentity propagationFrom;
     private final CanonicalIdentity propagationTo;
     private final RelationshipEvidence evidence;
-    QualifiedPathStep(CanonicalIdentity propagationFrom, CanonicalIdentity propagationTo,
-                      RelationshipEvidence evidence) {
-        this.propagationFrom = Objects.requireNonNull(propagationFrom);
-        this.propagationTo = Objects.requireNonNull(propagationTo);
-        this.evidence = Objects.requireNonNull(evidence);
+    QualifiedPathStep(QualifiedRelationship qualified) {
+        Objects.requireNonNull(qualified);
+        this.propagationFrom = qualified.propagationFrom();
+        this.propagationTo = qualified.propagationTo();
+        this.evidence = qualified.evidence();
     }
     public CanonicalIdentity propagationFrom() { return propagationFrom; }
     public CanonicalIdentity propagationTo() { return propagationTo; }

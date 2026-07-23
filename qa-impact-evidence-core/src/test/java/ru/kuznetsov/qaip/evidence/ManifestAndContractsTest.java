@@ -2,6 +2,10 @@ package ru.kuznetsov.qaip.evidence;
 
 import org.junit.jupiter.api.Test;
 import java.util.*;
+import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import static org.junit.jupiter.api.Assertions.*;
 import static ru.kuznetsov.qaip.evidence.EvidenceTestFixtures.*;
 
@@ -27,4 +31,17 @@ class ManifestAndContractsTest {
   assertEquals(FailureCode.INVALID_REQUEST,assertInstanceOf(ImpactEvidenceFailed.class,new ImpactEvidenceAnalyzer().analyze(null)).failure().code());
   assertThrows(NullPointerException.class,()->new SubjectArtifactRef(null));
  }
+ @Test void unicodeAndDelimiterLikeFieldsMatchIndependentLengthPrefixedDigest() throws Exception{
+  var snapshot=new EvidenceSnapshotRef("источник|\u0000","снимок:一",H1);
+  var provenance=new ProvenanceRef("p|1","jira://задача/一",H2,"map:\u0000",ImpactEvidenceVersions.NORMALIZATION);
+  var assertion=new ArtifactIdentityAssertion("a|1",snapshot,"локальный:一",ru.kuznetsov.qagraph.model.NodeType.BUSINESS_RULE,new ResolvedIdentity(new ru.kuznetsov.qagraph.change.model.CanonicalIdentity("BR-UNICODE")),H1,"p|1");
+  var manifest=FrozenEvidenceManifest.create(snapshot.sourceId(),snapshot,List.of(assertion),List.of(),List.of(provenance));
+  ByteArrayOutputStream out=new ByteArrayOutputStream();
+  for(String value:List.of(ImpactEvidenceVersions.MANIFEST,snapshot.sourceId(),snapshot.sourceId(),snapshot.snapshotId(),snapshot.contentFingerprint(),ImpactEvidenceVersions.NORMALIZATION,ImpactEvidenceVersions.CANONICAL)) write(out,value);
+  count(out,1); for(String value:List.of(assertion.assertionId(),snapshot.sourceId(),snapshot.snapshotId(),snapshot.contentFingerprint(),assertion.localArtifactId(),assertion.nodeType().name(),"RESOLVED","BR-UNICODE",assertion.contentFingerprint(),assertion.provenanceId())) write(out,value);
+  count(out,0); count(out,1); for(String value:List.of(provenance.provenanceId(),provenance.originLocator(),provenance.originHash(),provenance.normalizationActivity(),provenance.normalizationVersion())) write(out,value);
+  assertEquals(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(out.toByteArray())),manifest.manifestFingerprint());
+ }
+ private static void count(ByteArrayOutputStream out,int value){out.writeBytes(ByteBuffer.allocate(4).putInt(value).array());}
+ private static void write(ByteArrayOutputStream out,String value){byte[] bytes=value.getBytes(StandardCharsets.UTF_8);count(out,bytes.length);out.writeBytes(bytes);}
 }

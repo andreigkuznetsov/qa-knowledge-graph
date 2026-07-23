@@ -8,20 +8,23 @@ import java.util.Objects;
 public final class RelationshipPathProof implements ImpactProof {
     private final CanonicalIdentity changedIdentity;
     private final CanonicalIdentity subjectIdentity;
+    private final EvidenceSnapshotRef snapshot;
     private final List<QualifiedPathStep> steps;
     RelationshipPathProof(CanonicalIdentity changedIdentity, CanonicalIdentity subjectIdentity,
-                          List<QualifiedPathStep> steps) {
+                          EvidenceSnapshotRef snapshot, List<QualifiedPathStep> steps) {
         this.changedIdentity=Objects.requireNonNull(changedIdentity);
         this.subjectIdentity=Objects.requireNonNull(subjectIdentity);
+        this.snapshot=Objects.requireNonNull(snapshot);
         this.steps=List.copyOf(Objects.requireNonNull(steps));
         if (steps.isEmpty()) throw new IllegalArgumentException("path proof must contain a step");
         CanonicalIdentity expected=changedIdentity;
-        for (QualifiedPathStep step:steps) { if(!step.propagationFrom().equals(expected)) throw new IllegalArgumentException("path is not contiguous"); expected=step.propagationTo(); }
+        for (QualifiedPathStep step:steps) { if(!step.propagationFrom().equals(expected)) throw new IllegalArgumentException("path is not contiguous"); if (!step.evidence().snapshot().equals(snapshot)) throw new IllegalArgumentException("path evidence must belong to one snapshot"); expected=step.propagationTo(); }
         if(!expected.equals(subjectIdentity)) throw new IllegalArgumentException("path does not end at subject");
     }
     public CanonicalIdentity changedIdentity(){return changedIdentity;}
     public CanonicalIdentity subjectIdentity(){return subjectIdentity;}
+    public EvidenceSnapshotRef snapshot(){return snapshot;}
     public List<QualifiedPathStep> steps(){return steps;}
-    @Override public boolean equals(Object o){return o instanceof RelationshipPathProof p && changedIdentity.equals(p.changedIdentity)&&subjectIdentity.equals(p.subjectIdentity)&&steps.equals(p.steps);}
-    @Override public int hashCode(){return Objects.hash(changedIdentity,subjectIdentity,steps);}
+    @Override public boolean equals(Object o){return o instanceof RelationshipPathProof p && changedIdentity.equals(p.changedIdentity)&&subjectIdentity.equals(p.subjectIdentity)&&snapshot.equals(p.snapshot)&&steps.equals(p.steps);}
+    @Override public int hashCode(){return Objects.hash(changedIdentity,subjectIdentity,snapshot,steps);}
 }

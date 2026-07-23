@@ -5,8 +5,8 @@
 
 ## Fixtures and comparison
 
-The automated fixtures in `ImpactEvidenceAnalyzerTest` use the same accepted
-`VerifiedChangeSet` and frozen relationship data for both interpretations:
+The automated fixtures in `StructuralPathBaselineTest` execute both
+interpretations with the same accepted `VerifiedChangeSet` and frozen manifest:
 
 | Fixture | Structural path/no-path plus warnings baseline | Implemented classifier |
 |---|---|---|
@@ -16,9 +16,12 @@ The automated fixtures in `ImpactEvidenceAnalyzerTest` use the same accepted
 | Subject identity has no mapping | No path plus identity warning | `UNKNOWN / UNRESOLVED_SUBJECT_IDENTITY` |
 | Apparent path has wrong snapshot and missing provenance | Path exists plus warnings unless the caller interprets them correctly | Edge is excluded; `UNKNOWN` retains both rejection reasons in stable order |
 
-The baseline is deliberately a test-level comparison, not a second production
-implementation. Its behavior is the ordinary result of treating normalized
-relationships as traversable structure and reporting data defects separately.
+The baseline is deliberately a small test-only function, not a second
+production implementation. It traverses structurally resolvable relationships
+without qualification gating and reports snapshot/provenance defects as
+warnings. Assertions compare its path/direct outcome with the classifier for
+qualified path, no path, unresolved subject, wrong snapshot, missing
+provenance, and direct-plus-path fixtures.
 
 ## Observations
 

@@ -8,26 +8,34 @@ import java.util.*;
 /** Deterministic analyzer for the deliberately narrow impact-evidence slice. */
 public final class ImpactEvidenceAnalyzer {
     private final ManifestValidator validator = new ManifestValidator();
+    private final AcceptedChangeDomain changeDomain = new AcceptedChangeDomain();
 
     public ImpactEvidenceResult analyze(ImpactEvidenceRequest request) {
         if (request == null) return failed(FailureCode.INVALID_REQUEST, "NULL_REQUEST", "request must not be null", "");
         Optional<ImpactAnalysisFailure> invalid = validator.validate(request.manifest(), request.context());
         if (invalid.isPresent()) return new ImpactEvidenceFailed(invalid.get());
+        AcceptedChangeDomain.Extraction extraction = changeDomain.extract(request.verifiedChangeSet());
+        if (extraction.failure().isPresent()) return new ImpactEvidenceFailed(extraction.failure().get());
+        Optional<ImpactAnalysisFailure> mismatch = changeDomain.validateCompatibility(
+                request.verifiedChangeSet(), extraction.supported(), request.manifest());
+        if (mismatch.isPresent()) return new ImpactEvidenceFailed(mismatch.get());
         Map<String, ArtifactIdentityAssertion> assertions = new HashMap<>();
         request.manifest().identityAssertions().forEach(a -> assertions.put(a.localArtifactId(), a));
         ArtifactIdentityAssertion subject = assertions.get(request.subject().localArtifactId());
         if (subject == null) return failed(FailureCode.INVALID_REQUEST, "SUBJECT_NOT_DECLARED", "subject has no identity assertion", request.subject().localArtifactId());
+        if (subject.nodeType() != NodeType.BUSINESS_RULE)
+            return failed(FailureCode.INCOMPATIBLE_CHANGE_DOMAIN, "UNSUPPORTED_SUBJECT_TYPE",
+                    "subject must be a BUSINESS_RULE", subject.assertionId());
         if (!(subject.resolution() instanceof ResolvedIdentity resolved))
             return completed(request, ImpactClassification.UNKNOWN, Optional.empty(),
                     List.of(UnknownReason.UNRESOLVED_SUBJECT_IDENTITY), List.of());
 
-        List<DeclaredChange> changes = request.verifiedChangeSet().declaredChangeSet().changes();
-        for (int i = 0; i < changes.size(); i++) {
-            DeclaredChange change = changes.get(i);
+        for (AcceptedChangeDomain.Supported candidate : extraction.supported()) {
+            DeclaredChange change = candidate.declaration();
             if (change.identity().equals(resolved.identity())) {
                 return completed(request, ImpactClassification.AFFECTED,
-                        Optional.of(new DirectChangeProof(request.verifiedChangeSet(), i,
-                                change.identity(), change.category(), subject.nodeType(), change.kind())),
+                        Optional.of(new DirectChangeProof(request.verifiedChangeSet(),
+                                candidate.declarationIndex(), subject)),
                         List.of(), List.of());
             }
         }
@@ -40,8 +48,8 @@ public final class ImpactEvidenceAnalyzer {
             else rejected.add(((RejectedRelationship) q).reference());
         }
         qualified.sort(Comparator.comparing(q -> q.evidence().datumId()));
-        Optional<RelationshipPathProof> path = findPath(changedRoots(changes, assertions),
-                resolved.identity(), qualified);
+        Optional<RelationshipPathProof> path = findPath(changedRoots(extraction.supported()),
+                resolved.identity(), request.manifest().snapshot(), qualified);
         if (path.isPresent()) return completed(request, ImpactClassification.AFFECTED,
                 Optional.of(path.get()), List.of(), rejected);
         return completed(request, ImpactClassification.UNKNOWN, Optional.empty(),
@@ -71,20 +79,17 @@ public final class ImpactEvidenceAnalyzer {
         return new QualifiedRelationship(r, from, to);
     }
 
-    private List<CanonicalIdentity> changedRoots(List<DeclaredChange> changes,
-            Map<String, ArtifactIdentityAssertion> assertions) {
-        Set<CanonicalIdentity> businessRules = new HashSet<>();
-        assertions.values().stream().filter(a -> a.nodeType() == NodeType.BUSINESS_RULE)
-                .filter(a -> a.resolution() instanceof ResolvedIdentity)
-                .forEach(a -> businessRules.add(((ResolvedIdentity) a.resolution()).identity()));
+    private List<CanonicalIdentity> changedRoots(List<AcceptedChangeDomain.Supported> changes) {
         List<CanonicalIdentity> roots = new ArrayList<>();
-        for (DeclaredChange change : changes) if (change.category() == ArtifactCategory.NODE
-                && businessRules.contains(change.identity()) && !roots.contains(change.identity())) roots.add(change.identity());
+        for (AcceptedChangeDomain.Supported supported : changes) {
+            CanonicalIdentity identity = supported.declaration().identity();
+            if (!roots.contains(identity)) roots.add(identity);
+        }
         return roots;
     }
 
     private Optional<RelationshipPathProof> findPath(List<CanonicalIdentity> roots,
-            CanonicalIdentity subject, List<QualifiedRelationship> edges) {
+            CanonicalIdentity subject, EvidenceSnapshotRef snapshot, List<QualifiedRelationship> edges) {
         Map<CanonicalIdentity, List<QualifiedRelationship>> outgoing = new HashMap<>();
         for (QualifiedRelationship edge : edges) outgoing.computeIfAbsent(edge.propagationFrom(), k -> new ArrayList<>()).add(edge);
         outgoing.values().forEach(v -> v.sort(Comparator
@@ -99,8 +104,8 @@ public final class ImpactEvidenceAnalyzer {
             for (QualifiedRelationship edge : outgoing.getOrDefault(current.id(), List.of())) {
                 if (!visited.add(edge.propagationTo())) continue;
                 List<QualifiedPathStep> path = new ArrayList<>(current.path());
-                path.add(new QualifiedPathStep(edge.propagationFrom(), edge.propagationTo(), edge.evidence()));
-                if (edge.propagationTo().equals(subject)) return Optional.of(new RelationshipPathProof(current.root(), subject, path));
+                path.add(new QualifiedPathStep(edge));
+                if (edge.propagationTo().equals(subject)) return Optional.of(new RelationshipPathProof(current.root(), subject, snapshot, path));
                 queue.add(new State(edge.propagationTo(), current.root(), List.copyOf(path)));
             }
         }
@@ -108,8 +113,10 @@ public final class ImpactEvidenceAnalyzer {
     }
     private ImpactEvidenceCompleted completed(ImpactEvidenceRequest r, ImpactClassification c,
             Optional<ImpactProof> p, List<UnknownReason> reasons, List<RejectedEvidenceReference> rejected) {
-        return new ImpactEvidenceCompleted(new ImpactConclusion(r.subject(), c, p, reasons,
-                r.manifest().snapshot(), r.context(), rejected));
+        ArtifactIdentityAssertion assertion = r.manifest().identityAssertions().stream()
+                .filter(a -> a.localArtifactId().equals(r.subject().localArtifactId())).findFirst().orElseThrow();
+        return new ImpactEvidenceCompleted(new ImpactConclusion(assertion, c, p, reasons,
+                r.context(), rejected));
     }
     private ImpactEvidenceFailed failed(FailureCode f, String code, String message, String id) {
         return new ImpactEvidenceFailed(new ImpactAnalysisFailure(f, List.of(new AnalysisDiagnostic(code, message, id))));
