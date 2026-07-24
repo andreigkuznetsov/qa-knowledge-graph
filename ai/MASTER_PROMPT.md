@@ -62,17 +62,45 @@ Do not introduce complexity solely to support hypothetical future requirements.
 
 * Multi-module Gradle project
 
-The current repository is the source of truth.
+The repository is the source of truth for the current implementation.
+
+Approved architecture documents are the source of truth for the intended design.
 
 Do not assume that a library, module, framework, class, package, or architectural pattern exists until it has been verified in the repository.
 
 ---
 
-## 4. Architectural Principles
+## 4. Architecture Authority
+
+Implementation must realize the approved architecture rather than reinterpret it.
+
+When multiple architectural documents exist, all applicable documents must be considered before implementation.
+
+The repository represents the current implementation.
+
+Approved architecture documents represent the intended architecture.
+
+Approved architecture documents are the primary authority for implementation decisions.
+
+If the implementation contradicts the approved architecture, do not silently "fix" the implementation.
+
+Instead:
+
+* identify the discrepancy
+* explain its impact
+* stop implementation if the discrepancy prevents a correct solution
+
+Architectural decisions must not be changed implicitly during implementation.
+
+Changes to the architecture require an explicit architectural decision.
+
+---
+
+## 5. Architectural Principles
 
 Always follow these principles.
 
-### 4.1 Single Responsibility
+### 5.1 Single Responsibility
 
 Each class and component should have one clear responsibility.
 
@@ -80,7 +108,7 @@ Avoid God Objects and components with unrelated reasons to change.
 
 ---
 
-### 4.2 Separation of Concerns
+### 5.2 Separation of Concerns
 
 Keep the following concerns separate whenever their responsibilities are distinct:
 
@@ -98,7 +126,7 @@ Introduce a separate layer only when it has a clear responsibility and provides 
 
 ---
 
-### 4.3 Dependency Direction
+### 5.3 Dependency Direction
 
 Dependencies should point toward more stable and less infrastructure-dependent components.
 
@@ -110,7 +138,7 @@ Framework-specific integration should remain at the system boundaries whenever p
 
 ---
 
-### 4.4 Composition over Inheritance
+### 5.4 Composition over Inheritance
 
 Prefer composition.
 
@@ -120,7 +148,7 @@ Do not use inheritance solely to reuse implementation code.
 
 ---
 
-### 4.5 Explicitness
+### 5.5 Explicitness
 
 Prefer explicit code and explicit dependencies.
 
@@ -137,7 +165,7 @@ Use reflection only when it is already required by the project or clearly justif
 
 ---
 
-### 4.6 Determinism
+### 5.6 Determinism
 
 The same input and configuration should produce the same validation result.
 
@@ -145,7 +173,7 @@ Do not introduce nondeterministic rule ordering, unstable finding ordering, or e
 
 ---
 
-## 5. Backward Compatibility
+## 6. Backward Compatibility
 
 Backward compatibility is extremely important.
 
@@ -169,7 +197,7 @@ Do not silently introduce breaking changes.
 
 ---
 
-## 6. Refactoring Rules
+## 7. Refactoring Rules
 
 Do not rewrite an entire subsystem unless the current implementation makes incremental improvement impossible and the rewrite is explicitly justified.
 
@@ -188,7 +216,7 @@ Separate refactoring from behavior changes whenever practical.
 
 ---
 
-## 7. Rule for New Features
+## 8. Rule for New Features
 
 Implement only what is required by the current Engineering Task Specification.
 
@@ -206,7 +234,7 @@ A design may remain extensible without implementing extensions prematurely.
 
 ---
 
-## 8. Code Quality
+## 9. Code Quality
 
 Write code that is:
 
@@ -227,7 +255,7 @@ Follow the existing project style unless the current style causes a concrete pro
 
 ---
 
-## 9. Error Handling
+## 10. Error Handling
 
 Business validation failures are expected outcomes, not unexpected exceptions.
 
@@ -247,7 +275,7 @@ Never silently suppress failures.
 
 ---
 
-## 10. Validation Findings
+## 11. Validation Findings
 
 Validation findings should be:
 
@@ -265,7 +293,7 @@ Do not expose internal exception details through public API responses unless exp
 
 ---
 
-## 11. Testing
+## 12. Testing
 
 Every behavior change and architectural change requires appropriate tests.
 
@@ -297,7 +325,7 @@ When relevant, test:
 
 ---
 
-## 12. Documentation
+## 13. Documentation
 
 Documentation is part of the deliverable.
 
@@ -318,7 +346,7 @@ Documentation must describe the implemented system, not the intended system unle
 
 ---
 
-## 13. Decision Making
+## 14. Decision Making
 
 When multiple implementation strategies exist, prefer the option that:
 
@@ -337,7 +365,7 @@ Do not present subjective preferences as objective architectural requirements.
 
 ---
 
-## 14. Working Style
+## 15. Working Style
 
 Always work in this order.
 
@@ -358,11 +386,65 @@ Never jump directly into coding based only on assumptions.
 
 Do not modify unrelated files.
 
-If the repository contradicts the task description, treat the repository as the current implementation and explicitly report the discrepancy.
+If the repository, approved architecture, and Engineering Task Specification contradict each other, report the discrepancy explicitly before implementation continues.
 
 ---
 
-## 15. Verification Rules
+## 16. Contract Discovery
+
+Before implementing functionality that depends on an external contract, inspect the repository for an existing specification.
+
+Examples include: 
+
+* JSON schemas
+* OpenAPI specifications
+* REST contracts
+* DTO definitions
+* serialization formats
+* protocol specifications
+
+This list is not exhaustive.
+
+The repository is the primary source for discovering implementation contracts.
+
+Do not invent missing contracts.
+
+Do not infer contracts from examples unless explicitly identified as authoritative.
+
+If no authoritative contract can be identified, stop implementation and report the missing specification.
+
+Do not infer serialization formats or API behavior from assumptions.
+
+---
+
+## 17. Engineering Stop Rule
+
+Implementation must stop when completing the requested task requires inventing information that cannot be verified.
+
+Examples include:
+
+* architecture
+* business rules
+* repository structure
+* contracts
+* serialization formats
+* external behavior
+
+In such situations:
+
+* explain the blocker
+* identify the missing information
+* describe what is required to continue
+
+Never continue implementation by inventing missing specifications.
+
+An incomplete implementation is preferable to an incorrect implementation.
+
+Request clarification instead of making assumptions.
+
+---
+
+## 18. Verification Rules
 
 Never claim that a command, build, test, or check succeeded unless it was actually executed and its result was observed.
 
@@ -382,7 +464,7 @@ Do not hide failing tests or incomplete verification.
 
 ---
 
-## 16. Deliverables
+## 19. Deliverables
 
 Every completed task must end with the following sections.
 
@@ -404,6 +486,10 @@ List the commands and checks that were actually executed, together with their re
 
 If tests were not executed, state this explicitly.
 
+### Verification Limitations
+
+Describe any verification that could not be performed and explain why.
+
 ### Backward Compatibility
 
 Describe whether public contracts or observable behavior changed.
@@ -422,7 +508,7 @@ Do not begin or implement the next phase unless explicitly requested.
 
 ---
 
-## 17. Things You Must Never Do
+## 20. Things You Must Never Do
 
 Never:
 
@@ -443,7 +529,7 @@ Never:
 
 ---
 
-## 18. Long-Term Vision
+## 21. Long-Term Vision
 
 This repository is evolving toward a reference implementation of QBOK and the foundation of QAIP.
 
@@ -459,3 +545,4 @@ Every justified improvement should support:
 The long-term vision guides architectural direction.
 
 The current Engineering Task Specification defines the implementation scope.
+Long-term vision must never justify implementing functionality outside the approved task scope.
