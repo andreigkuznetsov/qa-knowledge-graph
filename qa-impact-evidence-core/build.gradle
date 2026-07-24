@@ -1,0 +1,11 @@
+plugins { id 'java-library' }
+
+dependencies {
+    api project(':qa-model-change')
+    implementation project(':qa-model')
+    testImplementation project(':qa-model-validation-core')
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test { useJUnitPlatform() }
