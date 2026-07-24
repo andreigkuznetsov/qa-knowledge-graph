@@ -1,12 +1,12 @@
 # Import Contract Review — Pre-Implementation Gate
 
 **Status:** Independent architectural review  
-**Scope:** `project.json` → import → domain verification → `AnalyzeProject`  
+**Scope:** `project.json` parsing boundary and Phase 1 import application boundary
 **Required verdict:** **APPROVED AFTER MINOR CONTRACT ADJUSTMENTS**
 
 ## 1. Executive Summary
 
-The import boundary can be implemented without violating the existing domain
+The parsing and Phase 1 import application boundaries can be implemented without violating the existing domain
 contracts, but only if “imported” is not treated as “verified.” The approved
 architecture must preserve two distinct handoffs:
 
@@ -51,9 +51,9 @@ claim of trust.
 
 ## 2. Import Boundary
 
-### Where import begins
+### Where parsing begins
 
-Import begins after an input adapter has successfully acquired an immutable
+Parsing begins after an input adapter has successfully acquired an immutable
 sequence of project bytes and a non-semantic source label. File existence,
 permissions, size policy, and read failures belong to the input adapter, not to
 the importer.
@@ -77,17 +77,38 @@ example, the importer may report that `changes` is not an array because it
 cannot bind the document; it may not decide that a schema-valid array violates
 a domain cardinality or semantic rule.
 
-### Where import ends
+### Where parsing ends
 
-Import ends when it returns either:
+The parsing boundary ends when it returns either:
 
 - `ProjectParsed(ParsedProject)`, containing immutable but untrusted data; or
 - `ProjectParseFailed(ProjectParseFailure)`, containing syntax/binding
   diagnostics.
 
-It ends **before** JSON Schema validation, semantic validation, change
+It ends **before** authoritative JSON Schema validation, semantic validation, change
 verification, manifest validation, identity decisions, relationship
 qualification, or impact analysis.
+
+`JsonProjectImporter.parse` preserves the original JSON tree but does not
+perform authoritative JSON Schema validation. `ParsedProject` is the parsed
+representation, not the final import result.
+
+### Phase 1 import application boundary
+
+After parsing succeeds, `ImportProject` owns the Phase 1 application workflow:
+
+```text
+ImportProject.execute(ImportProjectCommand)
+  -> ProjectImportResult
+      |- ProjectImportAccepted
+      `- ProjectImportRejected
+```
+
+It orchestrates or invokes authoritative project-schema validation against
+`ParsedProject.originalDocument` before mechanical candidate mapping, then runs
+the complete canonical-change verification pipeline. Phase 1 ends when this
+closed application import result is returned. Evidence and impact analysis are
+not performed by `ImportProject`.
 
 ### What the importer may construct
 
@@ -211,8 +232,9 @@ fact:
 7. Analyzer completion: the conclusion/proof is authoritative for the supplied
    request and context.
 
-The importer owns only transition 1. It may invoke local constructors through a
-separate mapping step, but that does not grant transitions 3–7.
+The parser owns only transition 1. The Phase 1 import application boundary
+orchestrates project-contract validation, candidate mapping, and transitions 3
+and 4 for canonical changes. It does not grant transitions 5–7.
 
 ## 4. Mapping Recommendation
 
@@ -225,10 +247,11 @@ Import DTO (`ParsedProject`)
   ↓ mechanical candidate mapping
 Existing Domain Verification
   ↓ only successful domain result variants
-VerifiedChangeSet + accepted request values
-  ↓
-ImpactEvidenceAnalyzer
+ProjectImportAccepted
 ```
+
+Any handoff from `ProjectImportAccepted` to `ImpactEvidenceAnalyzer` belongs to
+a later application operation outside Phase 1.
 
 ### Why Option A is rejected
 
@@ -291,21 +314,26 @@ Contract requirements:
 
 ```java
 public final class JsonProjectImporter {
-    public ProjectImportResult parse(ProjectSource source);
+    public ProjectParseResult parse(ProjectSource source);
 }
 
-public sealed interface ProjectImportResult
+public sealed interface ProjectParseResult
         permits ProjectParsed, ProjectParseFailed {}
 
 public record ProjectParsed(ParsedProject project)
-        implements ProjectImportResult {}
+        implements ProjectParseResult {}
 
 public record ProjectParseFailed(ProjectParseFailure failure)
-        implements ProjectImportResult {}
+        implements ProjectParseResult {}
 ```
 
 `parse`, not `importVerified`, is the deliberate verb. The result does not
 contain `VerifiedChangeSet`.
+
+`ProjectParseResult` belongs exclusively to the external JSON parsing boundary.
+`ProjectParsed` means that the immutable parsed representation was constructed;
+`ProjectParseFailed` owns failures that prevent that construction. Neither
+outcome represents application orchestration or domain change verification.
 
 ### Parsed representation
 
@@ -367,6 +395,57 @@ No importer interface is required in MVP unless the already-approved
 application constructor needs it. A single concrete `JsonProjectImporter` is
 sufficient; future formats do not justify a framework now.
 
+### Phase 1 application entry point and result
+
+```java
+public final class ImportProject {
+    public ProjectImportResult execute(ImportProjectCommand command);
+}
+
+public sealed interface ProjectImportResult
+        permits ProjectImportAccepted, ProjectImportRejected {}
+
+public record ProjectImportAccepted(
+        VerifiedChangeSet verifiedChangeSet,
+        FrozenEvidenceManifest manifest,
+        SubjectArtifactRef subject,
+        SliceAnalysisContext context)
+        implements ProjectImportResult {}
+
+public record ProjectImportRejected(List<ProjectImportFinding> findings)
+        implements ProjectImportResult {}
+```
+
+These are architecture contracts, not a request to add runtime classes.
+`ProjectImportAccepted` means the project serialization contract/schema was
+accepted, mechanical candidate mapping succeeded, and the complete canonical-
+change pipeline produced the genuine `VerifiedChangeSet`. The manifest,
+subject, and context are preserved unchanged as candidates. Acceptance does
+not make them verified domain truth, and no evidence or impact analysis has
+run.
+
+`ProjectImportRejected` owns expected Phase 1 failures after parsing succeeds:
+project contract/schema violations, an unsupported project serialization-
+contract version, candidate mapping failures, canonical-change verification
+failures, and any inability to produce `VerifiedChangeSet`. Its findings reuse
+authoritative schema and canonical-change findings where possible. They remain
+distinct from `ProjectParseFailure`; parser diagnostics and domain findings are
+never collapsed into one category.
+
+### Version ownership
+
+- The **project serialization-contract version** selects and constrains the
+  project document contract. `ImportProject` checks it within the Phase 1
+  application/schema boundary, after parsing and before domain mapping.
+- The **canonical QA-model version** remains owned by the canonical model and
+  canonical-change validators.
+- The **analysis/domain-context version** remains owned by the existing
+  analysis/domain-context validators and is not accepted during Phase 1.
+
+Every unsupported-version finding must identify its owning authority. A bare
+generic `UNSUPPORTED_VERSION` label is insufficient for a project-contract
+rejection and must not be presented as a canonical-domain version failure.
+
 ## 6. Ownership Matrix
 
 | Condition/decision | Owner | Importer's permitted action |
@@ -374,11 +453,13 @@ sufficient; future formats do not justify a framework now.
 | file cannot be read | input/CLI adapter | none; importer is not called |
 | malformed JSON / invalid UTF-8 | JSON importer | return parse failure |
 | JSON cannot be represented by lossless import DTO | JSON importer | return binding failure without repair/default |
-| project JSON Schema mismatch | existing JSON Schema validator | preserve exact JSON and relay its result |
+| project JSON Schema mismatch | Phase 1 project-schema validation orchestrated by `ImportProject` | validate the preserved original JSON and relay its result |
+| unsupported project serialization-contract version | `ImportProject` project-contract/schema boundary | reject before domain mapping; identify project-contract ownership |
 | canonical QA-model schema mismatch | existing validation core through canonical-change pipeline | no independent check |
 | semantic mismatch | existing semantic validation | no independent check |
 | locally malformed canonical identity | `CanonicalIdentity` domain value | relay constructor/domain-mapping failure; do not normalize |
-| unsupported canonical/project/domain version | owning domain validator/verification stage | retain declared version; do not choose fallback |
+| unsupported canonical QA-model version | existing canonical validators | retain declared version; do not choose fallback |
+| unsupported analysis/domain-context version | existing analysis/domain-context validator | preserve candidate unchanged; Phase 1 does not accept it as domain truth |
 | invalid intrinsic change declaration | `IntrinsicChangeValidator` | no rule or inference |
 | base mismatch/ambiguity | `BaseChangeVerifier` | no lookup reinterpretation |
 | invalid materialization/aggregate/root | owning canonical-change stage | no reconstruction substitute |
@@ -470,6 +551,21 @@ No precondition asks for a new domain rule or future-format abstraction.
 ## 9. Approved Import Architecture
 
 ### Approved call flow
+
+The Phase 1 call flow ends at the application import result:
+
+```text
+JsonProjectImporter.parse(ProjectSource)
+  -> ProjectParseResult
+     -> ProjectParsed(ParsedProject)
+        -> ImportProject.execute(ImportProjectCommand)
+           -> ProjectImportResult
+              -> ProjectImportAccepted | ProjectImportRejected
+```
+
+The broader diagram below includes a future handoff for context. Everything
+from `ImpactEvidenceAnalyzer.analyze` onward is later evidence/impact analysis,
+outside Phase 1; analyzer invocation is not part of Phase 1 completion.
 
 ```text
 CLI/input adapter
