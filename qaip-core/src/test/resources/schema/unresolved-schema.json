@@ -1,0 +1,5 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/qaip-project-v1.schema.json",
+  "$ref": "https://example.local/schemas/schema-that-does-not-exist.json"
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/qaip-project-v1.schema.json",
+  "type": "object",
+  "required": ["a/b"],
+  "properties": {
+    "a/b": {
+      "type": "object",
+      "required": ["m~n"],
+      "properties": { "m~n": { "type": "integer" } }
+    }
+  }
+}
