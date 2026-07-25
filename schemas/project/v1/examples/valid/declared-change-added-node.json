@@ -1,0 +1,1 @@
+[{"artifactCategory":"NODE","canonicalIdentity":"BR-1","changeKind":"ADDED","schemaVersion":"0.1","afterState":{"id":"BR-1","type":"BUSINESS_RULE","name":"Rule","rule":{"code":"BR-1","ruleType":"BUSINESS_INVARIANT","text":"rule"}}}]

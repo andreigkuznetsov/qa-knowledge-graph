@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/impact-evidence-manifest-v1.schema.json",
+  "title": "QAIP Frozen Evidence Manifest Candidate v1",
+  "description": "Untrusted frozen evidence claims for later validation and analysis.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contractVersion", "sourceId", "snapshot", "normalizationVersion", "canonicalizationVersion", "manifestFingerprint", "identityAssertions", "relationships", "provenance"],
+  "properties": {
+    "contractVersion": { "const": "impact-evidence-manifest-v1" },
+    "sourceId": { "$ref": "#/$defs/nonBlankString" },
+    "snapshot": { "$ref": "#/$defs/snapshot" },
+    "normalizationVersion": { "const": "impact-evidence-normalization-v1" },
+    "canonicalizationVersion": { "const": "impact-evidence-canonical-v1" },
+    "manifestFingerprint": { "$ref": "#/$defs/nonBlankString" },
+    "identityAssertions": { "type": "array", "items": { "$ref": "#/$defs/identityAssertion" } },
+    "relationships": { "type": "array", "items": { "$ref": "#/$defs/relationshipEvidence" } },
+    "provenance": { "type": "array", "items": { "$ref": "#/$defs/provenance" } }
+  },
+  "$defs": {
+    "nonBlankString": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" },
+    "canonicalIdentity": { "type": "string", "maxLength": 120, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
+    "snapshot": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sourceId", "snapshotId", "contentFingerprint"],
+      "properties": {
+        "sourceId": { "$ref": "#/$defs/nonBlankString" },
+        "snapshotId": { "$ref": "#/$defs/nonBlankString" },
+        "contentFingerprint": { "$ref": "#/$defs/nonBlankString" }
+      }
+    },
+    "resolution": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "canonicalIdentity"],
+          "properties": {
+            "status": { "const": "RESOLVED" },
+            "canonicalIdentity": { "$ref": "#/$defs/canonicalIdentity" }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "reasonCode"],
+          "properties": {
+            "status": { "const": "UNRESOLVED" },
+            "reasonCode": { "$ref": "#/$defs/nonBlankString" }
+          }
+        }
+      ]
+    },
+    "identityAssertion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["assertionId", "snapshot", "localArtifactId", "nodeType", "resolution", "contentFingerprint", "provenanceId"],
+      "properties": {
+        "assertionId": { "$ref": "#/$defs/nonBlankString" },
+        "snapshot": { "$ref": "#/$defs/snapshot" },
+        "localArtifactId": { "$ref": "#/$defs/nonBlankString" },
+        "nodeType": { "enum": ["USER_STORY", "BUSINESS_OPERATION", "BUSINESS_RULE", "SCENARIO", "TECHNICAL_IMPLEMENTATION", "TEST_IMPLEMENTATION", "CHECK"] },
+        "resolution": { "$ref": "#/$defs/resolution" },
+        "contentFingerprint": { "$ref": "#/$defs/nonBlankString" },
+        "provenanceId": { "$ref": "#/$defs/nonBlankString" }
+      }
+    },
+    "relationshipEvidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["datumId", "snapshot", "sourceLocalId", "targetLocalId", "relationshipType", "sourceNativeType", "normalizationVersion", "contentFingerprint", "provenanceId"],
+      "properties": {
+        "datumId": { "$ref": "#/$defs/nonBlankString" }, "snapshot": { "$ref": "#/$defs/snapshot" },
+        "sourceLocalId": { "$ref": "#/$defs/nonBlankString" }, "targetLocalId": { "$ref": "#/$defs/nonBlankString" },
+        "relationshipType": { "enum": ["DESCRIBES", "GOVERNED_BY", "SPECIFIED_BY", "IMPLEMENTED_BY", "VALIDATES", "USES", "HAS_CHECK", "COVERS", "DEPENDS_ON", "REFINES", "SUPERSEDES", "RELATED_TO"] },
+        "sourceNativeType": { "$ref": "#/$defs/nonBlankString" },
+        "normalizationVersion": { "const": "impact-evidence-normalization-v1" },
+        "contentFingerprint": { "$ref": "#/$defs/nonBlankString" }, "provenanceId": { "$ref": "#/$defs/nonBlankString" }
+      }
+    },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provenanceId", "originLocator", "originHash", "normalizationActivity", "normalizationVersion"],
+      "properties": {
+        "provenanceId": { "$ref": "#/$defs/nonBlankString" }, "originLocator": { "$ref": "#/$defs/nonBlankString" },
+        "originHash": { "$ref": "#/$defs/nonBlankString" }, "normalizationActivity": { "$ref": "#/$defs/nonBlankString" },
+        "normalizationVersion": { "const": "impact-evidence-normalization-v1" }
+      }
+    }
+  }
+}

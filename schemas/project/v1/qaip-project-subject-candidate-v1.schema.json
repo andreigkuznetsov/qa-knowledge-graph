@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/qaip-project-subject-candidate-v1.schema.json",
+  "title": "QAIP Project Subject Candidate v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["localArtifactId"],
+  "properties": {
+    "localArtifactId": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" }
+  }
+}

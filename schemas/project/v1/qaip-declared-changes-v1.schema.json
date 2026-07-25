@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/qaip-declared-changes-v1.schema.json",
+  "title": "QAIP Declared Changes v1",
+  "description": "Ordered non-empty untrusted canonical change declarations.",
+  "type": "array",
+  "minItems": 1,
+  "items": { "$ref": "#/$defs/declaration" },
+  "$defs": {
+    "canonicalIdentity": {
+      "type": "string",
+      "maxLength": 120,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactCategory", "canonicalIdentity", "changeKind", "schemaVersion"],
+      "properties": {
+        "artifactCategory": { "enum": ["NODE", "RELATIONSHIP"] },
+        "canonicalIdentity": { "$ref": "#/$defs/canonicalIdentity" },
+        "changeKind": { "enum": ["ADDED", "MODIFIED", "REMOVED"] },
+        "schemaVersion": { "const": "0.1" },
+        "beforeState": {},
+        "afterState": {}
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "artifactCategory": { "const": "NODE" } }, "required": ["artifactCategory"] },
+          "then": {
+            "properties": {
+              "beforeState": { "$ref": "https://example.local/schemas/qa-model-v0.1.schema.json#/$defs/node" },
+              "afterState": { "$ref": "https://example.local/schemas/qa-model-v0.1.schema.json#/$defs/node" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "artifactCategory": { "const": "RELATIONSHIP" } }, "required": ["artifactCategory"] },
+          "then": {
+            "properties": {
+              "beforeState": { "$ref": "https://example.local/schemas/qa-model-v0.1.schema.json#/$defs/relationship" },
+              "afterState": { "$ref": "https://example.local/schemas/qa-model-v0.1.schema.json#/$defs/relationship" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "changeKind": { "const": "ADDED" } }, "required": ["changeKind"] },
+          "then": { "required": ["afterState"], "not": { "required": ["beforeState"] } }
+        },
+        {
+          "if": { "properties": { "changeKind": { "const": "MODIFIED" } }, "required": ["changeKind"] },
+          "then": { "required": ["beforeState", "afterState"] }
+        },
+        {
+          "if": { "properties": { "changeKind": { "const": "REMOVED" } }, "required": ["changeKind"] },
+          "then": { "required": ["beforeState"], "not": { "required": ["afterState"] } }
+        }
+      ]
+    }
+  }
+}

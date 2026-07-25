@@ -1,0 +1,4 @@
+[
+  {"artifactCategory":"NODE","canonicalIdentity":"BR-2","changeKind":"ADDED","schemaVersion":"0.1","afterState":{"id":"BR-2","type":"BUSINESS_RULE","name":"Second","rule":{"code":"BR-2","ruleType":"BUSINESS_INVARIANT","text":"second"}}},
+  {"artifactCategory":"NODE","canonicalIdentity":"BR-1","changeKind":"ADDED","schemaVersion":"0.1","afterState":{"id":"BR-1","type":"BUSINESS_RULE","name":"First","rule":{"code":"BR-1","ruleType":"BUSINESS_INVARIANT","text":"first"}}}
+]

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/impact-analysis-context-v1.schema.json",
+  "title": "QAIP Impact Analysis Context v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["qualificationVersion", "influenceVersion", "algorithmVersion"],
+  "properties": {
+    "qualificationVersion": { "const": "impact-evidence-qualification-v1" },
+    "influenceVersion": { "const": "impact-evidence-business-rule-depends-on-v1" },
+    "algorithmVersion": { "const": "impact-evidence-analysis-v1" }
+  }
+}
