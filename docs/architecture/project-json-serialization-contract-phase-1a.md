@@ -99,3 +99,54 @@ None. Root composition remains a separately authorized task.
 **READY.** Every independent subcontract is frozen and tested, canonical state
 definitions resolve through deterministic local absolute references, and the
 root schema remains intentionally absent pending separate authorization.
+
+## 13. Root Project Schema Composition
+
+The frozen root contract is `schemas/project/v1/qaip-project-v1.schema.json`.
+Its schema identity is
+`https://example.local/schemas/qaip-project-v1.schema.json`, it uses JSON Schema
+Draft 2020-12, and its serialized `projectContractVersion` is the distinct,
+case-sensitive constant `qaip-project-v1`.
+
+The closed root object has exactly six required, non-null members and uses
+`additionalProperties: false`:
+
+| Root member | Authoritative contract |
+| --- | --- |
+| `projectContractVersion` | root-owned constant `qaip-project-v1` |
+| `baseModel` | `https://example.local/schemas/qa-model-v0.1.schema.json` |
+| `declaredChanges` | `https://example.local/schemas/qaip-declared-changes-v1.schema.json` |
+| `evidenceManifest` | `https://example.local/schemas/impact-evidence-manifest-v1.schema.json` |
+| `subject` | `https://example.local/schemas/qaip-project-subject-candidate-v1.schema.json` |
+| `analysisContext` | `https://example.local/schemas/impact-analysis-context-v1.schema.json` |
+
+The root performs composition only. It neither duplicates subcontract
+definitions nor checks identity existence, subject/model correspondence,
+change/model correspondence, relationship correspondence, version
+compatibility across contracts, transition validity, or evidence semantics.
+Those cross-contract rules remain application/domain validation and
+`FinalChangeSetVerifier` responsibilities.
+
+`LocalProjectSchemaResolver` maps the exact root URI to the packaged classpath
+resource `/schemas/qaip-project-v1.schema.json`. Resolution remains offline,
+exact-map-only, independent of the working directory, and rejects unknown or
+missing mappings with a controlled failure.
+
+Stored valid examples are `minimal-project.json`, `representative-project.json`,
+`non-canonical-order-project.json`, and
+`valid-structurally-semantically-unverified-project.json`. The last deliberately
+uses a subject and declared identity not represented in its empty base model;
+it proves only structural validity and is intentionally not a semantic claim.
+
+Root tests cover root shape and closure, exact version handling, presence,
+nulls and types of every member, nested closed-object and version failures,
+the manifest resolution union, empty and malformed changes, and canonical
+NODE/RELATIONSHIP snapshot mismatch through nested external references.
+Assertions use NetworkNT's stable instance location and validation keyword;
+they do not depend on localized full message text. Tests also prove unknown-URI
+rejection and controlled failure when a required nested mapping is absent.
+
+The root contract is **FROZEN FOR PHASE 1A**. The next architectural boundary
+is a separately authorized design for Phase 1B project JSON parsing, lossless
+binding, and import validation; no runtime parser or importer is introduced by
+this decision.
