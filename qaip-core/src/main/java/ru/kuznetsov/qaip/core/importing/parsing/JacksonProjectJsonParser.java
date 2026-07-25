@@ -17,6 +17,7 @@ import java.util.Optional;
 
 /** Thread-safe Jackson implementation configured once and used for tree parsing only. */
 public final class JacksonProjectJsonParser implements ProjectJsonParser {
+    private static final String STRICT_DUPLICATE_MESSAGE_PREFIX = "Duplicate field '";
     private static final String MALFORMED_MESSAGE = "The input is not a syntactically valid JSON value.";
     private static final String DUPLICATE_MESSAGE = "The input contains a duplicate JSON object member.";
     private static final String TRAILING_MESSAGE = "The input contains content after the first JSON value.";
@@ -24,10 +25,14 @@ public final class JacksonProjectJsonParser implements ProjectJsonParser {
     private final ObjectMapper mapper;
 
     public JacksonProjectJsonParser() {
-        JsonFactory factory = JsonFactory.builder()
+        this.mapper = createConfiguredMapper();
+    }
+
+    private static ObjectMapper createConfiguredMapper() {
+        JsonFactory strictJsonFactory = JsonFactory.builder()
                 .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
                 .build();
-        this.mapper = new ObjectMapper(factory)
+        return new ObjectMapper(strictJsonFactory)
                 .enable(DeserializationFeature.USE_BIG_INTEGER_FOR_INTS)
                 .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
     }
@@ -35,23 +40,23 @@ public final class JacksonProjectJsonParser implements ProjectJsonParser {
     @Override
     public ProjectParseResult parse(RawProjectJson source) {
         Objects.requireNonNull(source, "source");
-        boolean firstValueComplete = false;
+        boolean completeValueHasBeenRead = false;
         try (JsonParser parser = mapper.getFactory().createParser(source.value())) {
             JsonToken firstToken = parser.nextToken();
             if (firstToken == null) {
                 return rejected(ProjectParseFindingCode.MALFORMED_JSON, parser.currentLocation(), MALFORMED_MESSAGE);
             }
             JsonNode tree = mapper.readTree(parser);
-            firstValueComplete = true;
+            completeValueHasBeenRead = true;
             if (parser.nextToken() != null) {
                 return rejected(ProjectParseFindingCode.TRAILING_JSON_CONTENT, parser.currentTokenLocation(), TRAILING_MESSAGE);
             }
             return new ProjectParseAccepted(new ParsedProjectDocument(tree));
         } catch (JsonParseException exception) {
-            if (firstValueComplete) {
+            if (completeValueHasBeenRead) {
                 return rejected(ProjectParseFindingCode.TRAILING_JSON_CONTENT, exception.getLocation(), TRAILING_MESSAGE);
             }
-            if (isDuplicateMember(exception)) {
+            if (isStrictDuplicateDetectionFailure(exception)) {
                 return rejected(ProjectParseFindingCode.DUPLICATE_JSON_MEMBER, exception.getLocation(), DUPLICATE_MESSAGE);
             }
             return rejected(ProjectParseFindingCode.MALFORMED_JSON, exception.getLocation(), MALFORMED_MESSAGE);
@@ -60,9 +65,15 @@ public final class JacksonProjectJsonParser implements ProjectJsonParser {
         }
     }
 
-    private static boolean isDuplicateMember(JsonParseException exception) {
+    /**
+     * Jackson 2.19.2 reports strict duplicate detection as JsonParseException
+     * and exposes no dedicated public subtype or reason code. This compatibility
+     * boundary uses the smallest specific prefix emitted by DupDetector; tests
+     * pin the adapter to the configured Jackson version.
+     */
+    static boolean isStrictDuplicateDetectionFailure(JsonParseException exception) {
         return exception.getOriginalMessage() != null
-                && exception.getOriginalMessage().startsWith("Duplicate field '");
+                && exception.getOriginalMessage().startsWith(STRICT_DUPLICATE_MESSAGE_PREFIX);
     }
 
     private static ProjectParseRejected rejected(

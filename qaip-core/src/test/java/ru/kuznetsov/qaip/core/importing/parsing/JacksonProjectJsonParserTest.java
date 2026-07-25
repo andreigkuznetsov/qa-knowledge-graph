@@ -49,7 +49,7 @@ class JacksonProjectJsonParserTest {
     @Test
     void rejectsOrdinaryMalformedJson() {
         for (String json : List.of("{\"a\":1", "[1,2", "\"unterminated", "\"\\x\"", "1e",
-                "@", "{\"a\":1 \"b\":2}", "{\"a\" 1}", "{")) {
+                "@", "{\"a\":1 \"b\":2}", "{\"a\" 1}", "{", "\"line\nfeed\"")) {
             assertCode(json, ProjectParseFindingCode.MALFORMED_JSON);
         }
     }
@@ -60,8 +60,11 @@ class JacksonProjectJsonParserTest {
         assertCode("{\"nested\":{\"id\":1,\"id\":2}}", ProjectParseFindingCode.DUPLICATE_JSON_MEMBER);
         assertCode("[{\"id\":1,\"id\":2}]", ProjectParseFindingCode.DUPLICATE_JSON_MEMBER);
         assertCode("{\"exact\":1,\"exact\":2}", ProjectParseFindingCode.DUPLICATE_JSON_MEMBER);
+        assertCode("{\"id\":{},\"id\":{}}", ProjectParseFindingCode.DUPLICATE_JSON_MEMBER);
+        assertCode("{\"id\":null,\"id\":null}", ProjectParseFindingCode.DUPLICATE_JSON_MEMBER);
         assertAccepted("{\"id\":1,\"ID\":2}");
         assertAccepted("[{\"id\":1},{\"id\":2}]");
+        assertAccepted("{\"id\":1,\"child\":{\"id\":2}}");
     }
 
     @Test
@@ -69,9 +72,12 @@ class JacksonProjectJsonParserTest {
         for (String json : List.of("{} {}", "[] true", "null 1", "\"first\" \"second\"")) {
             assertCode(json, ProjectParseFindingCode.TRAILING_JSON_CONTENT);
         }
+        assertCode("{} @", ProjectParseFindingCode.TRAILING_JSON_CONTENT);
+        assertCode("{} // comment", ProjectParseFindingCode.TRAILING_JSON_CONTENT);
         assertAccepted("{}   ");
         assertAccepted("{}\t\t");
         assertAccepted("{}\r\n\n");
+        assertAccepted(" \r\n {\"a\":1} \t\n");
     }
 
     @Test
@@ -80,6 +86,10 @@ class JacksonProjectJsonParserTest {
                 + "\"values\":[3,2,2,1],\"explicitNull\":null,\"emptyObject\":{},\"emptyArray\":[],"
                 + "\"huge\":1234567890123456789012345678901234567890,"
                 + "\"decimal\":1234567890.123456789012345678900,"
+                + "\"negativeHuge\":-1234567890123456789012345678901234567890,"
+                + "\"exponent\":1.234567890123456789e+50,"
+                + "\"ID\":\"upper\",\"escaped\":\"line\\nquote\\\"slash\\\\\","
+                + "\"nested\":{\"arrays\":[[1,null],{\"inside\":true}]},"
                 + "\"a/b\":{\"m~n\":\"escaped names\"}}";
         ParsedProjectDocument document = accepted(json).document();
         JsonNode tree = document.internalJsonTreeCopy();
@@ -95,6 +105,15 @@ class JacksonProjectJsonParserTest {
         assertEquals(new BigInteger("1234567890123456789012345678901234567890"), tree.get("huge").bigIntegerValue());
         assertEquals(0, new BigDecimal("1234567890.123456789012345678900")
                 .compareTo(tree.get("decimal").decimalValue()));
+        assertEquals(new BigInteger("-1234567890123456789012345678901234567890"),
+                tree.get("negativeHuge").bigIntegerValue());
+        assertEquals(0, new BigDecimal("1.234567890123456789e+50")
+                .compareTo(tree.get("exponent").decimalValue()));
+        assertEquals("upper", tree.get("ID").textValue());
+        assertEquals("line\nquote\"slash\\", tree.get("escaped").textValue());
+        assertEquals(1, tree.at("/nested/arrays/0/0").intValue());
+        assertTrue(tree.at("/nested/arrays/0/1").isNull());
+        assertTrue(tree.at("/nested/arrays/1/inside").booleanValue());
         assertEquals("escaped names", tree.at("/a~1b/m~0n").textValue());
 
         ((com.fasterxml.jackson.databind.node.ObjectNode) tree).put("id", "mutated copy");
@@ -125,7 +144,10 @@ class JacksonProjectJsonParserTest {
         for (Class<?> type : List.of(RawProjectJson.class, ProjectJsonParser.class, ProjectParseResult.class,
                 ProjectParseAccepted.class, ProjectParseRejected.class, ProjectParseFinding.class,
                 ProjectParseFindingCode.class, JsonInstanceLocation.class, JsonSourcePosition.class,
-                ParsedProjectDocument.class)) {
+                ParsedProjectDocument.class, JacksonProjectJsonParser.class,
+                ProjectJsonParsingContractException.class)) {
+            assertNoJackson(type, type.getGenericSuperclass());
+            for (Type implemented : type.getGenericInterfaces()) assertNoJackson(type, implemented);
             for (Method method : type.getMethods()) {
                 assertNoJackson(type, method.getGenericReturnType());
                 for (Type parameter : method.getGenericParameterTypes()) assertNoJackson(type, parameter);
@@ -148,6 +170,12 @@ class JacksonProjectJsonParserTest {
         ProjectParseRejected firstRejected = rejected("{\"id\":1,\"id\":2}");
         ProjectParseRejected secondRejected = rejected("{\"id\":1,\"id\":2}");
         assertEquals(firstRejected, secondRejected);
+        for (String invalid : List.of("{", "{\"id\":1,\"id\":2}", "{} {}")) {
+            ProjectParseRejected first = rejected(invalid);
+            for (int repeat = 0; repeat < 5; repeat++) {
+                assertEquals(first, rejected(invalid), invalid);
+            }
+        }
     }
 
     @Test
@@ -156,13 +184,60 @@ class JacksonProjectJsonParserTest {
             List<Future<ProjectParseResult>> futures = new ArrayList<>();
             for (int index = 0; index < 100; index++) {
                 int value = index;
-                futures.add(executor.submit(() -> parser.parse(new RawProjectJson("{\"value\":" + value + "}"))));
+                String source = switch (index % 5) {
+                    case 0 -> "{\"value\":" + value + "}";
+                    case 1 -> Integer.toString(value);
+                    case 2 -> "{";
+                    case 3 -> "{\"id\":1,\"id\":2}";
+                    default -> "{} {}";
+                };
+                futures.add(executor.submit(() -> parser.parse(new RawProjectJson(source))));
             }
             for (int index = 0; index < futures.size(); index++) {
-                ProjectParseAccepted result = assertInstanceOf(ProjectParseAccepted.class, futures.get(index).get());
-                assertEquals(index, result.document().internalJsonTreeCopy().get("value").intValue());
+                ProjectParseResult result = futures.get(index).get();
+                switch (index % 5) {
+                    case 0 -> assertEquals(index, assertInstanceOf(ProjectParseAccepted.class, result)
+                            .document().internalJsonTreeCopy().get("value").intValue());
+                    case 1 -> assertEquals(index, assertInstanceOf(ProjectParseAccepted.class, result)
+                            .document().internalJsonTreeCopy().intValue());
+                    case 2 -> assertEquals(ProjectParseFindingCode.MALFORMED_JSON,
+                            assertInstanceOf(ProjectParseRejected.class, result).findings().getFirst().code());
+                    case 3 -> assertEquals(ProjectParseFindingCode.DUPLICATE_JSON_MEMBER,
+                            assertInstanceOf(ProjectParseRejected.class, result).findings().getFirst().code());
+                    default -> assertEquals(ProjectParseFindingCode.TRAILING_JSON_CONTENT,
+                            assertInstanceOf(ProjectParseRejected.class, result).findings().getFirst().code());
+                }
             }
         }
+    }
+
+    @Test
+    void reportsConcreteStringSourcePositionsForRepresentativeFailures() {
+        assertPosition("{\"a\":1", ProjectParseFindingCode.MALFORMED_JSON, 6);
+        assertPosition("{\"id\":1,\"id\":2}", ProjectParseFindingCode.DUPLICATE_JSON_MEMBER, 10);
+        assertPosition("{} true", ProjectParseFindingCode.TRAILING_JSON_CONTENT, 3);
+    }
+
+    @Test
+    void pinsJacksonStrictDuplicateCompatibilityAdapter() throws Exception {
+        com.fasterxml.jackson.core.JsonFactory factory = com.fasterxml.jackson.core.JsonFactory.builder()
+                .enable(com.fasterxml.jackson.core.StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
+        com.fasterxml.jackson.core.JsonParseException exception = assertThrows(
+                com.fasterxml.jackson.core.JsonParseException.class, () -> {
+                    try (var strictParser = factory.createParser("{\"id\":1,\"id\":2}")) {
+                        while (strictParser.nextToken() != null) { }
+                    }
+                });
+        assertTrue(JacksonProjectJsonParser.isStrictDuplicateDetectionFailure(exception));
+
+        com.fasterxml.jackson.core.JsonParseException ordinary = assertThrows(
+                com.fasterxml.jackson.core.JsonParseException.class, () -> {
+                    try (var strictParser = factory.createParser("{")) {
+                        while (strictParser.nextToken() != null) { }
+                    }
+                });
+        assertFalse(JacksonProjectJsonParser.isStrictDuplicateDetectionFailure(ordinary));
+        assertCode("{", ProjectParseFindingCode.MALFORMED_JSON);
     }
 
     private void assertAccepted(String json) {
@@ -171,15 +246,24 @@ class JacksonProjectJsonParserTest {
 
     private void assertCode(String json, ProjectParseFindingCode code) {
         ProjectParseRejected result = rejected(json);
-        assertEquals(1, result.findings().size());
+        assertEquals(1, result.findings().size(), json);
         ProjectParseFinding finding = result.findings().getFirst();
-        assertEquals(code, finding.code());
-        assertEquals("", finding.location().value());
+        assertEquals(code, finding.code(), json);
+        assertEquals("", finding.location().value(), json);
         finding.sourcePosition().ifPresent(position -> {
             assertTrue(position.line() >= 1);
             assertTrue(position.column() >= 1);
             assertTrue(position.characterOffset() >= 0);
         });
+    }
+
+    private void assertPosition(String json, ProjectParseFindingCode code, long minimumOffset) {
+        ProjectParseFinding finding = rejected(json).findings().getFirst();
+        assertEquals(code, finding.code());
+        JsonSourcePosition position = finding.sourcePosition().orElseThrow();
+        assertEquals(1, position.line());
+        assertTrue(position.column() >= 1 && position.column() <= json.length() + 1);
+        assertTrue(position.characterOffset() >= minimumOffset && position.characterOffset() <= json.length());
     }
 
     private ProjectParseAccepted accepted(String json) {
@@ -197,6 +281,7 @@ class JacksonProjectJsonParserTest {
     }
 
     private static void assertNoJackson(Class<?> owner, Type exposedType) {
+        if (exposedType == null) return;
         assertFalse(exposedType.getTypeName().contains("com.fasterxml.jackson"),
                 () -> owner.getName() + " exposes " + exposedType.getTypeName());
     }

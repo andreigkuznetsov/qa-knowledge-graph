@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.Objects;
 
-/** Opaque owner of one parsed JSON value; it carries no schema-validity proof. */
+/**
+ * Logically immutable, opaque owner of one parsed JSON value. It is a parsing
+ * proof only, makes no schema-validity claim, and exposes no public Jackson API.
+ */
 public final class ParsedProjectDocument {
     private final JsonNode value;
 

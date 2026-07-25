@@ -4,7 +4,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-/** Deterministic, immutable syntax rejection. No partial document is retained. */
+/**
+ * Syntax rejection containing immutable, deduplicated and deterministically
+ * ordered findings. A rejection never contains a partial document.
+ */
 public record ProjectParseRejected(List<ProjectParseFinding> findings) implements ProjectParseResult {
     private static final Comparator<ProjectParseFinding> ORDER = Comparator
             .comparingLong((ProjectParseFinding finding) -> finding.sourcePosition()
