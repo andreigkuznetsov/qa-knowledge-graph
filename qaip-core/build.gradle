@@ -7,9 +7,13 @@ description = 'QAIP Core contracts and platform infrastructure'
 dependencies {
     api 'com.fasterxml.jackson.core:jackson-databind:2.19.2'
     implementation 'com.networknt:json-schema-validator:1.5.8'
+    runtimeOnly 'org.postgresql:postgresql:42.7.7'
 
     testImplementation platform('org.junit:junit-bom:5.12.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.postgresql:postgresql:42.7.7'
+    testImplementation 'org.testcontainers:junit-jupiter:1.21.4'
+    testImplementation 'org.testcontainers:postgresql:1.21.4'
 
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

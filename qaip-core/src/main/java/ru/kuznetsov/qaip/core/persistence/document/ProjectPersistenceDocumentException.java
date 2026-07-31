@@ -1,11 +1,11 @@
 package ru.kuznetsov.qaip.core.persistence.document;
 
-final class ProjectPersistenceDocumentException extends RuntimeException {
-    ProjectPersistenceDocumentException(String message) {
+public final class ProjectPersistenceDocumentException extends RuntimeException {
+    public ProjectPersistenceDocumentException(String message) {
         super(message);
     }
 
-    ProjectPersistenceDocumentException(String message, Throwable cause) {
+    public ProjectPersistenceDocumentException(String message, Throwable cause) {
         super(message, cause);
     }
 }

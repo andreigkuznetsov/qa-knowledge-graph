@@ -16,18 +16,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PersistenceDocumentArchitectureTest {
     private static final List<Class<?>> INFRASTRUCTURE_TYPES = List.of(
-            ProjectPersistenceDocumentCodec.class, JacksonProjectPersistenceDocumentCodec.class,
-            ProjectPersistenceDocumentException.class, ProjectPersistenceDocument.class,
+            JacksonProjectPersistenceDocumentCodec.class, ProjectPersistenceDocument.class,
             ProjectDocument.class, MetadataDocument.class, SubjectDocument.class, NodeDocument.class,
             RelationshipDocument.class, EvidenceManifestDocument.class, DeclaredChangeDocument.class,
             PersistenceValueDocument.class);
 
     @Test
-    void persistence_document_and_codec_types_are_package_private_and_immutable() {
+    void document_and_implementation_types_are_private_while_the_narrow_codec_bridge_is_public() {
         for (Class<?> type : INFRASTRUCTURE_TYPES) {
             assertFalse(Modifier.isPublic(type.getModifiers()), type.getName());
             if (!type.isInterface()) assertTrue(Modifier.isFinal(type.getModifiers()), type.getName());
         }
+        assertTrue(Modifier.isPublic(ProjectPersistenceDocumentCodec.class.getModifiers()));
+        assertTrue(Modifier.isPublic(ProjectPersistenceDocumentException.class.getModifiers()));
         for (Class<?> document : INFRASTRUCTURE_TYPES.stream().filter(Class::isRecord).toList()) {
             assertTrue(Modifier.isFinal(document.getModifiers()));
         }
