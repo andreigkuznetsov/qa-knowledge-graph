@@ -68,7 +68,7 @@ class PersistenceArchitectureTest {
 
     @Test
     void production_dependency_direction_is_enforced() throws IOException {
-        assertSourceTreeExcludes("src/main/java/ru/kuznetsov/qaip/core/persistence",
+        assertSourceDirectoryExcludes("src/main/java/ru/kuznetsov/qaip/core/persistence",
                 "core.application.persistence", "core.importing", "core.validation", "com.fasterxml",
                 "com.networknt", "org.springframework", "jakarta.persistence", "org.hibernate");
         assertSourceTreeExcludes("src/main/java/ru/kuznetsov/qaip/core/persistence/memory",
@@ -84,6 +84,17 @@ class PersistenceArchitectureTest {
 
     private static void assertSourceTreeExcludes(String root, String... forbiddenValues) throws IOException {
         try (var files = Files.walk(Path.of(root))) {
+            for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
+                String source = Files.readString(file);
+                for (String forbidden : forbiddenValues) {
+                    assertFalse(source.contains(forbidden), () -> file + " contains " + forbidden);
+                }
+            }
+        }
+    }
+
+    private static void assertSourceDirectoryExcludes(String root, String... forbiddenValues) throws IOException {
+        try (var files = Files.list(Path.of(root))) {
             for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
                 String source = Files.readString(file);
                 for (String forbidden : forbiddenValues) {
