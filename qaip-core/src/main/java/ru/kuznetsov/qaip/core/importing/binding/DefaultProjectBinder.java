@@ -156,7 +156,11 @@ public final class DefaultProjectBinder implements ProjectBinder {
             return result;
         }
         if (value.isTextual()) return value.textValue();
-        if (value.isIntegralNumber()) return value.isInt() ? value.intValue() : value.longValue();
+        if (value.isIntegralNumber()) {
+            if (value.canConvertToInt()) return value.intValue();
+            if (value.canConvertToLong()) return value.longValue();
+            return value.bigIntegerValue();
+        }
         if (value.isFloatingPointNumber()) return value.decimalValue();
         if (value.isBoolean()) return value.booleanValue();
         return null;

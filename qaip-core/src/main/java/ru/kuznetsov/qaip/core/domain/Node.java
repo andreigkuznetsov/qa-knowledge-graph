@@ -13,7 +13,6 @@ public record Node(String id, String type, String name, String description, Stri
         attributes = Metadata.immutableMap(attributes);
     }
 
-    @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> immutableMaps(List<Map<String, Object>> values) {
         if (values == null || values.isEmpty()) return List.of();
         return values.stream().map(value -> Metadata.immutableMap(value)).toList();
