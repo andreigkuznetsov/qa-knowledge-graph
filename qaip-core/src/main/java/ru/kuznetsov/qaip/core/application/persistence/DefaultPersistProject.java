@@ -17,7 +17,8 @@ public final class DefaultPersistProject implements PersistProject {
     @Override
     public PersistProjectResult execute(ApplicationValidProjectDocument document) {
         Objects.requireNonNull(document, "document");
-        var result = repository.insertIfAbsent(document.project());
+        var result = Objects.requireNonNull(
+                repository.insertIfAbsent(document.project()), "repository result");
         if (result instanceof ProjectInserted inserted) {
             return new PersistProjectAccepted(inserted.projectId());
         }

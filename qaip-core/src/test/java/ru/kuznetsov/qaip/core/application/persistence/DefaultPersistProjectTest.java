@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DefaultPersistProjectTest {
     private final PersistenceProofFixture fixture = new PersistenceProofFixture();
@@ -50,6 +51,21 @@ class DefaultPersistProjectTest {
         ProjectRepository repository = project -> { throw failure; };
         assertSame(failure, assertThrows(ProjectPersistenceException.class,
                 () -> new DefaultPersistProject(repository).execute(fixture.document)));
+    }
+
+    @Test
+    void unexpected_runtime_defect_propagates_unchanged() {
+        IllegalStateException failure = new IllegalStateException("repository defect");
+        ProjectRepository repository = project -> { throw failure; };
+        assertSame(failure, assertThrows(IllegalStateException.class,
+                () -> new DefaultPersistProject(repository).execute(fixture.document)));
+    }
+
+    @Test
+    void null_repository_result_fails_clearly_without_becoming_a_rejection() {
+        NullPointerException failure = assertThrows(NullPointerException.class,
+                () -> new DefaultPersistProject(project -> null).execute(fixture.document));
+        assertTrue(failure.getMessage().contains("repository result"));
     }
 
     @Test

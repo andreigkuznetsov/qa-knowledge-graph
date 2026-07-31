@@ -91,6 +91,9 @@ class InMemoryProjectRepositoryTest {
             assertEquals(1, winners.size());
             assertEquals(attempts - 1, results.stream()
                     .filter(attempt -> attempt.result() instanceof ProjectAlreadyExists).count());
+            assertEquals("P-RACE", ((ProjectInserted) winners.getFirst().result()).projectId());
+            assertTrue(results.stream().allMatch(attempt ->
+                    resultProjectId(attempt).equals(attempt.project().metadata().id())));
             assertSame(winners.getFirst().project(), repository.storedProject("P-RACE"));
         }
     }
@@ -120,6 +123,11 @@ class InMemoryProjectRepositoryTest {
     }
 
     private record Attempt(Project project, ru.kuznetsov.qaip.core.persistence.ProjectInsertResult result) { }
+
+    private static String resultProjectId(Attempt attempt) {
+        if (attempt.result() instanceof ProjectInserted inserted) return inserted.projectId();
+        return ((ProjectAlreadyExists) attempt.result()).projectId();
+    }
 
     static Project project(String id, String name) {
         return new Project("qaip-project-v1", "0.1", new Metadata(id, name, null, null, Map.of()),

@@ -2,6 +2,9 @@ package ru.kuznetsov.qaip.core.persistence;
 
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.RecordComponent;
+import java.util.Arrays;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -28,5 +31,18 @@ class ProjectPersistenceContractsTest {
         assertEquals("failed", exception.getMessage());
         assertEquals(cause, exception.getCause());
         assertEquals("failed", new ProjectPersistenceException("failed").getMessage());
+    }
+
+    @Test
+    void repository_results_expose_only_immutable_project_identity() {
+        for (Class<?> resultType : new Class<?>[] {ProjectInserted.class, ProjectAlreadyExists.class}) {
+            assertEquals(1, resultType.getRecordComponents().length);
+            assertEquals(String.class, resultType.getRecordComponents()[0].getType());
+            assertEquals("projectId", resultType.getRecordComponents()[0].getName());
+            assertEquals(0, Arrays.stream(resultType.getRecordComponents())
+                    .map(RecordComponent::getType)
+                    .filter(ru.kuznetsov.qaip.core.domain.Project.class::equals)
+                    .count());
+        }
     }
 }
