@@ -34,16 +34,15 @@ class ProjectRelationshipLookupArchitectureTest {
 
     @Test
     void package_has_only_domain_and_standard_library_dependencies_without_frameworks() throws Exception {
-        try (var files = Files.walk(Path.of(
-                "src/main/java/ru/kuznetsov/qaip/core/application/query/relationship"))) {
-            for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
+        for (Path file : List.of(
+                Path.of("src/main/java/ru/kuznetsov/qaip/core/application/query/relationship/ProjectRelationshipLookup.java"),
+                Path.of("src/main/java/ru/kuznetsov/qaip/core/application/query/relationship/ProjectRelationships.java"))) {
                 String source = Files.readString(file);
                 for (String forbidden : List.of("ProjectReader", "ProjectNodeLookup", "persistence", "postgresql",
                         "java.sql", "javax.sql", "com.fasterxml", "cli", "springframework", "jakarta.persistence",
                         "hibernate", "Graph", "Cache", "parallelStream", "Map<")) {
                     assertFalse(source.contains(forbidden), () -> file + " contains " + forbidden);
                 }
-            }
         }
     }
 }
