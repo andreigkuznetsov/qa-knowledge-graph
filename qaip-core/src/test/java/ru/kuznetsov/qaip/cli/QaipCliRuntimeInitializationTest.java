@@ -48,4 +48,28 @@ class QaipCliRuntimeInitializationTest {
             assertFalse(streams.stderr().contains("IllegalStateException"));
         }
     }
+
+    @Test
+    void bootstrap_failure_prevents_command_execution_and_is_reported_safely() {
+        AtomicInteger dataSourceCalls = new AtomicInteger();
+        AtomicInteger bootstrapCalls = new AtomicInteger();
+        QaipCliApplicationTest.Streams streams = new QaipCliApplicationTest.Streams();
+
+        int exitCode = QaipCliApplication.runWithRuntime(
+                new String[]{"summary", "P"}, streams.out, streams.err,
+                () -> RuntimeComposition.create(() -> {
+                    dataSourceCalls.incrementAndGet();
+                    return null;
+                }, dataSource -> {
+                    bootstrapCalls.incrementAndGet();
+                    throw new IllegalStateException("credential-value");
+                }));
+
+        assertEquals(CliExitCode.APPLICATION_FAILURE.value(), exitCode);
+        assertEquals(1, dataSourceCalls.get());
+        assertEquals(1, bootstrapCalls.get());
+        assertEquals("", streams.stdout());
+        assertEquals("Database configuration is missing or invalid." + System.lineSeparator(), streams.stderr());
+        assertFalse(streams.stderr().contains("credential-value"));
+    }
 }

@@ -11,17 +11,34 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RuntimeCompositionArchitectureTest {
     @Test
-    void production_runtime_uses_postgresql_only_and_introduces_no_bootstrap_or_connectivity_check() throws Exception {
+    void production_runtime_bootstraps_before_creating_postgresql_adapters_without_extra_infrastructure() throws Exception {
         String application = source("QaipCliApplication.java");
         String composition = source("RuntimeComposition.java");
 
         assertFalse(application.contains("InMemoryProject"));
         assertFalse(composition.contains("InMemoryProject"));
         assertTrue(composition.contains("RuntimeDataSourceFactory::create"));
+        assertTrue(composition.contains("bootstrap::initialize"));
         assertTrue(composition.contains("new PostgreSqlProjectRepository(dataSource)"));
         assertTrue(composition.contains("new PostgreSqlProjectReader(dataSource)"));
+        assertTrue(composition.indexOf("bootstrap).accept(dataSource)")
+                < composition.indexOf("new PostgreSqlProjectRepository(dataSource)"));
+        assertTrue(composition.indexOf("bootstrap).accept(dataSource)")
+                < composition.indexOf("new PostgreSqlProjectReader(dataSource)"));
         for (String forbidden : List.of("getConnection(", "CREATE TABLE", "qaip_projects", "execute(")) {
             assertFalse(composition.contains(forbidden), forbidden);
+        }
+    }
+
+    @Test
+    void only_runtime_composition_depends_on_the_bootstrap_component() throws Exception {
+        try (var files = Files.walk(Path.of("src/main/java"))) {
+            for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
+                if (file.endsWith("RuntimeComposition.java") || file.endsWith("PostgreSqlSchemaBootstrap.java")) {
+                    continue;
+                }
+                assertFalse(Files.readString(file).contains("PostgreSqlSchemaBootstrap"), file.toString());
+            }
         }
     }
 
