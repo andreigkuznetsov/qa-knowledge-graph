@@ -37,6 +37,7 @@ tasks.named('processResources') {
 
 tasks.named('test') {
     useJUnitPlatform()
+    dependsOn tasks.named('installDist')
 }
 
 tasks.named('processTestResources') {
