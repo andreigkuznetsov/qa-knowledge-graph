@@ -142,7 +142,6 @@ class CrossProcessRuntimeSmokeTest {
             environment.remove("QAIP_DB_USER");
             environment.remove("QAIP_DB_PASSWORD");
         }
-        environment.put("JAVA_OPTS", "-Dslf4j.internal.verbosity=ERROR");
         Process process = builder.start();
         assertTrue(process.waitFor(30, TimeUnit.SECONDS), "CLI process timed out: " + command);
         return new ProcessResult(process.pid(), process.exitValue(),
@@ -155,6 +154,7 @@ class CrossProcessRuntimeSmokeTest {
         assertEquals(stdout, result.stdout());
         assertEquals(stderr, result.stderr());
         String output = result.stdout() + result.stderr();
+        assertTrue(!output.contains("SLF4J"), output);
         assertTrue(!output.contains("Exception"), output);
         assertTrue(!output.contains("\tat "), output);
         assertTrue(!output.contains(POSTGRES.getPassword()), "credentials leaked");

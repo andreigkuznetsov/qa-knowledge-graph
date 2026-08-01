@@ -164,7 +164,6 @@ class ImportCliCrossProcessSmokeTest {
         environment.put("QAIP_DB_URL", POSTGRES.getJdbcUrl());
         environment.put("QAIP_DB_USER", POSTGRES.getUsername());
         environment.put("QAIP_DB_PASSWORD", POSTGRES.getPassword());
-        environment.put("JAVA_OPTS", "-Dslf4j.internal.verbosity=ERROR");
         Process process = builder.start();
         assertTrue(process.waitFor(30, TimeUnit.SECONDS), "CLI process timed out: " + command);
         return new ProcessResult(process.pid(), process.exitValue(),
@@ -188,6 +187,7 @@ class ImportCliCrossProcessSmokeTest {
 
     private static void assertSafe(ProcessResult result) {
         String output = result.stdout() + result.stderr();
+        assertTrue(!output.contains("SLF4J"), output);
         assertTrue(!output.contains("Exception"), output);
         assertTrue(!output.contains("\tat "), output);
         assertTrue(!output.contains(PASSWORD), "credentials leaked");
