@@ -21,11 +21,11 @@ import ru.kuznetsov.qaip.core.application.query.validation.ValidationUseCase;
 import ru.kuznetsov.qaip.core.application.validation.ValidationEngine;
 import ru.kuznetsov.qaip.core.application.validation.rule.IsolatedNodeValidationRule;
 import ru.kuznetsov.qaip.core.application.validation.rule.ScenarioWithoutTestValidationRule;
-import ru.kuznetsov.qaip.core.persistence.memory.InMemoryProjectReader;
-import ru.kuznetsov.qaip.core.persistence.memory.InMemoryProjectRepository;
+import ru.kuznetsov.qaip.core.persistence.read.ProjectReader;
 
 import java.io.PrintStream;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 public final class QaipCliApplication {
     private static final String USAGE = String.join(System.lineSeparator(),
@@ -39,8 +39,29 @@ public final class QaipCliApplication {
     private QaipCliApplication() { }
 
     public static void main(String[] args) {
-        InMemoryProjectRepository repository = new InMemoryProjectRepository();
-        InMemoryProjectReader reader = new InMemoryProjectReader(repository);
+        System.exit(runWithRuntime(args, System.out, System.err, RuntimeComposition::create));
+    }
+
+    static int runWithRuntime(String[] args, PrintStream out, PrintStream err,
+                              Supplier<RuntimeComposition> compositionFactory) {
+        Objects.requireNonNull(args, "args");
+        Objects.requireNonNull(out, "out");
+        Objects.requireNonNull(err, "err");
+        Objects.requireNonNull(compositionFactory, "compositionFactory");
+        if (!isValidCommand(args)) {
+            err.println(USAGE);
+            return CliExitCode.INVALID_USAGE.value();
+        }
+
+        RuntimeComposition composition;
+        try {
+            composition = Objects.requireNonNull(compositionFactory.get(), "runtime composition");
+        } catch (IllegalStateException exception) {
+            err.println("Database configuration is missing or invalid.");
+            return CliExitCode.APPLICATION_FAILURE.value();
+        }
+
+        ProjectReader reader = composition.reader();
         ProjectSummaryUseCase useCase = new DefaultProjectSummaryUseCase(
                 reader, new ProjectSummaryMapper());
         NodeDetailsUseCase nodeDetailsUseCase = new DefaultNodeDetailsUseCase(
@@ -53,8 +74,8 @@ public final class QaipCliApplication {
                 new IsolatedNodeValidationRule(), new ScenarioWithoutTestValidationRule()));
         ValidationUseCase validationUseCase = new DefaultValidationUseCase(
                 reader, validationEngine, new ValidationReportMapper());
-        System.exit(run(args, System.out, System.err, useCase, nodeDetailsUseCase, relationshipsUseCase,
-                traceUseCase, validationUseCase));
+        return run(args, out, err, useCase, nodeDetailsUseCase, relationshipsUseCase,
+                traceUseCase, validationUseCase);
     }
 
     static int run(String[] args, PrintStream out, PrintStream err, ProjectSummaryUseCase useCase) {
@@ -120,5 +141,13 @@ public final class QaipCliApplication {
         }
         err.println(USAGE);
         return CliExitCode.INVALID_USAGE.value();
+    }
+
+    private static boolean isValidCommand(String[] args) {
+        return args.length == 2 && "summary".equals(args[0])
+                || args.length == 4 && "show".equals(args[0]) && "node".equals(args[1])
+                || args.length == 4 && "show".equals(args[0]) && "relationships".equals(args[1])
+                || args.length == 3 && "trace".equals(args[0])
+                || args.length == 3 && "validate".equals(args[0]) && "project".equals(args[1]);
     }
 }
