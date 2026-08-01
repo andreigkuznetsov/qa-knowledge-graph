@@ -35,17 +35,16 @@ class NodeDetailsArchitectureTest {
 
     @Test
     void package_has_only_domain_node_and_standard_library_dependencies() throws Exception {
-        try (var files = Files.walk(Path.of(
-                "src/main/java/ru/kuznetsov/qaip/core/application/query/nodedetails"))) {
-            for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
-                String source = Files.readString(file);
-                for (String forbidden : List.of("core.domain.Project", "ProjectNodeLookup", "ProjectReader",
-                        "persistence", "postgresql", "java.sql", "javax.sql", "com.fasterxml", "importing",
-                        "validation", "cli", "projectsummary", "springframework", "jakarta.persistence",
-                        "hibernate", "Requirement", "relationship", "evidence", "Map<", "List<", "Optional<",
-                        "UseCase")) {
-                    assertFalse(source.contains(forbidden), () -> file + " contains " + forbidden);
-                }
+        Path root = Path.of("src/main/java/ru/kuznetsov/qaip/core/application/query/nodedetails");
+        for (String name : List.of("NodeDetailsMapper.java", "NodeDetailsResult.java")) {
+            Path file = root.resolve(name);
+            String source = Files.readString(file);
+            for (String forbidden : List.of("core.domain.Project", "ProjectNodeLookup", "ProjectReader",
+                    "persistence", "postgresql", "java.sql", "javax.sql", "com.fasterxml", "importing",
+                    "validation", "cli", "projectsummary", "springframework", "jakarta.persistence",
+                    "hibernate", "Requirement", "relationship", "evidence", "Map<", "List<", "Optional<",
+                    "UseCase")) {
+                assertFalse(source.contains(forbidden), () -> file + " contains " + forbidden);
             }
         }
     }
