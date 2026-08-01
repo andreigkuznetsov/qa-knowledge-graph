@@ -31,9 +31,28 @@ class CliArchitectureTest {
     }
 
     @Test
-    void entry_point_exposes_exactly_one_command_and_build_uses_no_third_party_cli_framework() throws Exception {
+    void node_command_and_renderer_depend_only_on_node_details_application_values() throws Exception {
+        String command = source("NodeDetailsCliCommand.java");
+        assertFalse(command.contains("String[]"));
+        assertTrue(command.contains("NodeDetailsUseCase"));
+        for (String forbidden : List.of("ProjectReader", "ProjectNodeLookup", "NodeDetailsMapper",
+                "ProjectRepository", "core.domain", "persistence.memory", "persistence.postgresql",
+                "persistence.document", "java.sql", "javax.sql", "com.fasterxml")) {
+            assertFalse(command.contains(forbidden), forbidden);
+        }
+        String renderer = source("NodeDetailsTextRenderer.java");
+        for (String forbidden : List.of("UseCase", "ProjectReader", "ProjectNodeLookup", "NodeDetailsMapper",
+                "core.domain", "persistence", ".attributes()", ".tags()", ".sourceReferences()")) {
+            assertFalse(renderer.contains(forbidden), forbidden);
+        }
+    }
+
+    @Test
+    void entry_point_exposes_exactly_two_commands_and_build_uses_no_third_party_cli_framework() throws Exception {
         String application = source("QaipCliApplication.java");
-        assertEquals(1, occurrences(application, "\"summary\""));
+        assertTrue(application.contains("\"summary\".equals(args[0])"));
+        assertTrue(application.contains("\"show\".equals(args[0])"));
+        assertTrue(application.contains("\"node\".equals(args[1])"));
         String build = Files.readString(Path.of("build.gradle"));
         for (String forbidden : List.of("picocli", "jcommander", "commons-cli")) {
             assertFalse(build.toLowerCase(java.util.Locale.ROOT).contains(forbidden));

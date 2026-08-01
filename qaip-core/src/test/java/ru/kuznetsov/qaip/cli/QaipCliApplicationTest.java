@@ -34,7 +34,8 @@ class QaipCliApplicationTest {
             assertEquals(2, QaipCliApplication.run(args, streams.out, streams.err, useCase));
             assertEquals(0, useCase.calls.get());
             assertEquals("", streams.stdout());
-            assertEquals("Usage: qaip summary <project-id>" + System.lineSeparator(), streams.stderr());
+            assertEquals(String.join(System.lineSeparator(), "Usage:", "  qaip summary <project-id>",
+                    "  qaip show node <project-id> <node-id>") + System.lineSeparator(), streams.stderr());
         }
     }
 
