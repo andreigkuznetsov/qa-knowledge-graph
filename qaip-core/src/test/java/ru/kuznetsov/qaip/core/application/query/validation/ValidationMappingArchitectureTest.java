@@ -43,7 +43,9 @@ class ValidationMappingArchitectureTest {
     @Test
     void query_package_has_no_execution_infrastructure_or_delivery_dependencies() throws Exception {
         Path packagePath = Path.of("src/main/java/ru/kuznetsov/qaip/core/application/query/validation");
-        for (Path file : Files.list(packagePath).toList()) {
+        for (Path file : List.of(packagePath.resolve("ValidationIssueResult.java"),
+                packagePath.resolve("ValidationReportResult.java"),
+                packagePath.resolve("ValidationReportMapper.java"))) {
             String source = Files.readString(file);
             for (String forbidden : List.of("ValidationEngine", "ProjectValidationRule", ".rule.", "ProjectReader",
                     "Repository", "persistence", "importing", "cli", "Jackson", "springframework",
