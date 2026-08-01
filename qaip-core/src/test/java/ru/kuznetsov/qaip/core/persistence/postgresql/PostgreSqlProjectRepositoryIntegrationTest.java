@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -72,7 +73,9 @@ class PostgreSqlProjectRepositoryIntegrationTest extends ProjectRepositoryContra
                 "/postgresql/qaip-projects.sql");
              var connection = dataSource.getConnection();
              var statement = connection.createStatement()) {
-            statement.execute(new String(stream.readAllBytes(), StandardCharsets.UTF_8));
+            statement.execute(new String(Objects.requireNonNull(stream,
+                    "Missing production SQL resource /postgresql/qaip-projects.sql").readAllBytes(),
+                    StandardCharsets.UTF_8));
         }
     }
 
