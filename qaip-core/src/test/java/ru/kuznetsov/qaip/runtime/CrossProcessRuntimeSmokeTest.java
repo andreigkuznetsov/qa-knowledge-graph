@@ -122,7 +122,8 @@ class CrossProcessRuntimeSmokeTest {
                 "  qaip show node <project-id> <node-id>",
                 "  qaip show relationships <project-id> <node-id>",
                 "  qaip trace <project-id> <start-node-id>",
-                "  qaip validate project <project-id>"));
+                "  qaip validate project <project-id>",
+                "  qaip import <file>"));
 
         assertEquals(results.size(), new HashSet<>(results.stream().map(ProcessResult::pid).toList()).size());
     }
@@ -141,6 +142,7 @@ class CrossProcessRuntimeSmokeTest {
             environment.remove("QAIP_DB_USER");
             environment.remove("QAIP_DB_PASSWORD");
         }
+        environment.put("JAVA_OPTS", "-Dslf4j.internal.verbosity=ERROR");
         Process process = builder.start();
         assertTrue(process.waitFor(30, TimeUnit.SECONDS), "CLI process timed out: " + command);
         return new ProcessResult(process.pid(), process.exitValue(),
