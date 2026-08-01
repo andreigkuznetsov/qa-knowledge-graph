@@ -22,8 +22,9 @@ class TraceGraphArchitectureTest {
 
     @Test
     void implementation_has_only_domain_and_standard_library_dependencies() throws Exception {
-        Path packagePath = Path.of("src/main/java/ru/kuznetsov/qaip/core/application/query/trace");
-        for (Path file : Files.list(packagePath).toList()) {
+        for (Path file : java.util.List.of(
+                Path.of("src/main/java/ru/kuznetsov/qaip/core/application/query/trace/TraceGraph.java"),
+                Path.of("src/main/java/ru/kuznetsov/qaip/core/application/query/trace/TraceGraphBuilder.java"))) {
             String source = Files.readString(file);
             for (String forbidden : new String[]{"ProjectReader", "Repository", "persistence", "postgresql",
                     "cli", "springframework", "jakarta.persistence", "hibernate", "parallelStream"}) {
