@@ -1,8 +1,14 @@
 plugins {
     id 'java-library'
+    id 'application'
 }
 
 description = 'QAIP Core contracts and platform infrastructure'
+
+application {
+    mainClass = 'ru.kuznetsov.qaip.cli.QaipCliApplication'
+    applicationName = 'qaip'
+}
 
 dependencies {
     api 'com.fasterxml.jackson.core:jackson-databind:2.19.2'
