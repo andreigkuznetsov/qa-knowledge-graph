@@ -25,6 +25,7 @@ import ru.kuznetsov.qaip.core.importing.parsing.NetworkntProjectSchemaValidator;
 import ru.kuznetsov.qaip.core.importing.parsing.RawProjectJson;
 import ru.kuznetsov.qaip.core.persistence.ProjectAlreadyExists;
 import ru.kuznetsov.qaip.core.persistence.ProjectInserted;
+import ru.kuznetsov.qaip.core.persistence.ProjectPersistenceException;
 import ru.kuznetsov.qaip.core.persistence.ProjectRepository;
 import ru.kuznetsov.qaip.core.persistence.ProjectRepositoryContractTest;
 import ru.kuznetsov.qaip.core.persistence.document.ProjectPersistenceDocumentCodec;
@@ -48,6 +49,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Testcontainers(disabledWithoutDocker = true)
@@ -96,8 +98,44 @@ class PostgreSqlProjectRepositoryIntegrationTest extends ProjectRepositoryContra
         Project original = richProject("P-FIDELITY", "Original");
         ProjectInserted inserted = assertInstanceOf(ProjectInserted.class, repository().insertIfAbsent(original));
         assertEquals(original.metadata().id(), inserted.projectId());
-        assertEquals(original, readProject("P-FIDELITY"));
+        PostgreSqlProjectReader reader = new PostgreSqlProjectReader(dataSource);
+        assertEquals(original, reader.findById("P-FIDELITY").orElseThrow());
+        assertEquals(original, reader.findById("P-FIDELITY").orElseThrow());
+        assertTrue(reader.findById("missing").isEmpty());
         assertEquals(1, rowCount("P-FIDELITY"));
+    }
+
+    @Test
+    void reader_uses_exact_case_and_whitespace_identity() {
+        ProjectRepository repository = repository();
+        repository.insertIfAbsent(richProject("P-1", "Upper"));
+        repository.insertIfAbsent(richProject("p-1", "Lower"));
+        repository.insertIfAbsent(richProject(" P-1 ", "Spaced"));
+        PostgreSqlProjectReader reader = new PostgreSqlProjectReader(dataSource);
+
+        assertEquals("Upper", reader.findById("P-1").orElseThrow().metadata().name());
+        assertEquals("Lower", reader.findById("p-1").orElseThrow().metadata().name());
+        assertEquals("Spaced", reader.findById(" P-1 ").orElseThrow().metadata().name());
+    }
+
+    @Test
+    void reader_rejects_corrupted_column_payload_identity_without_mutating_row() {
+        Project payloadProject = richProject("PAYLOAD-ID", "Payload");
+        String payload = CODEC.encode(payloadProject);
+        try (var connection = dataSource.getConnection();
+             var statement = connection.prepareStatement(
+                     "INSERT INTO qaip_projects (project_id, project_payload) VALUES (?, CAST(? AS jsonb))")) {
+            statement.setString(1, "COLUMN-ID");
+            statement.setString(2, payload);
+            statement.executeUpdate();
+        } catch (Exception exception) {
+            throw new AssertionError(exception);
+        }
+
+        assertThrows(ProjectPersistenceException.class,
+                () -> new PostgreSqlProjectReader(dataSource).findById("COLUMN-ID"));
+        assertEquals(1, rowCount("COLUMN-ID"));
+        assertEquals(payloadProject, CODEC.decode(readPayload("COLUMN-ID")));
     }
 
     @Test
@@ -183,7 +221,7 @@ class PostgreSqlProjectRepositoryIntegrationTest extends ProjectRepositoryContra
 
         assertEquals("P-1", accepted.projectId());
         assertEquals(PersistProjectFindingCode.PROJECT_ALREADY_EXISTS, rejected.finding().code());
-        assertEquals(exactProofProject, readProject("P-1"));
+        assertEquals(exactProofProject, new PostgreSqlProjectReader(dataSource).findById("P-1").orElseThrow());
         assertEquals(1, rowCount("P-1"));
     }
 
