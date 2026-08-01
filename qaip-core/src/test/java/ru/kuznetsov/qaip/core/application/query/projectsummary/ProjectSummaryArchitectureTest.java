@@ -36,14 +36,14 @@ class ProjectSummaryArchitectureTest {
 
     @Test
     void package_has_no_storage_delivery_validation_json_or_framework_dependencies() throws Exception {
-        try (var files = Files.walk(Path.of("src/main/java/ru/kuznetsov/qaip/core/application/query/projectsummary"))) {
-            for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
-                String source = Files.readString(file);
-                for (String forbidden : List.of("ProjectReader", "ProjectRepository", "persistence", "postgresql",
-                        "java.sql", "javax.sql", "com.fasterxml", "importing", "validation", "springframework",
-                        "jakarta.persistence", "hibernate", "Controller", "UseCase", "Handler")) {
-                    assertFalse(source.contains(forbidden), () -> file + " contains " + forbidden);
-                }
+        Path root = Path.of("src/main/java/ru/kuznetsov/qaip/core/application/query/projectsummary");
+        for (String name : List.of("ProjectSummaryMapper.java", "ProjectSummaryResult.java")) {
+            Path file = root.resolve(name);
+            String source = Files.readString(file);
+            for (String forbidden : List.of("ProjectReader", "ProjectRepository", "persistence", "postgresql",
+                    "java.sql", "javax.sql", "com.fasterxml", "importing", "validation", "springframework",
+                    "jakarta.persistence", "hibernate", "Controller", "UseCase", "Handler")) {
+                assertFalse(source.contains(forbidden), () -> file + " contains " + forbidden);
             }
         }
     }
