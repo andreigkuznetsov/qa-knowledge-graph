@@ -3,6 +3,10 @@ package ru.kuznetsov.qaip.cli;
 import org.junit.jupiter.api.Test;
 import ru.kuznetsov.qaip.core.application.query.projectsummary.ProjectSummaryNotFound;
 import ru.kuznetsov.qaip.core.application.query.projectsummary.ProjectSummaryUseCase;
+import ru.kuznetsov.qaip.core.application.query.nodedetails.NodeDetailsNodeNotFound;
+import ru.kuznetsov.qaip.core.application.query.nodedetails.NodeDetailsUseCase;
+import ru.kuznetsov.qaip.core.application.query.relationship.RelationshipsNodeNotFound;
+import ru.kuznetsov.qaip.core.application.query.relationship.RelationshipsUseCase;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -35,7 +39,65 @@ class QaipCliApplicationTest {
             assertEquals(0, useCase.calls.get());
             assertEquals("", streams.stdout());
             assertEquals(String.join(System.lineSeparator(), "Usage:", "  qaip summary <project-id>",
-                    "  qaip show node <project-id> <node-id>") + System.lineSeparator(), streams.stderr());
+                    "  qaip show node <project-id> <node-id>",
+                    "  qaip show relationships <project-id> <node-id>") + System.lineSeparator(), streams.stderr());
+        }
+    }
+
+    @Test
+    void centralized_dispatch_isolates_three_exact_command_paths_and_rejects_malformed_relationships() {
+        for (String[] invalid : new String[][]{{"show", "relationships"}, {"show", "relationships", "P"},
+                {"show", "relationships", "P", "N", "extra"}, {"relationships", "P", "N"},
+                {"show", "relationship", "P", "N"}, {"SHOW", "RELATIONSHIPS", "P", "N"},
+                {"unknown"}}) {
+            DispatchSpies spies = new DispatchSpies();
+            Streams streams = new Streams();
+            assertEquals(2, run(invalid, streams, spies));
+            assertEquals(0, spies.summary.calls.get());
+            assertEquals(0, spies.node.calls.get());
+            assertEquals(0, spies.relationships.calls.get());
+        }
+
+        DispatchSpies summary = new DispatchSpies();
+        assertEquals(3, run(new String[]{"summary", " P "}, new Streams(), summary));
+        assertEquals(1, summary.summary.calls.get());
+        assertEquals(0, summary.node.calls.get());
+        assertEquals(0, summary.relationships.calls.get());
+
+        DispatchSpies node = new DispatchSpies();
+        assertEquals(5, run(new String[]{"show", "node", " P ", " N "}, new Streams(), node));
+        assertEquals(0, node.summary.calls.get());
+        assertEquals(1, node.node.calls.get());
+        assertEquals(0, node.relationships.calls.get());
+
+        DispatchSpies relationships = new DispatchSpies();
+        assertEquals(5, run(new String[]{"show", "relationships", " P ", " N "},
+                new Streams(), relationships));
+        assertEquals(0, relationships.summary.calls.get());
+        assertEquals(0, relationships.node.calls.get());
+        assertEquals(1, relationships.relationships.calls.get());
+        assertEquals(" P ", relationships.relationships.projectId.get());
+        assertEquals(" N ", relationships.relationships.nodeId.get());
+    }
+
+    private static int run(String[] args, Streams streams, DispatchSpies spies) {
+        return QaipCliApplication.run(args, streams.out, streams.err,
+                spies.summary, spies.node, spies.relationships);
+    }
+
+    private static final class DispatchSpies {
+        final SpyUseCase summary = new SpyUseCase();
+        final SpyNodeUseCase node = new SpyNodeUseCase();
+        final RelationshipsCliCommandTest.StubUseCase relationships =
+                new RelationshipsCliCommandTest.StubUseCase(new RelationshipsNodeNotFound(" P ", " N "), null);
+    }
+
+    private static final class SpyNodeUseCase implements NodeDetailsUseCase {
+        final AtomicInteger calls = new AtomicInteger();
+        public ru.kuznetsov.qaip.core.application.query.nodedetails.NodeDetailsQueryResult execute(
+                String projectId, String nodeId) {
+            calls.incrementAndGet();
+            return new NodeDetailsNodeNotFound(projectId, nodeId);
         }
     }
 

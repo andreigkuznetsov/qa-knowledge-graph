@@ -48,14 +48,33 @@ class CliArchitectureTest {
     }
 
     @Test
-    void entry_point_exposes_exactly_two_commands_and_build_uses_no_third_party_cli_framework() throws Exception {
+    void entry_point_exposes_exactly_three_commands_and_build_uses_no_third_party_cli_framework() throws Exception {
         String application = source("QaipCliApplication.java");
         assertTrue(application.contains("\"summary\".equals(args[0])"));
         assertTrue(application.contains("\"show\".equals(args[0])"));
         assertTrue(application.contains("\"node\".equals(args[1])"));
+        assertTrue(application.contains("\"relationships\".equals(args[1])"));
         String build = Files.readString(Path.of("build.gradle"));
         for (String forbidden : List.of("picocli", "jcommander", "commons-cli")) {
             assertFalse(build.toLowerCase(java.util.Locale.ROOT).contains(forbidden));
+        }
+    }
+
+    @Test
+    void relationships_command_and_renderer_stay_thin_and_application_value_only() throws Exception {
+        String command = source("RelationshipsCliCommand.java");
+        assertFalse(command.contains("String[]"));
+        assertTrue(command.contains("RelationshipsUseCase"));
+        for (String forbidden : List.of("ProjectReader", "ProjectNodeLookup", "ProjectRelationshipLookup",
+                "RelationshipDetailsMapper", "ProjectRepository", "core.domain", "persistence.memory",
+                "persistence.postgresql", "persistence.document", ".from()", ".to()")) {
+            assertFalse(command.contains(forbidden), forbidden);
+        }
+        String renderer = source("RelationshipsTextRenderer.java");
+        for (String forbidden : List.of("UseCase", "ProjectReader", "ProjectNodeLookup",
+                "ProjectRelationshipLookup", "RelationshipDetailsMapper", "core.domain", "persistence",
+                ".from()", ".to()")) {
+            assertFalse(renderer.contains(forbidden), forbidden);
         }
     }
 
