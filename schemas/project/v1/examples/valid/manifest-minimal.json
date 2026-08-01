@@ -1,0 +1,11 @@
+{
+  "contractVersion": "impact-evidence-manifest-v1",
+  "sourceId": "jira",
+  "snapshot": { "sourceId": "jira", "snapshotId": "snapshot-1", "contentFingerprint": "sha256:1" },
+  "normalizationVersion": "impact-evidence-normalization-v1",
+  "canonicalizationVersion": "impact-evidence-canonical-v1",
+  "manifestFingerprint": "sha256:manifest",
+  "identityAssertions": [],
+  "relationships": [],
+  "provenance": []
+}

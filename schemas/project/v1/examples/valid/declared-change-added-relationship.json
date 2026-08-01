@@ -1,0 +1,1 @@
+[{"artifactCategory":"RELATIONSHIP","canonicalIdentity":"REL-1","changeKind":"ADDED","schemaVersion":"0.1","afterState":{"id":"REL-1","from":"BR-1","type":"DEPENDS_ON","to":"BR-2"}}]

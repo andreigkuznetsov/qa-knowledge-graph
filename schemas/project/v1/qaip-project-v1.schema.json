@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/qaip-project-v1.schema.json",
+  "title": "QAIP Project Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["projectContractVersion", "baseModel", "declaredChanges", "evidenceManifest", "subject", "analysisContext"],
+  "properties": {
+    "projectContractVersion": { "type": "string", "const": "qaip-project-v1" },
+    "baseModel": { "$ref": "https://example.local/schemas/qa-model-v0.1.schema.json" },
+    "declaredChanges": { "$ref": "https://example.local/schemas/qaip-declared-changes-v1.schema.json" },
+    "evidenceManifest": { "$ref": "https://example.local/schemas/impact-evidence-manifest-v1.schema.json" },
+    "subject": { "$ref": "https://example.local/schemas/qaip-project-subject-candidate-v1.schema.json" },
+    "analysisContext": { "$ref": "https://example.local/schemas/impact-analysis-context-v1.schema.json" }
+  }
+}

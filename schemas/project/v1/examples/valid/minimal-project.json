@@ -1,0 +1,8 @@
+{
+  "projectContractVersion": "qaip-project-v1",
+  "baseModel": {"schemaVersion":"0.1","project":{"id":"P-1","name":"Project"},"sources":[],"nodes":[],"relationships":[]},
+  "declaredChanges": [{"artifactCategory":"NODE","canonicalIdentity":"BR-1","changeKind":"ADDED","schemaVersion":"0.1","afterState":{"id":"BR-1","type":"BUSINESS_RULE","name":"Rule","rule":{"code":"BR-1","ruleType":"BUSINESS_INVARIANT","text":"rule"}}}],
+  "evidenceManifest": {"contractVersion":"impact-evidence-manifest-v1","sourceId":"jira","snapshot":{"sourceId":"jira","snapshotId":"snapshot-1","contentFingerprint":"sha256:1"},"normalizationVersion":"impact-evidence-normalization-v1","canonicalizationVersion":"impact-evidence-canonical-v1","manifestFingerprint":"sha256:manifest","identityAssertions":[],"relationships":[],"provenance":[]},
+  "subject": {"localArtifactId":"BR-LOCAL-1"},
+  "analysisContext": {"qualificationVersion":"impact-evidence-qualification-v1","influenceVersion":"impact-evidence-business-rule-depends-on-v1","algorithmVersion":"impact-evidence-analysis-v1"}
+}

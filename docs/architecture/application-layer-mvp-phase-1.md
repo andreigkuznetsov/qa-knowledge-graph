@@ -6,14 +6,12 @@
 
 ## 1. Executive Summary
 
-MVP Phase 1 adds one thin, synchronous application boundary around the completed
-domain capabilities. A caller supplies a project file and output preferences.
-The application parses the file into an immutable, structurally bound, and
-explicitly untrusted `ParsedProject`; delegates every validity, verification,
-and impact decision to the existing domain contracts; assembles one immutable
-`ProjectReport`; and passes that report to a selected exporter. Parsing success
-does not imply JSON Schema validity, semantic validity, change verification, or
-manifest validity.
+MVP Phase 1 adds a thin, synchronous import application boundary. It parses a
+project file into an immutable, structurally bound, explicitly untrusted
+`ParsedProject`, validates the authoritative project serialization contract,
+maps candidates mechanically, and invokes the complete canonical-change
+pipeline. Parsing success does not imply JSON Schema validity, semantic
+validity, change verification, or manifest validity.
 
 The fixed trust path is:
 
@@ -24,20 +22,57 @@ project bytes
   → authoritative schema/domain validation
   → complete canonical-change pipeline
   → VerifiedChangeSet
-  → ImpactEvidenceAnalyzer
+  → ProjectImportAccepted
 ```
 
-The primary application entry point is:
+`ProjectImportRejected` is the other closed result variant. A subsequent
+application workflow may pass an accepted result to `ImpactEvidenceAnalyzer`,
+but later evidence/impact analysis is outside Phase 1.
+
+The Phase 1 application entry point is:
 
 ```java
-public final class AnalyzeProject {
-    public AnalyzeProject(JsonProjectImporter importer,
-                          ProjectValidator validator,
-                          ImpactEvidenceAnalyzer impactAnalyzer);
-
-    public AnalyzeProjectResponse execute(AnalyzeProjectRequest request);
+public final class ImportProject {
+    public ProjectImportResult execute(ImportProjectCommand command);
 }
 ```
+
+`AnalyzeProject` is unchanged. A later workflow may consume
+`ProjectImportAccepted` and call `ImpactEvidenceAnalyzer`; that workflow is
+outside Phase 1.
+
+```java
+public sealed interface ProjectImportResult
+        permits ProjectImportAccepted, ProjectImportRejected {}
+
+public record ProjectImportAccepted(
+        VerifiedChangeSet verifiedChangeSet,
+        FrozenEvidenceManifest manifest,
+        SubjectArtifactRef subject,
+        SliceAnalysisContext context)
+        implements ProjectImportResult {}
+
+public record ProjectImportRejected(List<ProjectImportFinding> findings)
+        implements ProjectImportResult {}
+```
+
+`ProjectImportAccepted` preserves the manifest, subject, and context candidates
+unchanged. It asserts only that authoritative project-contract validation and
+candidate mapping succeeded and that the complete canonical-change pipeline
+produced a genuine `VerifiedChangeSet`. It does not assert that those candidates
+are verified domain truth, and it performs no evidence or impact analysis.
+
+`ProjectImportRejected` owns expected failures after parsing succeeds:
+project-schema/contract violations, unsupported project serialization-contract
+versions, candidate mapping failures, canonical-change verification failures,
+and inability to produce `VerifiedChangeSet`. It reuses authoritative findings
+where possible and never collapses them into parser diagnostics.
+
+Version ownership is explicit: `ImportProject` checks the project
+serialization-contract version in its Phase 1 schema boundary; canonical
+QA-model versions remain owned by canonical validators; analysis/domain-context
+versions remain owned by their existing validators. A generic
+`UNSUPPORTED_VERSION` must always be qualified by its owning authority.
 
 `JsonProjectImporter` is the single concrete JSON parser/binder. It is not an
 interface for hypothetical formats and performs no validation. `ProjectValidator`
@@ -537,7 +572,7 @@ qaip-import/
   src/main/java/ru/kuznetsov/qaip/importing/
     JsonProjectImporter.java
     ProjectSource.java
-    ProjectImportResult.java
+    ProjectParseResult.java
     ProjectParsed.java
     ProjectParseFailed.java
     ParsedProject.java
@@ -618,7 +653,21 @@ canonical-change stages.
 
 ## 11. Sequence Diagram
 
-The diagram describes the designed contracts, not generated implementation:
+The Phase 1 sequence ends as follows:
+
+```mermaid
+sequenceDiagram
+    participant Parser as JsonProjectImporter
+    participant Import as ImportProject
+    Parser-->>Import: ProjectParsed(ParsedProject)
+    Import->>Import: project-schema validation
+    Import->>Import: candidate mapping and canonical-change verification
+    Import-->>Import: ProjectImportAccepted or ProjectImportRejected
+```
+
+The broader diagram below describes a later end-to-end workflow for context,
+not Phase 1. The `ImpactEvidenceAnalyzer` participant and all report/export
+steps occur only after Phase 1 has returned `ProjectImportAccepted`.
 
 ```mermaid
 sequenceDiagram

@@ -1,18 +1,47 @@
 plugins {
     id 'java-library'
+    id 'application'
 }
 
 description = 'QAIP Core contracts and platform infrastructure'
 
+application {
+    mainClass = 'ru.kuznetsov.qaip.cli.QaipCliApplication'
+    applicationName = 'qaip'
+}
+
 dependencies {
     api 'com.fasterxml.jackson.core:jackson-databind:2.19.2'
+    implementation 'com.networknt:json-schema-validator:1.5.8'
+    runtimeOnly 'org.postgresql:postgresql:42.7.7'
 
     testImplementation platform('org.junit:junit-bom:5.12.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.postgresql:postgresql:42.7.7'
+    testImplementation 'org.testcontainers:junit-jupiter:1.21.4'
+    testImplementation 'org.testcontainers:postgresql:1.21.4'
 
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+tasks.named('processResources') {
+    from(rootProject.file('schemas/project/v1')) {
+        include '*.schema.json'
+        into 'schemas'
+    }
+    from(project(':qa-model').file('src/main/resources/schema')) {
+        include 'qa-model-v0.1.schema.json'
+        into 'schemas'
+    }
+}
+
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.named('processTestResources') {
+    from(rootProject.file('schemas/project/v1/examples/valid')) {
+        include '*project.json'
+        into 'schema/valid'
+    }
 }

@@ -1,0 +1,16 @@
+{
+  "contractVersion": "impact-evidence-manifest-v1",
+  "sourceId": "jira",
+  "snapshot": { "sourceId": "jira", "snapshotId": "snapshot-1", "contentFingerprint": "sha256:snapshot" },
+  "normalizationVersion": "impact-evidence-normalization-v1",
+  "canonicalizationVersion": "impact-evidence-canonical-v1",
+  "manifestFingerprint": "sha256:manifest",
+  "identityAssertions": [
+    { "assertionId": "z-resolved", "snapshot": { "sourceId": "jira", "snapshotId": "snapshot-1", "contentFingerprint": "sha256:snapshot" }, "localArtifactId": "local-1", "nodeType": "BUSINESS_RULE", "resolution": { "status": "RESOLVED", "canonicalIdentity": "BR-1" }, "contentFingerprint": "sha256:a", "provenanceId": "p-1" },
+    { "assertionId": "a-unresolved", "snapshot": { "sourceId": "jira", "snapshotId": "snapshot-1", "contentFingerprint": "sha256:snapshot" }, "localArtifactId": "local-2", "nodeType": "BUSINESS_RULE", "resolution": { "status": "UNRESOLVED", "reasonCode": "NO_MAPPING" }, "contentFingerprint": "sha256:b", "provenanceId": "p-1" }
+  ],
+  "relationships": [],
+  "provenance": [
+    { "provenanceId": "p-1", "originLocator": "jira://issue/1", "originHash": "sha256:origin", "normalizationActivity": "jira-mapping", "normalizationVersion": "impact-evidence-normalization-v1" }
+  ]
+}
