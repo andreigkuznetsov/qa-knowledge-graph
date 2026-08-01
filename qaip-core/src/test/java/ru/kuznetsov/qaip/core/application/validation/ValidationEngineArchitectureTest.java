@@ -37,7 +37,7 @@ class ValidationEngineArchitectureTest {
         Path packagePath = Path.of("src/main/java/ru/kuznetsov/qaip/core/application/validation");
         assertEquals(Set.of("ValidationSeverity.java", "ValidationIssue.java", "ValidationReport.java",
                         "ProjectValidationRule.java", "ValidationEngine.java"),
-                Files.list(packagePath).map(path -> path.getFileName().toString())
+                Files.list(packagePath).filter(Files::isRegularFile).map(path -> path.getFileName().toString())
                         .collect(java.util.stream.Collectors.toSet()));
         for (Path file : List.of(packagePath.resolve("ProjectValidationRule.java"),
                 packagePath.resolve("ValidationEngine.java"))) {
