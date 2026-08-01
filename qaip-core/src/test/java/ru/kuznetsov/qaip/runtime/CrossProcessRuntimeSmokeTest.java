@@ -122,7 +122,8 @@ class CrossProcessRuntimeSmokeTest {
                 "  qaip show node <project-id> <node-id>",
                 "  qaip show relationships <project-id> <node-id>",
                 "  qaip trace <project-id> <start-node-id>",
-                "  qaip validate project <project-id>"));
+                "  qaip validate project <project-id>",
+                "  qaip import <file>"));
 
         assertEquals(results.size(), new HashSet<>(results.stream().map(ProcessResult::pid).toList()).size());
     }
@@ -153,6 +154,7 @@ class CrossProcessRuntimeSmokeTest {
         assertEquals(stdout, result.stdout());
         assertEquals(stderr, result.stderr());
         String output = result.stdout() + result.stderr();
+        assertTrue(!output.contains("SLF4J"), output);
         assertTrue(!output.contains("Exception"), output);
         assertTrue(!output.contains("\tat "), output);
         assertTrue(!output.contains(POSTGRES.getPassword()), "credentials leaked");

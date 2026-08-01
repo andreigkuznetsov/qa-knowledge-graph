@@ -24,6 +24,7 @@ import ru.kuznetsov.qaip.core.application.validation.rule.ScenarioWithoutTestVal
 import ru.kuznetsov.qaip.core.persistence.read.ProjectReader;
 
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -34,7 +35,8 @@ public final class QaipCliApplication {
             "  qaip show node <project-id> <node-id>",
             "  qaip show relationships <project-id> <node-id>",
             "  qaip trace <project-id> <start-node-id>",
-            "  qaip validate project <project-id>");
+            "  qaip validate project <project-id>",
+            "  qaip import <file>");
 
     private QaipCliApplication() { }
 
@@ -59,6 +61,10 @@ public final class QaipCliApplication {
         } catch (IllegalStateException exception) {
             err.println("Database configuration is missing or invalid.");
             return CliExitCode.APPLICATION_FAILURE.value();
+        }
+
+        if (args.length == 2 && "import".equals(args[0])) {
+            return dispatchImport(args[1], composition, out, err);
         }
 
         ProjectReader reader = composition.reader();
@@ -148,6 +154,19 @@ public final class QaipCliApplication {
                 || args.length == 4 && "show".equals(args[0]) && "node".equals(args[1])
                 || args.length == 4 && "show".equals(args[0]) && "relationships".equals(args[1])
                 || args.length == 3 && "trace".equals(args[0])
-                || args.length == 3 && "validate".equals(args[0]) && "project".equals(args[1]);
+                || args.length == 3 && "validate".equals(args[0]) && "project".equals(args[1])
+                || args.length == 2 && "import".equals(args[0]);
+    }
+
+    private static int dispatchImport(String file, RuntimeComposition composition,
+                                      PrintStream out, PrintStream err) {
+        try {
+            var result = composition.importCommand().execute(Path.of(file));
+            out.println(composition.importRenderer().render(result));
+            return CliExitCode.SUCCESS.value();
+        } catch (RuntimeException exception) {
+            err.println("Import failed.");
+            return CliExitCode.APPLICATION_FAILURE.value();
+        }
     }
 }

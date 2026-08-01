@@ -31,7 +31,8 @@ class QaipCliRuntimeInitializationTest {
                 {"show", "node", "P", "N"},
                 {"show", "relationships", "P", "N"},
                 {"trace", "P", "N"},
-                {"validate", "project", "P"}}) {
+                {"validate", "project", "P"},
+                {"import", "project.json"}}) {
             AtomicInteger calls = new AtomicInteger();
             QaipCliApplicationTest.Streams streams = new QaipCliApplicationTest.Streams();
 

@@ -9,6 +9,7 @@ import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProductionSchemaResourceTest {
@@ -26,7 +27,7 @@ class ProductionSchemaResourceTest {
             String sql = new String(Objects.requireNonNull(stream,
                     "Missing production SQL resource /postgresql/qaip-projects.sql").readAllBytes(),
                     StandardCharsets.UTF_8);
-            assertEquals(EXPECTED, sql);
+            assertEquals(normalizeLineEndings(EXPECTED), normalizeLineEndings(sql));
         }
     }
 
@@ -38,9 +39,29 @@ class ProductionSchemaResourceTest {
         assertTrue(Files.isRegularFile(production));
         assertFalse(Files.exists(formerTestCopy));
         String sql = Files.readString(production);
-        assertEquals(EXPECTED, sql);
+        assertEquals(normalizeLineEndings(EXPECTED), normalizeLineEndings(sql));
         assertFalse(sql.contains("ALTER TABLE"));
         assertFalse(sql.contains("DROP TABLE"));
         assertFalse(sql.contains("CREATE INDEX"));
+    }
+
+    @Test
+    void logical_sql_comparison_accepts_lf_crlf_and_mixed_line_endings() {
+        String lf = "first\nsecond\nthird\n";
+        assertEquals(normalizeLineEndings(lf), normalizeLineEndings("first\r\nsecond\r\nthird\r\n"));
+        assertEquals(normalizeLineEndings(lf), normalizeLineEndings("first\r\nsecond\nthird\r\n"));
+    }
+
+    @Test
+    void logical_sql_comparison_preserves_content_and_statement_order_differences() {
+        String expected = "CREATE TABLE first;\nCREATE TABLE second;\n";
+        assertNotEquals(normalizeLineEndings(expected),
+                normalizeLineEndings("CREATE TABLE changed;\r\nCREATE TABLE second;\r\n"));
+        assertNotEquals(normalizeLineEndings(expected),
+                normalizeLineEndings("CREATE TABLE second;\r\nCREATE TABLE first;\r\n"));
+    }
+
+    private static String normalizeLineEndings(String value) {
+        return value.replace("\r\n", "\n").replace('\r', '\n');
     }
 }

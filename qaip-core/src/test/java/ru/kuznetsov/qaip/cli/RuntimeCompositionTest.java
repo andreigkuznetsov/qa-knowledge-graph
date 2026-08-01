@@ -1,6 +1,13 @@
 package ru.kuznetsov.qaip.cli;
 
 import org.junit.jupiter.api.Test;
+import ru.kuznetsov.qaip.core.application.importing.DefaultProjectImporter;
+import ru.kuznetsov.qaip.core.application.importing.ProjectImporter;
+import ru.kuznetsov.qaip.core.application.importproject.DefaultImportProjectUseCase;
+import ru.kuznetsov.qaip.core.application.importproject.ImportProjectUseCase;
+import ru.kuznetsov.qaip.core.application.importproject.ImportResultMapper;
+import ru.kuznetsov.qaip.core.application.persistence.DefaultPersistProject;
+import ru.kuznetsov.qaip.core.application.persistence.PersistProject;
 import ru.kuznetsov.qaip.core.persistence.postgresql.PostgreSqlProjectReader;
 import ru.kuznetsov.qaip.core.persistence.postgresql.PostgreSqlProjectRepository;
 
@@ -46,6 +53,31 @@ class RuntimeCompositionTest {
     }
 
     @Test
+    void creates_and_retains_one_complete_import_path_using_the_retained_repository() throws Exception {
+        RuntimeComposition composition = RuntimeComposition.create(
+                RuntimeCompositionTest::dataSource, ignored -> { });
+
+        ImportCliCommand command = composition.importCommand();
+        ImportTextRenderer renderer = composition.importRenderer();
+        ImportProjectUseCase useCase = assertInstanceOf(DefaultImportProjectUseCase.class,
+                field(command, "useCase"));
+        ImportResultMapper mapper = assertInstanceOf(ImportResultMapper.class,
+                field(command, "mapper"));
+        ProjectImporter importer = assertInstanceOf(DefaultProjectImporter.class,
+                field(useCase, "importer"));
+        PersistProject persistence = assertInstanceOf(DefaultPersistProject.class,
+                field(useCase, "persistence"));
+
+        assertSame(composition.repository(), field(persistence, "repository"));
+        assertSame(useCase, field(command, "useCase"));
+        assertSame(mapper, field(command, "mapper"));
+        assertSame(command, composition.importCommand());
+        assertSame(renderer, composition.importRenderer());
+        assertSame(importer, field(useCase, "importer"));
+        assertSame(persistence, field(useCase, "persistence"));
+    }
+
+    @Test
     void bootstrap_failure_prevents_composition_from_becoming_available() {
         DataSource dataSource = dataSource();
         IllegalStateException failure = new IllegalStateException("bootstrap failed");
@@ -63,9 +95,13 @@ class RuntimeCompositionTest {
     }
 
     private static DataSource dataSourceOf(Object adapter) throws Exception {
-        Field field = adapter.getClass().getDeclaredField("dataSource");
+        return (DataSource) field(adapter, "dataSource");
+    }
+
+    private static Object field(Object target, String name) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
-        return (DataSource) field.get(adapter);
+        return field.get(target);
     }
 
     private static DataSource dataSource() {

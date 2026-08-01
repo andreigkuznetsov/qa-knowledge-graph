@@ -48,7 +48,7 @@ class CliArchitectureTest {
     }
 
     @Test
-    void entry_point_exposes_exactly_five_commands_and_build_uses_no_third_party_cli_framework() throws Exception {
+    void entry_point_exposes_exactly_six_commands_and_build_uses_no_third_party_cli_framework() throws Exception {
         String application = source("QaipCliApplication.java");
         assertTrue(application.contains("\"summary\".equals(args[0])"));
         assertTrue(application.contains("\"show\".equals(args[0])"));
@@ -57,6 +57,7 @@ class CliArchitectureTest {
         assertTrue(application.contains("\"trace\".equals(args[0])"));
         assertTrue(application.contains("\"validate\".equals(args[0])"));
         assertTrue(application.contains("\"project\".equals(args[1])"));
+        assertTrue(application.contains("\"import\".equals(args[0])"));
         String build = Files.readString(Path.of("build.gradle"));
         for (String forbidden : List.of("picocli", "jcommander", "commons-cli")) {
             assertFalse(build.toLowerCase(java.util.Locale.ROOT).contains(forbidden));
