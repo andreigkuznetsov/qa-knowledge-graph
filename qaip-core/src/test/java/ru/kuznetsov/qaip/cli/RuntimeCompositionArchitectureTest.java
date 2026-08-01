@@ -21,6 +21,12 @@ class RuntimeCompositionArchitectureTest {
         assertTrue(composition.contains("bootstrap::initialize"));
         assertTrue(composition.contains("new PostgreSqlProjectRepository(dataSource)"));
         assertTrue(composition.contains("new PostgreSqlProjectReader(dataSource)"));
+        assertTrue(composition.contains("new DefaultProjectImporter("));
+        assertTrue(composition.contains("new DefaultPersistProject(repository)"));
+        assertTrue(composition.contains("new DefaultImportProjectUseCase(importer, persistence)"));
+        assertTrue(composition.contains("new ImportResultMapper()"));
+        assertTrue(composition.contains("new ImportCliCommand(useCase, mapper)"));
+        assertTrue(composition.contains("new ImportTextRenderer()"));
         assertTrue(composition.indexOf("bootstrap).accept(dataSource)")
                 < composition.indexOf("new PostgreSqlProjectRepository(dataSource)"));
         assertTrue(composition.indexOf("bootstrap).accept(dataSource)")
@@ -51,6 +57,15 @@ class RuntimeCompositionArchitectureTest {
                     "ProjectReader", "PostgreSql", "RuntimeDataSourceFactory")) {
                 assertFalse(source.contains(forbidden), command + " contains " + forbidden);
             }
+        }
+    }
+
+    @Test
+    void import_wiring_adds_no_dispatch_output_exit_code_or_fallback_behavior() throws Exception {
+        String composition = source("RuntimeComposition.java");
+        for (String forbidden : List.of("QaipCliApplication", "System.out", "System.err", "PrintStream",
+                "CliExitCode", "InMemoryProject", "catch (", "retry")) {
+            assertFalse(composition.contains(forbidden), forbidden);
         }
     }
 
