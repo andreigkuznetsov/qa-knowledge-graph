@@ -41,7 +41,8 @@ class QaipCliApplicationTest {
             assertEquals(String.join(System.lineSeparator(), "Usage:", "  qaip summary <project-id>",
                     "  qaip show node <project-id> <node-id>",
                     "  qaip show relationships <project-id> <node-id>",
-                    "  qaip trace <project-id> <start-node-id>") + System.lineSeparator(), streams.stderr());
+                    "  qaip trace <project-id> <start-node-id>",
+                    "  qaip validate project <project-id>") + System.lineSeparator(), streams.stderr());
         }
     }
 

@@ -48,16 +48,35 @@ class CliArchitectureTest {
     }
 
     @Test
-    void entry_point_exposes_exactly_four_commands_and_build_uses_no_third_party_cli_framework() throws Exception {
+    void entry_point_exposes_exactly_five_commands_and_build_uses_no_third_party_cli_framework() throws Exception {
         String application = source("QaipCliApplication.java");
         assertTrue(application.contains("\"summary\".equals(args[0])"));
         assertTrue(application.contains("\"show\".equals(args[0])"));
         assertTrue(application.contains("\"node\".equals(args[1])"));
         assertTrue(application.contains("\"relationships\".equals(args[1])"));
         assertTrue(application.contains("\"trace\".equals(args[0])"));
+        assertTrue(application.contains("\"validate\".equals(args[0])"));
+        assertTrue(application.contains("\"project\".equals(args[1])"));
         String build = Files.readString(Path.of("build.gradle"));
         for (String forbidden : List.of("picocli", "jcommander", "commons-cli")) {
             assertFalse(build.toLowerCase(java.util.Locale.ROOT).contains(forbidden));
+        }
+    }
+
+    @Test
+    void validation_command_and_renderer_are_query_only_and_do_not_execute_rules_or_recalculate() throws Exception {
+        String command = source("ValidationCliCommand.java");
+        assertFalse(command.contains("String[]"));
+        assertTrue(command.contains("ValidationUseCase"));
+        for (String forbidden : List.of("ProjectReader", "ValidationEngine", "ValidationReportMapper",
+                "IsolatedNode", "ScenarioWithoutTest", "ProjectRepository", "core.domain", "persistence.memory",
+                ".valid()", ".errorCount()", ".warningCount()", ".issues()")) {
+            assertFalse(command.contains(forbidden), forbidden);
+        }
+        String renderer = source("ValidationTextRenderer.java");
+        for (String forbidden : List.of("UseCase", "ProjectReader", "ValidationEngine", "ValidationReportMapper",
+                "ProjectValidationRule", "core.domain", "persistence", "sort(", "filter(", "count(")) {
+            assertFalse(renderer.contains(forbidden), forbidden);
         }
     }
 
