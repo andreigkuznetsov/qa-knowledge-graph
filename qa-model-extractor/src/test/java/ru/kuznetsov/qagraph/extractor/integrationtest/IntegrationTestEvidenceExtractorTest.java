@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -15,25 +16,39 @@ class IntegrationTestEvidenceExtractorTest {
     void extractsJUnitFiveRestAssuredTestsAndExplicitDisplayNames() throws Exception {
         List<TestImplementationEvidence> tests = extractor.extract(fixtureRepository()).tests();
 
-        assertEquals(List.of("dynamicPathIgnored", "registerRoles", "registerSuccessfully"),
+        assertEquals(List.of(
+                        "computedPathIgnored", "dynamicPathIgnored", "enumFixedPath",
+                        "importedStaticFinalPath", "localStaticFinalPath", "missingConstantIgnored",
+                        "registerRoles", "registerSuccessfully"),
                 tests.stream().map(TestImplementationEvidence::testMethod).toList());
-        assertEquals("register supported roles", tests.get(1).displayName());
-        assertEquals("register user through API", tests.get(2).displayName());
+        assertEquals("register supported roles", tests.get(6).displayName());
+        assertEquals("register user through API", tests.get(7).displayName());
     }
 
     @Test
     void extractsOnlyStaticallyDeterminedRestAssuredInteractions() throws Exception {
         List<HttpInteractionEvidence> interactions = extractor.extract(fixtureRepository()).httpInteractions();
 
-        assertEquals(2, interactions.size());
-        assertEquals(List.of(IntegrationHttpMethod.POST, IntegrationHttpMethod.POST),
+        assertEquals(5, interactions.size());
+        assertEquals(List.of(
+                        IntegrationHttpMethod.PATCH, IntegrationHttpMethod.PUT, IntegrationHttpMethod.POST,
+                        IntegrationHttpMethod.POST, IntegrationHttpMethod.POST),
                 interactions.stream().map(HttpInteractionEvidence::httpMethod).toList());
-        assertEquals(List.of("/auth/register", "/auth/register"),
+        assertEquals(List.of(
+                        "/auth/enum-register", "/auth/imported-register", "/auth/local-register",
+                        "/auth/register", "/auth/register"),
                 interactions.stream().map(HttpInteractionEvidence::endpointPath).toList());
-        assertEquals(List.of("registerRoles", "registerSuccessfully"),
+        assertEquals(List.of(
+                        "ApiPath.REGISTER.getPath()", "IMPORTED_PATH", "LOCAL_PATH",
+                        "\"/auth/register\"", "\"/auth/register\""),
+                interactions.stream().map(HttpInteractionEvidence::sourceExpression).toList());
+        assertEquals(List.of(
+                        "enumFixedPath", "importedStaticFinalPath", "localStaticFinalPath",
+                        "registerRoles", "registerSuccessfully"),
                 interactions.stream().map(HttpInteractionEvidence::owningTestMethod).toList());
         assertTrue(interactions.stream().noneMatch(interaction ->
-                interaction.owningTestMethod().equals("dynamicPathIgnored")));
+                Set.of("dynamicPathIgnored", "computedPathIgnored", "missingConstantIgnored")
+                        .contains(interaction.owningTestMethod())));
     }
 
     @Test
@@ -71,19 +86,19 @@ class IntegrationTestEvidenceExtractorTest {
         IntegrationTestEvidence second = extractor.extract(fixtureRepository());
 
         assertEquals(first, second);
-        assertEquals(3, first.tests().stream().distinct().count());
-        assertEquals(2, first.httpInteractions().stream().distinct().count());
+        assertEquals(8, first.tests().stream().distinct().count());
+        assertEquals(5, first.httpInteractions().stream().distinct().count());
         assertEquals(4, first.assertions().stream().distinct().count());
         assertThrowsUnsupportedMutation(first);
 
-        TestImplementationEvidence success = first.tests().get(2);
+        TestImplementationEvidence success = first.tests().get(7);
         assertEquals("example.api.RegistrationApiIT", success.testClass());
         assertEquals("src/test/java/example/api/RegistrationApiIT.java", success.repositoryRelativePath());
-        assertEquals(12, success.line());
+        assertEquals(17, success.line());
         assertEquals(5, success.column());
 
-        HttpInteractionEvidence interaction = first.httpInteractions().get(1);
-        assertEquals(18, interaction.line());
+        HttpInteractionEvidence interaction = first.httpInteractions().get(4);
+        assertEquals(23, interaction.line());
         assertEquals(18, interaction.column());
     }
 

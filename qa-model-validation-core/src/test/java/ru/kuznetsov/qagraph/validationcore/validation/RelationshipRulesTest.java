@@ -26,4 +26,13 @@ class RelationshipRulesTest {
                 NodeType.USER_STORY
         ));
     }
+
+    @Test
+    void shouldAllowTechnicalImplementationToUseTechnicalImplementation() {
+        assertTrue(RelationshipRules.isAllowed(
+                NodeType.TECHNICAL_IMPLEMENTATION,
+                RelationshipType.USES,
+                NodeType.TECHNICAL_IMPLEMENTATION
+        ));
+    }
 }

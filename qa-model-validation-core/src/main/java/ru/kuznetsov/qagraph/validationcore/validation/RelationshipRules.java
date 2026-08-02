@@ -17,6 +17,7 @@ public final class RelationshipRules {
             rule(NodeType.BUSINESS_OPERATION, RelationshipType.IMPLEMENTED_BY, NodeType.TECHNICAL_IMPLEMENTATION),
             rule(NodeType.TEST_IMPLEMENTATION, RelationshipType.VALIDATES, NodeType.SCENARIO),
             rule(NodeType.TEST_IMPLEMENTATION, RelationshipType.USES, NodeType.TECHNICAL_IMPLEMENTATION),
+            rule(NodeType.TECHNICAL_IMPLEMENTATION, RelationshipType.USES, NodeType.TECHNICAL_IMPLEMENTATION),
             rule(NodeType.TEST_IMPLEMENTATION, RelationshipType.HAS_CHECK, NodeType.CHECK),
             rule(NodeType.SCENARIO, RelationshipType.COVERS, NodeType.BUSINESS_RULE),
             rule(NodeType.SCENARIO, RelationshipType.REFINES, NodeType.SCENARIO),

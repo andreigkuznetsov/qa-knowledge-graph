@@ -8,6 +8,7 @@
 | BUSINESS_OPERATION | IMPLEMENTED_BY | TECHNICAL_IMPLEMENTATION | Операция реализована техническим способом |
 | TEST_IMPLEMENTATION | VALIDATES | SCENARIO | Тестовая реализация проверяет сценарий |
 | TEST_IMPLEMENTATION | USES | TECHNICAL_IMPLEMENTATION | Тест использует технический канал |
+| TECHNICAL_IMPLEMENTATION | USES | TECHNICAL_IMPLEMENTATION | Directly observed implementation dependency |
 | TEST_IMPLEMENTATION | HAS_CHECK | CHECK | Тест содержит конкретную проверку |
 | SCENARIO | COVERS | BUSINESS_RULE | Сценарий покрывает правило |
 | SCENARIO | REFINES | SCENARIO | Один сценарий уточняет другой |
