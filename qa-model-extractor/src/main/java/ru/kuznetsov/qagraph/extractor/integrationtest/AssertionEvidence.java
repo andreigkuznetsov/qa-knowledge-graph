@@ -9,7 +9,8 @@ public record AssertionEvidence(
         String owningTestMethod,
         String repositoryRelativePath,
         int line,
-        int column
+        int column,
+        HelperInvocationEvidence helperInvocation
 ) {
     public AssertionEvidence {
         Objects.requireNonNull(category, "category");
@@ -19,6 +20,36 @@ public record AssertionEvidence(
         requireNonBlank(repositoryRelativePath, "repositoryRelativePath");
         if (line < 1) throw new IllegalArgumentException("line must be positive");
         if (column < 1) throw new IllegalArgumentException("column must be positive");
+    }
+
+    public AssertionEvidence(
+            AssertionCategory category,
+            String expression,
+            String owningTestClass,
+            String owningTestMethod,
+            String repositoryRelativePath,
+            int line,
+            int column) {
+        this(category, expression, owningTestClass, owningTestMethod,
+                repositoryRelativePath, line, column, null);
+    }
+
+    public record HelperInvocationEvidence(
+            String helperClass,
+            String helperMethod,
+            String invocationExpression,
+            String repositoryRelativePath,
+            int line,
+            int column
+    ) {
+        public HelperInvocationEvidence {
+            requireNonBlank(helperClass, "helperClass");
+            requireNonBlank(helperMethod, "helperMethod");
+            requireNonBlank(invocationExpression, "invocationExpression");
+            requireNonBlank(repositoryRelativePath, "repositoryRelativePath");
+            if (line < 1) throw new IllegalArgumentException("line must be positive");
+            if (column < 1) throw new IllegalArgumentException("column must be positive");
+        }
     }
 
     private static void requireNonBlank(String value, String field) {

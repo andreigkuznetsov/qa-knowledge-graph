@@ -52,7 +52,8 @@ public final class IntegrationTestEvidenceExtractor {
             .thenComparingInt(AssertionEvidence::line)
             .thenComparingInt(AssertionEvidence::column)
             .thenComparing(assertion -> assertion.category().name())
-            .thenComparing(AssertionEvidence::expression);
+            .thenComparing(AssertionEvidence::expression)
+            .thenComparing(assertion -> helperOrderKey(assertion.helperInvocation()));
 
     private final JavaParser parser;
 
@@ -82,19 +83,23 @@ public final class IntegrationTestEvidenceExtractor {
         List<HttpInteractionEvidence> interactions = new ArrayList<>();
         List<AssertionEvidence> assertions = new ArrayList<>();
         StaticTestEndpointResolver endpointResolver = StaticTestEndpointResolver.from(testFiles, parser);
+        StaticTestHelperAssertionResolver helperResolver =
+                StaticTestHelperAssertionResolver.from(normalizedRoot, testFiles, parser);
         for (Path testFile : testFiles) {
-            extractFile(normalizedRoot, testFile, endpointResolver, tests, interactions, assertions);
+            extractFile(normalizedRoot, testFile, endpointResolver, helperResolver,
+                    tests, interactions, assertions);
         }
         tests.sort(TEST_ORDER);
         interactions.sort(INTERACTION_ORDER);
         assertions.sort(ASSERTION_ORDER);
-        return new IntegrationTestEvidence(tests, interactions, assertions);
+        return new IntegrationTestEvidence(tests, interactions, assertions.stream().distinct().toList());
     }
 
     private void extractFile(
             Path repositoryRoot,
             Path testFile,
             StaticTestEndpointResolver endpointResolver,
+            StaticTestHelperAssertionResolver helperResolver,
             List<TestImplementationEvidence> tests,
             List<HttpInteractionEvidence> interactions,
             List<AssertionEvidence> assertions) throws IOException {
@@ -126,7 +131,11 @@ public final class IntegrationTestEvidenceExtractor {
             for (MethodCallExpr call : method.findAll(MethodCallExpr.class)) {
                 interaction(unit, call, endpointResolver, testClass, testMethod, relativePath)
                         .ifPresent(interactions::add);
-                assertion(unit, call, testClass, testMethod, relativePath).ifPresent(assertions::add);
+                assertions.addAll(helperResolver.resolve(
+                        unit, call, testClass, testMethod, relativePath));
+                if (!helperResolver.resolves(unit, call, testClass)) {
+                    assertion(unit, call, testClass, testMethod, relativePath).ifPresent(assertions::add);
+                }
             }
         }
     }
@@ -204,7 +213,8 @@ public final class IntegrationTestEvidenceExtractor {
                 testMethod,
                 relativePath,
                 position.line,
-                position.column));
+                position.column,
+                null));
     }
 
     private static boolean containsRestAssuredCall(CompilationUnit unit, MethodDeclaration method) {
@@ -302,5 +312,12 @@ public final class IntegrationTestEvidenceExtractor {
     private static String simpleName(String name) {
         int separator = name.lastIndexOf('.');
         return separator >= 0 ? name.substring(separator + 1) : name;
+    }
+
+    private static String helperOrderKey(AssertionEvidence.HelperInvocationEvidence helper) {
+        if (helper == null) return "";
+        return helper.helperClass() + '\u0000' + helper.helperMethod() + '\u0000'
+                + helper.repositoryRelativePath() + '\u0000' + helper.line() + '\u0000' + helper.column()
+                + '\u0000' + helper.invocationExpression();
     }
 }
