@@ -36,8 +36,13 @@ public final class OperationEvidenceGraphAssembler {
                 technicalImplementation(request.operation(), operation);
 
         Map<String, EvidenceGraphProjection.BusinessRuleProjection> rules = new TreeMap<>();
+        Set<String> boundRequestModelTypes = request.requestModelBindings().stream()
+                .filter(binding -> binding.controllerClass().equals(qualifiedController(request.operation())))
+                .filter(binding -> binding.controllerMethod().equals(request.operation().controllerMethod()))
+                .map(binding -> binding.resolvedModelType())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
         for (BeanValidationEvidence evidence : request.validationEvidence()) {
-            if (!request.boundRequestModelTypes().contains(evidence.owningJavaType())) continue;
+            if (!boundRequestModelTypes.contains(evidence.owningJavaType())) continue;
             var projection = businessRule(evidence);
             rules.putIfAbsent(projection.id(), projection);
         }

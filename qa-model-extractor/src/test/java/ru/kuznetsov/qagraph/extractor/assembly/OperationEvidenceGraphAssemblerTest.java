@@ -10,6 +10,8 @@ import ru.kuznetsov.qagraph.extractor.integrationtest.TestImplementationEvidence
 import ru.kuznetsov.qagraph.extractor.rest.RestHttpMethod;
 import ru.kuznetsov.qagraph.extractor.rest.RestOperationEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.SourceLocation;
+import ru.kuznetsov.qagraph.extractor.rest.binding.RequestBindingKind;
+import ru.kuznetsov.qagraph.extractor.rest.binding.RequestModelBindingEvidence;
 import ru.kuznetsov.qagraph.extractor.validation.BeanValidationEvidence;
 import ru.kuznetsov.qagraph.model.NodeType;
 import ru.kuznetsov.qagraph.model.RelationshipType;
@@ -94,7 +96,7 @@ class OperationEvidenceGraphAssemblerTest {
     void repeatedAssemblyIsEqualAndInputsRemainUnchanged() {
         OperationEvidenceAssemblyRequest input = request();
         OperationEvidenceAssemblyRequest unchanged = new OperationEvidenceAssemblyRequest(
-                input.operation(), input.boundRequestModelTypes(), input.validationEvidence(),
+                input.operation(), input.requestModelBindings(), input.validationEvidence(),
                 input.integrationTestEvidence());
 
         EvidenceGraphProjection first = assembler.assemble(input);
@@ -108,7 +110,7 @@ class OperationEvidenceGraphAssemblerTest {
     void omitsValidationEvidenceWithoutExplicitRequestModelBinding() {
         OperationEvidenceAssemblyRequest input = request();
         OperationEvidenceAssemblyRequest unbound = new OperationEvidenceAssemblyRequest(
-                input.operation(), Set.of(), input.validationEvidence(), input.integrationTestEvidence());
+                input.operation(), List.of(), input.validationEvidence(), input.integrationTestEvidence());
 
         EvidenceGraphProjection graph = assembler.assemble(unbound);
 
@@ -159,9 +161,23 @@ class OperationEvidenceGraphAssemblerTest {
 
         return new OperationEvidenceAssemblyRequest(
                 operation,
-                Set.of("example.request.RegisterRequest"),
+                List.of(binding("example.request.RegisterRequest")),
                 validations,
                 new IntegrationTestEvidence(tests, interactions, assertions));
+    }
+
+    private static RequestModelBindingEvidence binding(String modelType) {
+        return new RequestModelBindingEvidence(
+                "example.api.AuthController",
+                "register",
+                "request",
+                "RegisterRequest",
+                modelType,
+                RequestBindingKind.REQUEST_BODY,
+                Set.of(),
+                "src/main/java/example/api/AuthController.java",
+                20,
+                55);
     }
 
     private static BeanValidationEvidence validation(
