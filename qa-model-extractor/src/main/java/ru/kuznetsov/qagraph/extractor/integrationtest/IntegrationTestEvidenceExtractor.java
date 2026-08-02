@@ -81,8 +81,9 @@ public final class IntegrationTestEvidenceExtractor {
         List<TestImplementationEvidence> tests = new ArrayList<>();
         List<HttpInteractionEvidence> interactions = new ArrayList<>();
         List<AssertionEvidence> assertions = new ArrayList<>();
+        StaticTestEndpointResolver endpointResolver = StaticTestEndpointResolver.from(testFiles, parser);
         for (Path testFile : testFiles) {
-            extractFile(normalizedRoot, testFile, tests, interactions, assertions);
+            extractFile(normalizedRoot, testFile, endpointResolver, tests, interactions, assertions);
         }
         tests.sort(TEST_ORDER);
         interactions.sort(INTERACTION_ORDER);
@@ -93,6 +94,7 @@ public final class IntegrationTestEvidenceExtractor {
     private void extractFile(
             Path repositoryRoot,
             Path testFile,
+            StaticTestEndpointResolver endpointResolver,
             List<TestImplementationEvidence> tests,
             List<HttpInteractionEvidence> interactions,
             List<AssertionEvidence> assertions) throws IOException {
@@ -122,7 +124,8 @@ public final class IntegrationTestEvidenceExtractor {
                     testPosition.column));
 
             for (MethodCallExpr call : method.findAll(MethodCallExpr.class)) {
-                interaction(unit, call, testClass, testMethod, relativePath).ifPresent(interactions::add);
+                interaction(unit, call, endpointResolver, testClass, testMethod, relativePath)
+                        .ifPresent(interactions::add);
                 assertion(unit, call, testClass, testMethod, relativePath).ifPresent(assertions::add);
             }
         }
@@ -152,17 +155,22 @@ public final class IntegrationTestEvidenceExtractor {
     private static Optional<HttpInteractionEvidence> interaction(
             CompilationUnit unit,
             MethodCallExpr call,
+            StaticTestEndpointResolver endpointResolver,
             String testClass,
             String testMethod,
             String relativePath) {
         String methodName = call.getNameAsString().toLowerCase(Locale.ROOT);
         if (!HTTP_METHODS.contains(methodName) || !isRestAssuredHttpCall(unit, call)) return Optional.empty();
-        if (call.getArguments().isEmpty() || !call.getArgument(0).isStringLiteralExpr()) return Optional.empty();
+        if (call.getArguments().isEmpty()) return Optional.empty();
+        Expression endpointExpression = call.getArgument(0);
+        Optional<String> endpoint = endpointResolver.resolve(unit, endpointExpression);
+        if (endpoint.isEmpty()) return Optional.empty();
         var position = call.getName().getBegin().orElseThrow(() ->
                 new IllegalStateException("Parsed HTTP call has no source location"));
         return Optional.of(new HttpInteractionEvidence(
                 IntegrationHttpMethod.valueOf(methodName.toUpperCase(Locale.ROOT)),
-                call.getArgument(0).asStringLiteralExpr().asString(),
+                endpoint.get(),
+                endpointExpression.toString(),
                 testClass,
                 testMethod,
                 relativePath,

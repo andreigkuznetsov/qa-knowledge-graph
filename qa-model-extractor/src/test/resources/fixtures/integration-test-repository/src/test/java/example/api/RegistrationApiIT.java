@@ -6,9 +6,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import static io.restassured.RestAssured.given;
+import static example.support.EndpointConstants.IMPORTED_PATH;
 import static org.hamcrest.Matchers.equalTo;
 
+import example.support.ApiPath;
+
 public class RegistrationApiIT {
+    private static final String LOCAL_PATH = "/auth/local-register";
+    private static final String COMPUTED_PATH = "/auth" + "/computed";
     @Test
     @DisplayName("register user through API")
     void registerSuccessfully() {
@@ -32,6 +37,31 @@ public class RegistrationApiIT {
     @Test
     void dynamicPathIgnored() {
         given().when().get(dynamicPath);
+    }
+
+    @Test
+    void localStaticFinalPath() {
+        given().when().post(LOCAL_PATH);
+    }
+
+    @Test
+    void importedStaticFinalPath() {
+        given().when().put(IMPORTED_PATH);
+    }
+
+    @Test
+    void enumFixedPath() {
+        given().when().patch(ApiPath.REGISTER.getPath());
+    }
+
+    @Test
+    void computedPathIgnored() {
+        given().when().delete(COMPUTED_PATH);
+    }
+
+    @Test
+    void missingConstantIgnored() {
+        given().when().get(MISSING_PATH);
     }
 
     void helperMethodIsNotATest() {

@@ -192,6 +192,7 @@ class OperationEvidenceGraphAssemblerTest {
         return new HttpInteractionEvidence(
                 method,
                 path,
+                '"' + path + '"',
                 test.testClass(),
                 test.testMethod(),
                 test.repositoryRelativePath(),

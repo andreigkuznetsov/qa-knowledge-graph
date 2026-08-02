@@ -5,6 +5,7 @@ import java.util.Objects;
 public record HttpInteractionEvidence(
         IntegrationHttpMethod httpMethod,
         String endpointPath,
+        String sourceExpression,
         String owningTestClass,
         String owningTestMethod,
         String repositoryRelativePath,
@@ -14,6 +15,7 @@ public record HttpInteractionEvidence(
     public HttpInteractionEvidence {
         Objects.requireNonNull(httpMethod, "httpMethod");
         requireNonBlank(endpointPath, "endpointPath");
+        requireNonBlank(sourceExpression, "sourceExpression");
         requireNonBlank(owningTestClass, "owningTestClass");
         requireNonBlank(owningTestMethod, "owningTestMethod");
         requireNonBlank(repositoryRelativePath, "repositoryRelativePath");
