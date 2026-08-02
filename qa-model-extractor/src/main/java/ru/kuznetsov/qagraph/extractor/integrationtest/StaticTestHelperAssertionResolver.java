@@ -154,6 +154,10 @@ final class StaticTestHelperAssertionResolver {
     }
 
     private static AssertionCategory classify(HelperMethod helper, MethodCallExpr assertion) {
+        if (MockMvcEvidenceSupport.hasResultActionsParameter(helper.unit(), helper.method())) {
+            AssertionCategory mockMvc = MockMvcEvidenceSupport.assertionCategory(helper.unit(), assertion);
+            if (mockMvc != null) return mockMvc;
+        }
         if (assertion.getNameAsString().equals("statusCode") && responseRelated(helper, assertion)) {
             return AssertionCategory.HTTP_STATUS;
         }

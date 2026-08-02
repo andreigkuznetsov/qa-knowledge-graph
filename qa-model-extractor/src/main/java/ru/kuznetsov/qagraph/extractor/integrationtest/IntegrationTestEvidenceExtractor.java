@@ -92,7 +92,10 @@ public final class IntegrationTestEvidenceExtractor {
         tests.sort(TEST_ORDER);
         interactions.sort(INTERACTION_ORDER);
         assertions.sort(ASSERTION_ORDER);
-        return new IntegrationTestEvidence(tests, interactions, assertions.stream().distinct().toList());
+        return new IntegrationTestEvidence(
+                tests.stream().distinct().toList(),
+                interactions.stream().distinct().toList(),
+                assertions.stream().distinct().toList());
     }
 
     private void extractFile(
@@ -114,7 +117,9 @@ public final class IntegrationTestEvidenceExtractor {
         String relativePath = repositoryRoot.relativize(testFile).toString().replace('\\', '/');
         for (MethodDeclaration method : unit.findAll(MethodDeclaration.class)) {
             Optional<AnnotationExpr> testAnnotation = supportedTestAnnotation(unit, method);
-            if (testAnnotation.isEmpty() || !containsRestAssuredCall(unit, method)) continue;
+            boolean restAssured = containsRestAssuredCall(unit, method);
+            boolean mockMvc = containsMockMvcCall(unit, method);
+            if (testAnnotation.isEmpty() || !restAssured && !mockMvc) continue;
 
             String testClass = owningType(method);
             String testMethod = method.getNameAsString();
@@ -126,15 +131,20 @@ public final class IntegrationTestEvidenceExtractor {
                     displayName(unit, method),
                     relativePath,
                     testPosition.line,
-                    testPosition.column));
+                    testPosition.column,
+                    testStyle(restAssured, mockMvc)));
 
             for (MethodCallExpr call : method.findAll(MethodCallExpr.class)) {
-                interaction(unit, call, endpointResolver, testClass, testMethod, relativePath)
+                restAssuredInteraction(unit, call, endpointResolver, testClass, testMethod, relativePath)
+                        .ifPresent(interactions::add);
+                mockMvcInteraction(unit, method, call, endpointResolver,
+                        testClass, testMethod, relativePath)
                         .ifPresent(interactions::add);
                 assertions.addAll(helperResolver.resolve(
                         unit, call, testClass, testMethod, relativePath));
                 if (!helperResolver.resolves(unit, call, testClass)) {
-                    assertion(unit, call, testClass, testMethod, relativePath).ifPresent(assertions::add);
+                    assertion(unit, method, call, testClass, testMethod, relativePath)
+                            .ifPresent(assertions::add);
                 }
             }
         }
@@ -161,7 +171,7 @@ public final class IntegrationTestEvidenceExtractor {
                 .orElse(null);
     }
 
-    private static Optional<HttpInteractionEvidence> interaction(
+    private static Optional<HttpInteractionEvidence> restAssuredInteraction(
             CompilationUnit unit,
             MethodCallExpr call,
             StaticTestEndpointResolver endpointResolver,
@@ -184,11 +194,41 @@ public final class IntegrationTestEvidenceExtractor {
                 testMethod,
                 relativePath,
                 position.line,
-                position.column));
+                position.column,
+                null));
+    }
+
+    private static Optional<HttpInteractionEvidence> mockMvcInteraction(
+            CompilationUnit unit,
+            MethodDeclaration method,
+            MethodCallExpr call,
+            StaticTestEndpointResolver endpointResolver,
+            String testClass,
+            String testMethod,
+            String relativePath) {
+        if (!MockMvcEvidenceSupport.isMockMvcPerform(unit, method, call)) return Optional.empty();
+        Optional<MethodCallExpr> builder = MockMvcEvidenceSupport.requestBuilder(unit, call);
+        if (builder.isEmpty() || builder.get().getArguments().isEmpty()) return Optional.empty();
+        Expression endpointExpression = builder.get().getArgument(0);
+        Optional<String> endpoint = endpointResolver.resolve(unit, endpointExpression);
+        if (endpoint.isEmpty()) return Optional.empty();
+        var position = call.getName().getBegin().orElseThrow(() ->
+                new IllegalStateException("Parsed MockMvc perform call has no source location"));
+        return Optional.of(new HttpInteractionEvidence(
+                IntegrationHttpMethod.valueOf(builder.get().getNameAsString().toUpperCase(Locale.ROOT)),
+                endpoint.get(),
+                endpointExpression.toString(),
+                testClass,
+                testMethod,
+                relativePath,
+                position.line,
+                position.column,
+                call.getArgument(0).toString()));
     }
 
     private static Optional<AssertionEvidence> assertion(
             CompilationUnit unit,
+            MethodDeclaration method,
             MethodCallExpr call,
             String testClass,
             String testMethod,
@@ -202,6 +242,8 @@ public final class IntegrationTestEvidenceExtractor {
             category = AssertionCategory.RESPONSE_BODY;
         } else if (isDatabaseAssertionHelper(call)) {
             category = AssertionCategory.PERSISTENCE_DATABASE;
+        } else if (containsMockMvcPerform(unit, method, call)) {
+            category = MockMvcEvidenceSupport.assertionCategory(unit, call);
         }
         if (category == null) return Optional.empty();
         var position = call.getName().getBegin().orElseThrow(() ->
@@ -314,10 +356,26 @@ public final class IntegrationTestEvidenceExtractor {
         return separator >= 0 ? name.substring(separator + 1) : name;
     }
 
+    private static boolean containsMockMvcCall(CompilationUnit unit, MethodDeclaration method) {
+        return method.findAll(MethodCallExpr.class).stream().anyMatch(call ->
+                MockMvcEvidenceSupport.isMockMvcPerform(unit, method, call));
+    }
+
+    private static boolean containsMockMvcPerform(
+            CompilationUnit unit, MethodDeclaration method, MethodCallExpr call) {
+        return call.findAll(MethodCallExpr.class).stream().anyMatch(candidate ->
+                MockMvcEvidenceSupport.isMockMvcPerform(unit, method, candidate));
+    }
+
     private static String helperOrderKey(AssertionEvidence.HelperInvocationEvidence helper) {
         if (helper == null) return "";
         return helper.helperClass() + '\u0000' + helper.helperMethod() + '\u0000'
                 + helper.repositoryRelativePath() + '\u0000' + helper.line() + '\u0000' + helper.column()
                 + '\u0000' + helper.invocationExpression();
+    }
+
+    private static IntegrationTestStyle testStyle(boolean restAssured, boolean mockMvc) {
+        if (restAssured && mockMvc) return IntegrationTestStyle.MIXED;
+        return mockMvc ? IntegrationTestStyle.MOCK_MVC : IntegrationTestStyle.REST_ASSURED;
     }
 }

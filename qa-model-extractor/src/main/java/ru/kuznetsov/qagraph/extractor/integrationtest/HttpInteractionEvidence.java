@@ -10,7 +10,8 @@ public record HttpInteractionEvidence(
         String owningTestMethod,
         String repositoryRelativePath,
         int line,
-        int column
+        int column,
+        String invocationDetails
 ) {
     public HttpInteractionEvidence {
         Objects.requireNonNull(httpMethod, "httpMethod");
@@ -21,6 +22,19 @@ public record HttpInteractionEvidence(
         requireNonBlank(repositoryRelativePath, "repositoryRelativePath");
         if (line < 1) throw new IllegalArgumentException("line must be positive");
         if (column < 1) throw new IllegalArgumentException("column must be positive");
+    }
+
+    public HttpInteractionEvidence(
+            IntegrationHttpMethod httpMethod,
+            String endpointPath,
+            String sourceExpression,
+            String owningTestClass,
+            String owningTestMethod,
+            String repositoryRelativePath,
+            int line,
+            int column) {
+        this(httpMethod, endpointPath, sourceExpression, owningTestClass, owningTestMethod,
+                repositoryRelativePath, line, column, null);
     }
 
     private static void requireNonBlank(String value, String field) {

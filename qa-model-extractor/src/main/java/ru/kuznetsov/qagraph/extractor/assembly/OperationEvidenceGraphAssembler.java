@@ -4,6 +4,7 @@ import ru.kuznetsov.qagraph.extractor.integrationtest.AssertionCategory;
 import ru.kuznetsov.qagraph.extractor.integrationtest.AssertionEvidence;
 import ru.kuznetsov.qagraph.extractor.integrationtest.HttpInteractionEvidence;
 import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestEvidence;
+import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestStyle;
 import ru.kuznetsov.qagraph.extractor.integrationtest.TestImplementationEvidence;
 import ru.kuznetsov.qagraph.extractor.implementationflow.ImplementationFlowEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.RestOperationEvidence;
@@ -244,8 +245,7 @@ public final class OperationEvidenceGraphAssembler {
                 "TEST-AUTO-" + identity,
                 NodeType.TEST_IMPLEMENTATION,
                 name,
-                "Automated JUnit 5 REST Assured test method "
-                        + evidence.testClass() + '.' + evidence.testMethod() + ".",
+                testDescription(evidence),
                 List.of(sourceReference(
                         "SRC-TEST-" + sha256(evidence.testClass()),
                         EvidenceGraphProjection.LocationType.TEST_CASE,
@@ -352,6 +352,16 @@ public final class OperationEvidenceGraphAssembler {
     private static String simpleName(String name) {
         int separator = name.lastIndexOf('.');
         return separator >= 0 ? name.substring(separator + 1) : name;
+    }
+
+    private static String testDescription(TestImplementationEvidence evidence) {
+        String style = switch (evidence.testStyle()) {
+            case REST_ASSURED -> "REST Assured";
+            case MOCK_MVC -> "MockMvc";
+            case MIXED -> "REST Assured and MockMvc";
+        };
+        return "Automated JUnit 5 " + style + " test method "
+                + evidence.testClass() + '.' + evidence.testMethod() + ".";
     }
 
     private static String packageName(String name) {
