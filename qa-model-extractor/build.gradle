@@ -13,6 +13,9 @@ dependencies {
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation(project(':qaip-core')) {
+        exclude group: 'org.slf4j', module: 'slf4j-nop'
+    }
 }
 
 tasks.register('smokeTest', Test) {
