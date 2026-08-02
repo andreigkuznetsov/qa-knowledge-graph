@@ -1,0 +1,72 @@
+# Supported Engineering Patterns
+
+This matrix is the QAIP compatibility baseline for deterministic evidence extraction from Java, Spring Boot, Spring MVC, Bean Validation, Spring Data, JUnit 5, and API integration tests. It describes the state on `release/engineering-knowledge-expansion` after M5, M6.1, and M6.2; it is not a delivery promise.
+
+Statuses mean: **Supported** is covered end to end by current extraction tests; **Partial** means only the stated deterministic variant is covered; **Planned** is a candidate for a future slice; **Out of scope** is intentionally excluded from deterministic extraction. Potential graph output uses current QAIP vocabulary: `BO` BUSINESS_OPERATION, `BR` BUSINESS_RULE, `TI` TECHNICAL_IMPLEMENTATION, `TEST` TEST_IMPLEMENTATION, and `CHECK` CHECK.
+
+## Compatibility matrix
+
+| Category | Pattern | Prevalence | Extractability | Status | Extractable evidence / possible QAIP projection | Exact known limitation | Verification source |
+|---|---|---:|---:|---|---|---|---|
+| REST endpoint declaration | Spring MVC composed mappings (`@GetMapping`, `@PostMapping`, `@PutMapping`, `@DeleteMapping`, `@PatchMapping`) | Core | High | Supported | HTTP method, combined class/method path, controller class/method, package, location → BO `IMPLEMENTED_BY` TI | Spring MVC annotations only; statically declared paths | focused fixture |
+| REST endpoint declaration | `@RequestMapping(method=...)`, including multiple methods | Core | High | Supported | One operation per declared HTTP method and path → BO/TI | A methodless `@RequestMapping` does not create an operation | focused fixture |
+| REST endpoint declaration | Indirect, custom-composed, inherited, or runtime mappings | Additional | Low | Out of scope | None | Annotation meta-model, inheritance, and runtime registration are not resolved | future reference repository |
+| Endpoint-path representation | Direct string literal in REST Assured | Core | High | Supported | Resolved path plus original expression → test/operation correlation | Literal must be the REST call's first argument | focused fixture |
+| Endpoint-path representation | Local or qualified `static final String` literal | Core | High | Supported | Fixed path and source expression → test/operation correlation | Initializer must itself be a string literal | focused fixture |
+| Endpoint-path representation | Imported static String constant | Common | High | Supported | Fixed imported value and source expression → test/operation correlation | Ambiguous or missing declarations are omitted | focused fixture |
+| Endpoint-path representation | Enum constant exposing one fixed string | Common | High | Supported | Enum literal value through a direct accessor or Lombok getter → correlation | Exactly one fixed String field/value shape; no computed accessor | focused fixture; BookShop |
+| Endpoint-path representation | Concatenated, formatted, configured, or method-computed path | Common | Low | Out of scope | None | General expression evaluation is deliberately absent | focused fixture |
+| Request and response models | Bean fields and Java record components | Core | High | Partial | Owning type, member, annotation, attributes, location → BR when the request type is supplied to assembly | Extracts validation evidence only; no automatic controller request binding or DTO shape projection | focused fixture |
+| Request and response models | Response DTO structure and serialization annotations | Common | Medium | Planned | Fields/types could support TI or CHECK evidence | No response-model extraction exists | future reference repository |
+| Standard and custom validation | Jakarta/Javax `NotNull`, `NotBlank`, `NotEmpty`, `Size`, `Min`, `Max`, `Pattern`, `Email` | Core | High | Supported | Exact declared constraint and attributes → BO `GOVERNED_BY` BR | Field and record-component annotations only; default attributes are not invented | focused fixture; BookShop |
+| Standard and custom validation | Other standard Bean Validation constraints and container/type-use constraints | Common | High | Planned | Declared constraint evidence → BR | Current allow-list and target locations exclude them | future reference repository |
+| Standard and custom validation | Custom validators and cross-field/class-level rules | Common | Low | Out of scope | None | Validator semantics are not interpreted | focused fixture |
+| Controller, service, and repository flow | Controller method as API implementation | Core | High | Supported | Controller identity and location → BO `IMPLEMENTED_BY` TI | Only the controller implementation is projected | focused fixture; BookShop |
+| Controller, service, and repository flow | Direct controller-to-service call | Core | Medium | Planned | Direct call evidence could add TI and implementation trace | Call targets are not currently resolved | future reference repository |
+| Controller, service, and repository flow | Service-to-Spring-Data repository flow | Core | Medium | Planned | Direct service/repository evidence could add TI relationships | No service or repository traversal exists | future reference repository |
+| JUnit 5 test declaration | `@Test` method containing a REST Assured call | Core | High | Supported | Class, method, explicit display name, location → TEST | Tests without a supported REST Assured call are omitted | focused fixture; BookShop |
+| JUnit 5 test declaration | Explicit `@DisplayName` string | Common | High | Supported | Display name retained on TEST | Dynamic display-name generation is not resolved | focused fixture |
+| JUnit 5 test declaration | JUnit 4 or non-JUnit test styles | Additional | High | Out of scope | None | Only JUnit 5 annotations are recognized | focused fixture |
+| Parameterized and data-driven tests | `@ParameterizedTest` with a recognized JUnit source annotation | Common | High | Partial | One method retained as one TEST scenario family | Individual argument cases and source data are not expanded | focused fixture |
+| Parameterized and data-driven tests | Dynamic tests, custom providers, or computed cases | Additional | Low | Out of scope | None | Runtime-generated cases are not inspected or executed | future reference repository |
+| REST Assured | Static/imported REST Assured HTTP verbs with deterministic path | Core | High | Supported | HTTP method, resolved path, original expression, owner, location → TEST correlation | Unsupported clients and dynamic paths are omitted | focused fixture; BookShop |
+| REST Assured | Direct `.then().statusCode(...)` assertion | Core | High | Supported | Exact assertion and location → TEST `HAS_CHECK` CHECK (`HTTP_STATUS`) | Must remain in a recognizable REST Assured chain | focused fixture |
+| REST Assured | Direct `.then().body(...)` assertion | Core | High | Supported | Exact assertion and location → TEST `HAS_CHECK` CHECK (`RESPONSE_BODY`) | Other REST Assured assertion methods are not classified | focused fixture |
+| MockMvc | `perform(...)` requests and result matchers | Core | High | Planned | HTTP interaction and status/body assertions could yield TEST/CHECK | MockMvc tests are explicitly ignored today | focused fixture |
+| WebTestClient | Request chains and expectations | Additional | High | Out of scope | None | WebFlux and WebTestClient are outside the targeted Spring MVC stack | future reference repository |
+| Test helper methods | One-level helper in the same test class | Common | High | Supported | Helper identity, invocation, assertion, both locations; assertion stays owned by originating TEST | Name/arity must resolve uniquely | focused fixture; BookShop |
+| Test helper methods | One-level external static test-source helper | Common | High | Supported | Same evidence and TEST ownership as same-class helper | Helper must be static and located under `src/test/java` | focused fixture; BookShop |
+| Test helper methods | Helper-to-helper chain | Common | Medium | Planned | Direct call-chain evidence could expose terminal assertions | Depth is currently bounded to one helper level | focused fixture |
+| Test helper methods | Recursive, polymorphic, reflective, or production helper | Additional | Low | Out of scope | None | Dynamic resolution and production traversal are intentionally excluded | focused fixture |
+| Assertion helpers and libraries | Supported JUnit 5 `Assertions` inside a resolved helper | Core | Medium | Partial | Exact invocation classified as status, body, or persistence → CHECK | Classification requires supported response/persistence context; no value substitution | focused fixture; BookShop |
+| Assertion helpers and libraries | Direct arbitrary assertion-library calls | Common | Medium | Planned | Exact assertion call and location could yield CHECK | AssertJ, Hamcrest outside REST Assured, and custom libraries are not generally classified | future reference repository |
+| Assertion helpers and libraries | Unsupported helper assertion method | Additional | Low | Out of scope | None | Unknown assertion semantics are omitted rather than guessed | focused fixture |
+| Database and repository assertions | Direct assertion-like database/repository helper invocation | Common | Medium | Partial | Exact helper invocation → CHECK (`PERSISTENCE_DATABASE`) | Recognition is naming/scope constrained; helper body is not required for this legacy direct form | focused fixture |
+| Database and repository assertions | Supported JUnit assertion inside one-level persistence/repository helper | Common | Medium | Supported | Helper assertion and invocation locations → TEST `HAS_CHECK` CHECK (`PERSISTENCE_DATABASE`) | Requires deterministic helper resolution and repository/persistence context | focused fixture; BookShop |
+| Authentication and authorization tests | Static auth endpoint interaction and status/body checks | Common | High | Partial | Normal REST interaction and supported checks → TEST/CHECK | Auth semantics, identity, roles, and permissions are not modeled | BookShop |
+| Authentication and authorization tests | Security context, token, role, and access-control semantics | Common | Low | Planned | Evidence could support BR and security-oriented CHECK knowledge | Current extraction treats setup and credentials as opaque test code | future reference repository |
+| Error and exception handling | HTTP error status/body asserted through supported REST Assured patterns | Core | High | Partial | Same status/body CHECK evidence as successful responses | Error meaning and exception mapping are not inferred | future reference repository |
+| Error and exception handling | Controller advice and exception-to-response mapping | Common | Medium | Planned | Handler/mapping evidence could add TI and BR trace | `@ControllerAdvice` and `@ExceptionHandler` are not scanned | future reference repository |
+| Transactions | Declarative `@Transactional` boundaries | Common | High | Planned | Declared transaction evidence could annotate TI | Transaction annotations are not extracted | future reference repository |
+| Transactions | Rollback/commit behavior inferred from execution | Additional | Low | Out of scope | None | Extractors do not compile or execute repositories/tests | future reference repository |
+| Events, messaging, and scheduled work | Spring application event publication/listening | Common | Medium | Planned | Publisher/listener evidence could add TI trace | No event extraction exists | future reference repository |
+| Events, messaging, and scheduled work | Broker messages and consumers | Additional | Medium | Planned | Producer/consumer/topic evidence could add TI trace | Messaging frameworks and configuration are not inspected | future reference repository |
+| Events, messaging, and scheduled work | `@Scheduled` work | Additional | High | Planned | Scheduled method and declared trigger could yield TI evidence | Scheduled annotations are not extracted | future reference repository |
+| External-service interaction | Statically declared HTTP client operation | Common | Medium | Planned | Client method/endpoint evidence could add TI trace | Feign, RestClient, and similar clients are not scanned | future reference repository |
+| External-service interaction | Dynamic client behavior or runtime stubs | Additional | Low | Out of scope | None | Runtime routing, mocking, and response behavior are not evaluated | future reference repository |
+| Configuration and profiles | Literal configuration keys and profile annotations | Common | Medium | Planned | Declared configuration/profile evidence could qualify TI | Configuration files and profile annotations are not correlated | future reference repository |
+| Configuration and profiles | Runtime-resolved properties, secrets, and environment-dependent values | Common | Low | Out of scope | None | Environment-dependent values are intentionally not evaluated | future reference repository |
+
+## Prioritized next candidates
+
+1. **MockMvc request and assertion evidence** — Core prevalence, high deterministic extractability, and broad value for Spring MVC projects that do not use REST Assured.
+2. **Automatic controller request-model binding** — Connects already-supported Bean Validation evidence to operations without caller-supplied model types, increasing completeness with limited semantic inference.
+3. **Direct controller-to-service and service-to-repository flow** — Adds widely useful implementation trace beyond the controller while retaining a direct-call evidence boundary.
+4. **Broader standard Bean Validation coverage** — Extends a proven high-confidence extractor to common standard constraints and type-use locations.
+5. **Direct assertion-library support** — Captures common AssertJ and JUnit assertions outside helpers when their subject and expected value are explicit, improving CHECK coverage across test styles.
+
+Priority reflects user value, prevalence, deterministic extractability, implementation risk, and applicability across real projects. BookShop remains a regression and acceptance source, not the basis for the order.
+
+## Maintenance rule
+
+Change a status to Supported or Partial only when current extraction code and a focused fixture demonstrate the stated variant. Use BookShop for acceptance where applicable and a future reference repository for patterns not represented by the current fixtures.
