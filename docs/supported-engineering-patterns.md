@@ -1,6 +1,6 @@
 # Supported Engineering Patterns
 
-This matrix is the QAIP compatibility baseline for deterministic evidence extraction from Java, Spring Boot, Spring MVC, Bean Validation, Spring Data, JUnit 5, and API integration tests. It describes the state on `release/engineering-knowledge-expansion` after M5, M6.1, and M6.2; it is not a delivery promise.
+This matrix is the QAIP compatibility baseline for deterministic evidence extraction from Java, Spring Boot, Spring MVC, Bean Validation, Spring Data, JUnit 5, and API integration tests. It describes the state on `release/engineering-knowledge-expansion` through M6.7; it is not a delivery promise.
 
 Statuses mean: **Supported** is covered end to end by current extraction tests; **Partial** means only the stated deterministic variant is covered; **Planned** is a candidate for a future slice; **Out of scope** is intentionally excluded from deterministic extraction. Potential graph output uses current QAIP vocabulary: `BO` BUSINESS_OPERATION, `BR` BUSINESS_RULE, `TI` TECHNICAL_IMPLEMENTATION, `TEST` TEST_IMPLEMENTATION, and `CHECK` CHECK.
 
@@ -77,16 +77,88 @@ Statuses mean: **Supported** is covered end to end by current extraction tests; 
 | Configuration and profiles | Literal configuration keys and profile annotations | Common | Medium | Planned | Declared configuration/profile evidence could qualify TI | Configuration files and profile annotations are not correlated | future reference repository |
 | Configuration and profiles | Runtime-resolved properties, secrets, and environment-dependent values | Common | Low | Out of scope | None | Environment-dependent values are intentionally not evaluated | future reference repository |
 
-## Prioritized next candidates
+### Extended corpus patterns
 
-1. **MockMvc request and assertion evidence** — Core prevalence, high deterministic extractability, and broad value for Spring MVC projects that do not use REST Assured.
-2. **Automatic controller request-model binding** — Connects already-supported Bean Validation evidence to operations without caller-supplied model types, increasing completeness with limited semantic inference.
-3. **Direct controller-to-service and service-to-repository flow** — Adds widely useful implementation trace beyond the controller while retaining a direct-call evidence boundary.
-4. **Broader standard Bean Validation coverage** — Extends a proven high-confidence extractor to common standard constraints and type-use locations.
-5. **Direct assertion-library support** — Captures common AssertJ and JUnit assertions outside helpers when their subject and expected value are explicit, improving CHECK coverage across test styles.
+| Category | Pattern | Prevalence | Extractability | Status | Extractable evidence / possible QAIP projection | Exact known limitation | Verification source |
+|---|---|---:|---:|---|---|---|---|
+| Async testing | Awaitility `untilAsserted` block | Core | High | Planned | Polling boundary, timing and nested assertions → TEST `HAS_CHECK` CHECK | Nested checks are not currently owned by the asynchronous boundary | order-service-redis-sdet; order-events-kafka-tests; rabbitmq-notification-service; focused fixture |
+| Async testing | Eventual-consistency observation window | Core | High | Planned | `atMost`, `during`, interval and terminal condition → CHECK | Waiting syntax alone does not prove the business reason for eventual consistency | order-events-kafka-tests; rabbitmq-notification-service; graphQL-API-project |
+| Test environments | Testcontainers infrastructure declaration | Core | High | Planned | Container type, image and owning test base → TEST environment and infrastructure TI | Containers are not started; runtime health is not inferred | order-service-redis-sdet; order-events-kafka-tests; rabbitmq-notification-service; focused fixture |
+| Test environments | Dynamic property binding | Core | High | Planned | `@DynamicPropertySource` key and container supplier → TEST `USES` infrastructure TI | Supplier values are preserved, not executed | order-service-redis-sdet; order-events-kafka-tests; rabbitmq-notification-service |
+| Test environments | Infrastructure dependency metadata | Common | High | Planned | Declared database, cache, broker, browser or endpoint requirement → TEST/TI context | Undeclared availability cannot be inferred | wiregate_tests; only.digital.webtest; focused fixture |
+| Schema management | Flyway versioned migration | Core | High | Planned | Version, description, SQL resource and declared objects → database TI | SQL is not executed or fully interpreted | order-service-redis-sdet; rabbitmq-notification-service; focused fixture |
+| Schema management | Schema-validation configuration | Common | High | Planned | Flyway enablement and JPA `ddl-auto: validate` → database TI context | Configuration does not prove deployed-schema validity | order-service-redis-sdet; rabbitmq-notification-service |
+| Redis | Cache read and write | Core | High | Planned | Key expression, get/set and serialized type → service TI `USES` cache TI | Generic Redis access does not establish cache intent | order-service-redis-sdet; focused fixture |
+| Redis | Cache TTL | Core | High | Planned | Duration/property and expiring write → cache TI/BR | Runtime clock and actual expiry are not evaluated | order-service-redis-sdet; focused fixture |
+| Redis | Cache invalidation | Core | High | Planned | Delete/evict invocation and owner → service TI `USES` cache TI | Correct causal placement after mutation is not inferred | order-service-redis-sdet; focused fixture |
+| Redis | Rate-limit counter and window | Common | High | Planned | Increment, first-use expiry, threshold and rejection → BR/TI/CHECK | Client identity and distributed guarantees are not interpreted | order-service-redis-sdet; focused fixture |
+| Redis | Idempotency reservation and replay | Core | High | Planned | `setIfAbsent`, marker, TTL and stored result → BR/TI | Equivalent-request semantics beyond the key are not inferred | order-service-redis-sdet; focused fixture |
+| Redis | Distributed lock | Common | High | Planned | Lock key, acquisition, TTL, guarded region and release → BR/TI | Ownership, fencing and failure safety are not proven | order-service-redis-sdet; focused fixture |
+| Messaging | Kafka topic declaration | Core | High | Planned | Topic name, partitions and replication → messaging TI | Runtime provisioning and broker policy are not inspected | order-events-kafka-tests; focused fixture |
+| Messaging | Kafka producer | Core | High | Planned | `KafkaTemplate.send`, topic/key/value and owner → producer TI `USES` topic TI | Delivery and consumption are not inferred | order-events-kafka-tests; focused fixture |
+| Messaging | Kafka consumer | Core | High | Planned | `@KafkaListener` topic, group, method and payload → consumer TI | Unresolved configuration placeholders remain source expressions | order-events-kafka-tests; focused fixture |
+| Messaging | Kafka retry and DLQ | Common | High | Planned | Backoff, attempts, exception classification and DLQ route → BR/TI | Runtime retry history is not observed | order-events-kafka-tests; focused fixture |
+| Messaging | Rabbit exchange, queue and binding | Core | High | Planned | Topology, durability and routing key → messaging TI relationships | Runtime topology overrides are not inspected | rabbitmq-notification-service; focused fixture |
+| Messaging | Rabbit producer and consumer | Core | High | Planned | `convertAndSend`, exchange/queue/key and `@RabbitListener` → producer/consumer TI | Delivery and acknowledgement are not inferred | rabbitmq-notification-service; focused fixture |
+| Messaging | Rabbit retry queue and DLQ | Common | High | Planned | Message TTL, dead-letter route, attempts and terminal queue → BR/TI/CHECK | Runtime redelivery count and broker timing are not evaluated | rabbitmq-notification-service; focused fixture |
+| External clients | Spring `TestRestTemplate` interaction | Common | High | Planned | HTTP method, URL, request/response type and owner → TEST correlation | Random-port URLs need bounded expression resolution | order-events-kafka-tests; focused fixture |
+| External clients | Deterministic custom HTTP client | Core | Medium | Planned | Client method, endpoint/transport and test call → client TI and TEST correlation | Arbitrary multi-level wrappers remain ambiguous | rabbitmq-notification-service; graphQL-API-project; grpc-account-tests; focused fixture |
+| External clients | Deterministic provider stub | Common | High | Planned | Port, stub implementation and explicit failure branch → external TI/CHECK | Source presence does not prove runtime wiring | rabbitmq-notification-service; focused fixture |
+| Unit testing | Mockito mock or stub | Core | High | Planned | `@Mock`, `mock` and `when` → TEST setup and collaborator TI | Deep stubs and runtime matcher behaviour are not interpreted | order-events-kafka-tests; focused fixture |
+| Unit testing | Mockito verification | Core | High | Planned | `verify`, mode and invocation → CHECK | Only explicitly supported standard verification forms could be classified | order-events-kafka-tests; focused fixture |
+| Unit testing | Mockito argument captor | Common | High | Planned | Captured type, verified invocation and captured-value assertion → CHECK | Data flow beyond the direct capture chain is not followed | order-events-kafka-tests; focused fixture |
+| Persistence testing | Direct JDBC query and assertion | Common | High | Planned | SQL literal, parameters, selected columns and owner → SQL CHECK | Dynamic SQL and database results are not evaluated | wiregate_tests; focused fixture |
+| Persistence testing | Direct JDBC cleanup | Common | High | Planned | DELETE statement, parameters and lifecycle owner → TEST cleanup evidence | Cleanup success and isolation are not inferred | wiregate_tests; focused fixture |
+| Persistence testing | Repository-state eventual assertion | Core | Medium | Planned | Repository call inside polling/assertion boundary → persistence CHECK | Entity access alone does not establish database semantics | order-service-redis-sdet; order-events-kafka-tests; rabbitmq-notification-service |
+| Performance | k6 execution profile | Common | High | Planned | VUs, duration, iterations and entry point → performance TEST | JavaScript sources are not currently inspected | order-service-redis-sdet; focused fixture |
+| Performance | k6 latency or failure threshold | Common | High | Planned | Metric and threshold expression → CHECK | Runtime percentile and failure results are not imported | order-service-redis-sdet; focused fixture |
+| Performance | k6 behavioural check | Common | High | Planned | Status/body predicate and scenario owner → CHECK | Arbitrary JavaScript predicates require a bounded subset | order-service-redis-sdet; focused fixture |
+| Observability | Actuator endpoint exposure | Core | High | Planned | Exposed health/info/metrics names → operational TI/CHECK | Availability and health results are not queried | order-service-redis-sdet; order-events-kafka-tests; rabbitmq-notification-service |
+| Observability | Micrometer counter or timer | Core | High | Planned | Meter name, description, tags and recorder → observability TI | Runtime samples and cardinality are not evaluated | order-events-kafka-tests; focused fixture |
+| Observability | Prometheus scrape or alert rule | Common | High | Planned | Target, PromQL, duration and labels → operational CHECK | PromQL is preserved, not executed | order-events-kafka-tests; focused fixture |
+| Observability | Grafana datasource or dashboard | Common | High | Planned | Datasource, dashboard and referenced metrics → observability TI | Rendered behaviour and live state are not inspected | order-events-kafka-tests; focused fixture |
+| Build and delivery | Committed Gradle wrapper | Core | High | Planned | Wrapper version and distribution → build TI | Presence does not prove successful execution | order-events-kafka-tests; llm-qa-demo |
+| Build and delivery | GitHub Actions build/test workflow | Core | High | Planned | Trigger, job, JDK and command → CI TEST/TI | Actions and external services are not executed | order-events-kafka-tests; llm-qa-demo; focused fixture |
+| Build and delivery | Tagged suite or dedicated Gradle test task | Common | High | Planned | JUnit tags, filters and task name → TEST suite | Dynamic selection is not inferred | llm-qa-demo; focused fixture |
+| Build and delivery | Smoke, full and security stages | Common | High | Planned | Conditional jobs and invoked suites → CI TEST relationships | Workflow source does not provide execution outcome | llm-qa-demo; focused fixture |
+| Build and delivery | Report artifact publication | Common | High | Planned | Artifact name, paths and condition → TEST output evidence | Artifact contents are not downloaded | llm-qa-demo; focused fixture |
+| Additional protocols | GraphQL query or mutation | Common | High | Planned | Operation type/name, variables and fields → BO/TI | Computed documents are omitted | graphQL-API-project; focused fixture |
+| Additional protocols | GraphQL subscription | Common | High | Planned | Subscription name, variables and payload → BO/TI | Runtime event delivery is not inferred | graphQL-API-project; focused fixture |
+| Additional protocols | GraphQL WebSocket lifecycle | Specialized | High | Planned | Init/ack, subscribe, next, complete and timeout → TEST/TI/CHECK | General WebSocket state machines are not supported | graphQL-API-project; focused fixture |
+| Additional protocols | Protobuf service and RPC | Common | High | Planned | Service, RPC, messages and streaming flags → BO/TI | Generated behaviour and custom options are not interpreted | grpc-account-tests; focused fixture |
+| Additional protocols | gRPC unary call | Common | High | Planned | Stub, RPC, request and response → TEST/TI correlation | Dynamic interceptors and routing are not resolved | grpc-account-tests; focused fixture |
+| Additional protocols | gRPC streaming call | Specialized | High | Planned | Direction, observer, messages and terminal event → TEST/CHECK | Arbitrary observer data flow is not followed | grpc-account-tests; focused fixture |
+| UI testing | Selenide page object and selector | Common | High | Planned | Page, element field and selector → UI TI | DOM state and selector uniqueness are not verified | wiregate_tests; focused fixture |
+| UI testing | Selenide browser action | Common | High | Planned | Navigation, input, selection and click → UI TEST evidence | Dynamic/conditional targets are omitted | wiregate_tests; only.digital.webtest; focused fixture |
+| UI testing | Selenide condition | Common | High | Planned | Selector, condition and expected text/state → CHECK | Browser execution and visual meaning are not inferred | wiregate_tests; only.digital.webtest; focused fixture |
+| AI evaluation | Versioned evaluation dataset | Specialized | High | Planned | Dataset, case, prompt/context and expected fields → TEST family | Dataset content does not prove semantic correctness | llm-qa-demo; focused fixture |
+| AI evaluation | Evaluation metric and threshold | Specialized | High | Planned | Metric, calculation expression and threshold → CHECK | Runtime model output is not evaluated | llm-qa-demo; focused fixture |
+| AI evaluation | LLM-as-judge scoring | Specialized | Medium | Planned | Judge model, rubric and score threshold → CHECK/TI | Judge reliability cannot be proven statically | llm-qa-demo; focused fixture |
+| AI evaluation | Hallucination or security evaluation | Specialized | Medium | Planned | Tagged test, adversarial case and assertion → TEST/CHECK | Prompt meaning and probabilistic behaviour are not interpreted | llm-qa-demo; focused fixture |
+| AI evaluation | Repeated probabilistic evaluation | Specialized | Low | Planned | Repeat count, sampling and aggregate threshold → TEST/CHECK | Statistical adequacy and variance are not inferred | llm-qa-demo; focused fixture |
+| Reliability | Explicit retry policy | Core | High | Planned | Attempts, delay/backoff and retryable exceptions → BR/TI | Defaults and observed attempts are not inferred | order-events-kafka-tests; rabbitmq-notification-service; focused fixture |
+| Reliability | Explicit timeout | Core | High | Planned | Connection, polling, future or operation timeout → BR/TI/CHECK | Runtime timeout occurrence is not observed | graphQL-API-project; grpc-account-tests; order-events-kafka-tests |
+| Reliability | Idempotency guard | Core | High | Planned | Key/state, uniqueness check and duplicate outcome → BR/TI/CHECK | Equivalence beyond the explicit identifier is not inferred | order-service-redis-sdet; order-events-kafka-tests; rabbitmq-notification-service |
+| Reliability | Lock-protected operation | Common | High | Planned | Acquisition, TTL, guarded call, release and contention → BR/TI/CHECK | Ownership and distributed safety are not proven | order-service-redis-sdet; focused fixture |
+| Reliability | Eventual-consistency boundary | Core | High | Planned | Cause, observation target, polling window and assertion → TI/TEST/CHECK | Causality requires deterministic source identifiers on both sides | order-events-kafka-tests; rabbitmq-notification-service; focused fixture |
 
-Priority reflects user value, prevalence, deterministic extractability, implementation risk, and applicability across real projects. BookShop remains a regression and acceptance source, not the basis for the order.
+## Prioritized future candidates
+
+1. **Awaitility-aware asynchronous assertion ownership**
+2. **Messaging topology and interaction evidence**
+3. **TestRestTemplate and deterministic custom-client correlation**
+4. **Testcontainers and test-environment evidence**
+5. **Flyway and persistence-contract evidence**
+6. **Redis engineering-pattern evidence**
+7. **Build/CI/test-stage evidence**
+8. **Observability evidence**
+9. **k6 performance evidence**
+10. **GraphQL and gRPC protocol evidence**
+11. **Direct JDBC and UI evidence**
+12. **LLM evaluation evidence**
+
+Priority reflects user value, corpus prevalence, deterministic extractability, implementation risk, and breadth across real projects. It is a discovery order, not an implementation commitment.
 
 ## Maintenance rule
 
-Change a status to Supported or Partial only when current extraction code and a focused fixture demonstrate the stated variant. Use BookShop for acceptance where applicable and a future reference repository for patterns not represented by the current fixtures.
+A pattern may be marked Supported only after focused deterministic tests exist, at least one real-project verification exists where practical, and its exact limitations are documented. Use BookShop and the real-project corpus for regression or acceptance where applicable; use focused fixtures to prove deterministic boundaries and omissions.
