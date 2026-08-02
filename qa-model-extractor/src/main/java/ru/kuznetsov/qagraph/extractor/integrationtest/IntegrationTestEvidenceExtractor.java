@@ -119,7 +119,8 @@ public final class IntegrationTestEvidenceExtractor {
             Optional<AnnotationExpr> testAnnotation = supportedTestAnnotation(unit, method);
             boolean restAssured = containsRestAssuredCall(unit, method);
             boolean mockMvc = containsMockMvcCall(unit, method);
-            if (testAnnotation.isEmpty() || !restAssured && !mockMvc) continue;
+            boolean directAssertion = containsDirectAssertion(unit, method);
+            if (testAnnotation.isEmpty() || !restAssured && !mockMvc && !directAssertion) continue;
 
             String testClass = owningType(method);
             String testMethod = method.getNameAsString();
@@ -132,7 +133,7 @@ public final class IntegrationTestEvidenceExtractor {
                     relativePath,
                     testPosition.line,
                     testPosition.column,
-                    testStyle(restAssured, mockMvc)));
+                    testStyle(restAssured, mockMvc, directAssertion)));
 
             for (MethodCallExpr call : method.findAll(MethodCallExpr.class)) {
                 restAssuredInteraction(unit, call, endpointResolver, testClass, testMethod, relativePath)
@@ -234,22 +235,45 @@ public final class IntegrationTestEvidenceExtractor {
             String testMethod,
             String relativePath) {
         AssertionCategory category = null;
+        AssertionEvidence.AssertionLibrary library = AssertionEvidence.AssertionLibrary.LEGACY;
         if (call.getNameAsString().equals("statusCode") && hasThenInScope(call)
                 && containsRestAssuredRoot(unit, call)) {
             category = AssertionCategory.HTTP_STATUS;
+            library = AssertionEvidence.AssertionLibrary.REST_ASSURED;
         } else if (call.getNameAsString().equals("body") && hasThenInScope(call)
                 && containsRestAssuredRoot(unit, call)) {
             category = AssertionCategory.RESPONSE_BODY;
+            library = AssertionEvidence.AssertionLibrary.REST_ASSURED;
         } else if (isDatabaseAssertionHelper(call)) {
             category = AssertionCategory.PERSISTENCE_DATABASE;
         } else if (containsMockMvcPerform(unit, method, call)) {
             category = MockMvcEvidenceSupport.assertionCategory(unit, call);
+            if (category != null) library = AssertionEvidence.AssertionLibrary.MOCK_MVC;
+        } else {
+            var direct = DirectAssertionSupport.recognize(unit, call);
+            if (direct.isPresent()) {
+                var position = call.getName().getBegin().orElseThrow(() ->
+                        new IllegalStateException("Parsed assertion has no source location"));
+                return Optional.of(new AssertionEvidence(
+                        directAssertionCategory(call),
+                        direct.get().library(),
+                        direct.get().kind(),
+                        call.toString(),
+                        testClass,
+                        testMethod,
+                        relativePath,
+                        position.line,
+                        position.column,
+                        null));
+            }
         }
         if (category == null) return Optional.empty();
         var position = call.getName().getBegin().orElseThrow(() ->
                 new IllegalStateException("Parsed assertion has no source location"));
         return Optional.of(new AssertionEvidence(
                 category,
+                library,
+                call.getNameAsString(),
                 call.toString(),
                 testClass,
                 testMethod,
@@ -356,9 +380,27 @@ public final class IntegrationTestEvidenceExtractor {
         return separator >= 0 ? name.substring(separator + 1) : name;
     }
 
+    private static AssertionCategory directAssertionCategory(MethodCallExpr assertion) {
+        Set<String> calls = assertion.findAll(MethodCallExpr.class).stream()
+                .map(MethodCallExpr::getNameAsString)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        if (calls.contains("getStatusCode") || calls.contains("statusCode")) {
+            return AssertionCategory.HTTP_STATUS;
+        }
+        if (calls.contains("getBody") || calls.contains("jsonPath") || calls.contains("asString")) {
+            return AssertionCategory.RESPONSE_BODY;
+        }
+        return AssertionCategory.GENERAL_ASSERTION;
+    }
+
     private static boolean containsMockMvcCall(CompilationUnit unit, MethodDeclaration method) {
         return method.findAll(MethodCallExpr.class).stream().anyMatch(call ->
                 MockMvcEvidenceSupport.isMockMvcPerform(unit, method, call));
+    }
+
+    private static boolean containsDirectAssertion(CompilationUnit unit, MethodDeclaration method) {
+        return method.findAll(MethodCallExpr.class).stream()
+                .anyMatch(call -> DirectAssertionSupport.recognize(unit, call).isPresent());
     }
 
     private static boolean containsMockMvcPerform(
@@ -374,8 +416,12 @@ public final class IntegrationTestEvidenceExtractor {
                 + '\u0000' + helper.invocationExpression();
     }
 
-    private static IntegrationTestStyle testStyle(boolean restAssured, boolean mockMvc) {
+    private static IntegrationTestStyle testStyle(
+            boolean restAssured, boolean mockMvc, boolean directAssertion) {
         if (restAssured && mockMvc) return IntegrationTestStyle.MIXED;
-        return mockMvc ? IntegrationTestStyle.MOCK_MVC : IntegrationTestStyle.REST_ASSURED;
+        if (mockMvc) return IntegrationTestStyle.MOCK_MVC;
+        if (restAssured) return IntegrationTestStyle.REST_ASSURED;
+        if (directAssertion) return IntegrationTestStyle.DIRECT_ASSERTION;
+        throw new IllegalArgumentException("A supported test style is required");
     }
 }

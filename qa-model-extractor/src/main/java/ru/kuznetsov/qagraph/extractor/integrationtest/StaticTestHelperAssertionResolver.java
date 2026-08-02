@@ -74,12 +74,18 @@ final class StaticTestHelperAssertionResolver {
                 invocationPosition.line, invocationPosition.column);
         List<AssertionEvidence> evidence = new ArrayList<>();
         for (MethodCallExpr assertion : helper.method().findAll(MethodCallExpr.class)) {
+            var direct = DirectAssertionSupport.recognize(helper.unit(), assertion);
             AssertionCategory category = classify(helper, assertion);
+            if (category == null && direct.isPresent()) category = AssertionCategory.GENERAL_ASSERTION;
             if (category == null) continue;
             var position = assertion.getName().getBegin().orElseThrow(() ->
                     new IllegalStateException("Parsed helper assertion has no source location"));
             evidence.add(new AssertionEvidence(
                     category,
+                    direct.map(DirectAssertionSupport.Descriptor::library)
+                            .orElseGet(() -> assertionLibrary(helper, assertion)),
+                    direct.map(DirectAssertionSupport.Descriptor::kind)
+                            .orElse(assertion.getNameAsString()),
                     assertion.toString(),
                     testClass,
                     testMethod,
@@ -164,13 +170,27 @@ final class StaticTestHelperAssertionResolver {
         if (assertion.getNameAsString().equals("body") && responseRelated(helper, assertion)) {
             return AssertionCategory.RESPONSE_BODY;
         }
-        if (!isJunitAssertion(helper.unit(), assertion)) return null;
+        if (!isJunitAssertion(helper.unit(), assertion)
+                && DirectAssertionSupport.recognize(helper.unit(), assertion).isEmpty()) return null;
         if (assertion.getArguments().stream().anyMatch(StaticTestHelperAssertionResolver::containsStatusAccess)) {
             return AssertionCategory.HTTP_STATUS;
         }
         if (isPersistenceHelper(helper)) return AssertionCategory.PERSISTENCE_DATABASE;
-        if (!hasResponseParameter(helper.method())) return null;
-        return AssertionCategory.RESPONSE_BODY;
+        if (hasResponseParameter(helper.method())) return AssertionCategory.RESPONSE_BODY;
+        return AssertionCategory.GENERAL_ASSERTION;
+    }
+
+    private static AssertionEvidence.AssertionLibrary assertionLibrary(
+            HelperMethod helper, MethodCallExpr assertion) {
+        if (MockMvcEvidenceSupport.hasResultActionsParameter(helper.unit(), helper.method())
+                && MockMvcEvidenceSupport.assertionCategory(helper.unit(), assertion) != null) {
+            return AssertionEvidence.AssertionLibrary.MOCK_MVC;
+        }
+        if ((assertion.getNameAsString().equals("statusCode")
+                || assertion.getNameAsString().equals("body")) && responseRelated(helper, assertion)) {
+            return AssertionEvidence.AssertionLibrary.REST_ASSURED;
+        }
+        return AssertionEvidence.AssertionLibrary.LEGACY;
     }
 
     private static boolean isJunitAssertion(CompilationUnit unit, MethodCallExpr assertion) {

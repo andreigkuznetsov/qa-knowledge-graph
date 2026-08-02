@@ -4,6 +4,8 @@ import java.util.Objects;
 
 public record AssertionEvidence(
         AssertionCategory category,
+        AssertionLibrary assertionLibrary,
+        String assertionKind,
         String expression,
         String owningTestClass,
         String owningTestMethod,
@@ -14,6 +16,8 @@ public record AssertionEvidence(
 ) {
     public AssertionEvidence {
         Objects.requireNonNull(category, "category");
+        Objects.requireNonNull(assertionLibrary, "assertionLibrary");
+        requireNonBlank(assertionKind, "assertionKind");
         requireNonBlank(expression, "expression");
         requireNonBlank(owningTestClass, "owningTestClass");
         requireNonBlank(owningTestMethod, "owningTestMethod");
@@ -30,8 +34,30 @@ public record AssertionEvidence(
             String repositoryRelativePath,
             int line,
             int column) {
-        this(category, expression, owningTestClass, owningTestMethod,
+        this(category, AssertionLibrary.LEGACY, category.name(), expression, owningTestClass, owningTestMethod,
                 repositoryRelativePath, line, column, null);
+    }
+
+    public AssertionEvidence(
+            AssertionCategory category,
+            String expression,
+            String owningTestClass,
+            String owningTestMethod,
+            String repositoryRelativePath,
+            int line,
+            int column,
+            HelperInvocationEvidence helperInvocation) {
+        this(category, AssertionLibrary.LEGACY, category.name(), expression, owningTestClass,
+                owningTestMethod, repositoryRelativePath, line, column, helperInvocation);
+    }
+
+    public enum AssertionLibrary {
+        REST_ASSURED,
+        MOCK_MVC,
+        JUNIT_5,
+        ASSERTJ,
+        HAMCREST,
+        LEGACY
     }
 
     public record HelperInvocationEvidence(

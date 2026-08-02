@@ -359,6 +359,7 @@ public final class OperationEvidenceGraphAssembler {
             case REST_ASSURED -> "REST Assured";
             case MOCK_MVC -> "MockMvc";
             case MIXED -> "REST Assured and MockMvc";
+            case DIRECT_ASSERTION -> "direct assertion-library";
         };
         return "Automated JUnit 5 " + style + " test method "
                 + evidence.testClass() + '.' + evidence.testMethod() + ".";
