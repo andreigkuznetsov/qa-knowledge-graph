@@ -86,7 +86,9 @@ public record EvidenceGraphProjection(
     }
 
     public enum ImplementationType {
-        API
+        API,
+        DATABASE,
+        OTHER
     }
 
     public record TestImplementationProjection(

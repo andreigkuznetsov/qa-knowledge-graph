@@ -5,6 +5,7 @@ import ru.kuznetsov.qagraph.extractor.integrationtest.AssertionEvidence;
 import ru.kuznetsov.qagraph.extractor.integrationtest.HttpInteractionEvidence;
 import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestEvidence;
 import ru.kuznetsov.qagraph.extractor.integrationtest.TestImplementationEvidence;
+import ru.kuznetsov.qagraph.extractor.implementationflow.ImplementationFlowEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.RestOperationEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.SourceLocation;
 import ru.kuznetsov.qagraph.extractor.rest.mapping.BusinessOperationProjection;
@@ -34,6 +35,8 @@ public final class OperationEvidenceGraphAssembler {
         BusinessOperationProjection operation = operationMapper.map(request.operation());
         EvidenceGraphProjection.TechnicalImplementationProjection implementation =
                 technicalImplementation(request.operation(), operation);
+        List<EvidenceGraphProjection.TechnicalImplementationProjection> implementations =
+                implementationFlow(request, implementation);
 
         Map<String, EvidenceGraphProjection.BusinessRuleProjection> rules = new TreeMap<>();
         Set<String> boundRequestModelTypes = request.requestModelBindings().stream()
@@ -52,6 +55,12 @@ public final class OperationEvidenceGraphAssembler {
         List<EvidenceGraphProjection.RelationshipProjection> relationships = new ArrayList<>();
         relationships.add(relationship(
                 operation.id(), RelationshipType.IMPLEMENTED_BY, implementation.id()));
+        if (implementations.size() == 3) {
+            relationships.add(relationship(
+                    implementations.get(0).id(), RelationshipType.USES, implementations.get(1).id()));
+            relationships.add(relationship(
+                    implementations.get(1).id(), RelationshipType.USES, implementations.get(2).id()));
+        }
         for (var rule : rules.values()) {
             relationships.add(relationship(operation.id(), RelationshipType.GOVERNED_BY, rule.id()));
         }
@@ -62,12 +71,25 @@ public final class OperationEvidenceGraphAssembler {
         EvidenceGraphProjection graph = new EvidenceGraphProjection(
                 operation,
                 List.copyOf(rules.values()),
-                List.of(implementation),
+                implementations,
                 List.copyOf(tests.values()),
                 List.copyOf(checks.values()),
                 relationships);
         verifyGraph(graph);
         return graph;
+    }
+
+    private static List<EvidenceGraphProjection.TechnicalImplementationProjection> implementationFlow(
+            OperationEvidenceAssemblyRequest request,
+            EvidenceGraphProjection.TechnicalImplementationProjection controller) {
+        List<ImplementationFlowEvidence> matching = request.implementationFlows().stream()
+                .filter(flow -> flow.operation().equals(request.operation()))
+                .filter(flow -> flow.controllerClass().equals(qualifiedController(request.operation())))
+                .filter(flow -> flow.controllerMethod().equals(request.operation().controllerMethod()))
+                .toList();
+        if (matching.size() != 1) return List.of(controller);
+        ImplementationFlowEvidence flow = matching.getFirst();
+        return List.of(controller, serviceImplementation(flow), repositoryImplementation(flow));
     }
 
     private static void addTestsAndChecks(
@@ -155,6 +177,58 @@ public final class OperationEvidenceGraphAssembler {
                                 "controllerClass", controller,
                                 "controllerMethod", evidence.controllerMethod(),
                                 "endpoint", operation.name())));
+    }
+
+    private static EvidenceGraphProjection.TechnicalImplementationProjection serviceImplementation(
+            ImplementationFlowEvidence flow) {
+        String location = sourceLocation(flow.serviceMethodLocation().repositoryRelativePath(),
+                flow.serviceMethodLocation().line(), flow.serviceMethodLocation().column());
+        String identity = sha256("SERVICE|" + flow.serviceClass() + '#' + flow.serviceMethod() + '|' + location);
+        return new EvidenceGraphProjection.TechnicalImplementationProjection(
+                "TI-SERVICE-" + identity,
+                NodeType.TECHNICAL_IMPLEMENTATION,
+                flow.serviceClass() + '.' + flow.serviceMethod(),
+                "Directly invoked service method in the implementation flow.",
+                List.of(sourceReference(
+                        "SRC-JAVA-" + sha256(flow.serviceClass()),
+                        EvidenceGraphProjection.LocationType.OTHER,
+                        location + "#" + flow.serviceClass() + '.' + flow.serviceMethod(),
+                        "Service method " + flow.serviceClass() + '.' + flow.serviceMethod())),
+                new EvidenceGraphProjection.TechnicalProjection(
+                        EvidenceGraphProjection.ImplementationType.OTHER,
+                        packageName(flow.serviceClass()),
+                        Map.of(
+                                "flowStage", "SERVICE",
+                                "injection", flow.serviceInjection().name(),
+                                "invocationKind", flow.invocationKind().name(),
+                                "invokedBy", flow.controllerClass() + '.' + flow.controllerMethod(),
+                                "invokes", flow.repositoryClass() + '.' + flow.repositoryMethod())));
+    }
+
+    private static EvidenceGraphProjection.TechnicalImplementationProjection repositoryImplementation(
+            ImplementationFlowEvidence flow) {
+        String location = sourceLocation(flow.repositoryDeclarationLocation().repositoryRelativePath(),
+                flow.repositoryDeclarationLocation().line(), flow.repositoryDeclarationLocation().column());
+        String identity = sha256("REPOSITORY|" + flow.repositoryClass() + '|' + location);
+        return new EvidenceGraphProjection.TechnicalImplementationProjection(
+                "TI-REPOSITORY-" + identity,
+                NodeType.TECHNICAL_IMPLEMENTATION,
+                flow.repositoryClass(),
+                "Directly invoked repository in the implementation flow.",
+                List.of(sourceReference(
+                        "SRC-JAVA-" + sha256(flow.repositoryClass()),
+                        EvidenceGraphProjection.LocationType.OTHER,
+                        location + "#" + flow.repositoryClass(),
+                        "Repository " + flow.repositoryClass())),
+                new EvidenceGraphProjection.TechnicalProjection(
+                        EvidenceGraphProjection.ImplementationType.DATABASE,
+                        packageName(flow.repositoryClass()),
+                        Map.of(
+                                "flowStage", "REPOSITORY",
+                                "injection", flow.repositoryInjection().name(),
+                                "invocationKind", flow.invocationKind().name(),
+                                "invokedBy", flow.serviceClass() + '.' + flow.serviceMethod(),
+                                "repositoryMethod", flow.repositoryMethod())));
     }
 
     private static EvidenceGraphProjection.TestImplementationProjection testImplementation(
@@ -278,6 +352,11 @@ public final class OperationEvidenceGraphAssembler {
     private static String simpleName(String name) {
         int separator = name.lastIndexOf('.');
         return separator >= 0 ? name.substring(separator + 1) : name;
+    }
+
+    private static String packageName(String name) {
+        int separator = name.lastIndexOf('.');
+        return separator < 0 ? name : name.substring(0, separator);
     }
 
     private static String sha256(String value) {
