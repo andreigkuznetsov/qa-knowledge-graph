@@ -7,6 +7,7 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.RecordDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
@@ -31,7 +32,10 @@ public final class BeanValidationEvidenceExtractor {
     private static final Set<String> VALIDATION_PACKAGES = Set.of(
             "jakarta.validation.constraints", "javax.validation.constraints");
     private static final Set<String> SUPPORTED_ANNOTATIONS = Set.of(
-            "NotNull", "NotBlank", "NotEmpty", "Size", "Min", "Max", "Pattern", "Email");
+            "NotNull", "NotBlank", "NotEmpty", "Size", "Min", "Max", "Pattern", "Email",
+            "Null", "AssertTrue", "AssertFalse", "Positive", "PositiveOrZero", "Negative",
+            "NegativeOrZero", "DecimalMin", "DecimalMax", "Digits", "Past", "PastOrPresent",
+            "Future", "FutureOrPresent");
     private static final Comparator<BeanValidationEvidence> STABLE_ORDER = Comparator
             .comparing(BeanValidationEvidence::owningJavaType)
             .thenComparing(BeanValidationEvidence::memberName)
@@ -68,7 +72,7 @@ public final class BeanValidationEvidenceExtractor {
             evidence.addAll(extractFile(normalizedRoot, sourceFile));
         }
         evidence.sort(STABLE_ORDER);
-        return List.copyOf(evidence);
+        return evidence.stream().distinct().toList();
     }
 
     private List<BeanValidationEvidence> extractFile(Path repositoryRoot, Path sourceFile) throws IOException {
@@ -96,6 +100,14 @@ public final class BeanValidationEvidenceExtractor {
             for (var component : record.getParameters()) {
                 evidence.addAll(extractAnnotations(
                         unit, component, owningType, component.getNameAsString(), relativePath));
+            }
+        }
+
+        for (MethodDeclaration method : unit.findAll(MethodDeclaration.class)) {
+            String owningType = owningType(method);
+            for (var parameter : method.getParameters()) {
+                evidence.addAll(extractAnnotations(
+                        unit, parameter, owningType, parameter.getNameAsString(), relativePath));
             }
         }
         return evidence;
