@@ -1,0 +1,505 @@
+{
+  "projectContractVersion": "qaip-project-v1",
+  "baseModel": {
+    "schemaVersion": "0.1",
+    "project": {
+      "id": "BOOKSHOP-REGISTRATION-DEMO",
+      "name": "BookShop Registration Demo",
+      "description": "Canonical QAIP graph for POST /auth/register in the BookShop API.",
+      "version": "1.0",
+      "metadata": {
+        "repository": "https://github.com/andreigkuznetsov/java-jabki-final-project-api",
+        "repositoryRevision": "760c0b55022db735e65c0a952c3cd18f3d807001"
+      }
+    },
+    "sources": [
+      {
+        "id": "SRC-BOOKSHOP-REPOSITORY",
+        "type": "OTHER",
+        "name": "BookShop source code and integration tests",
+        "version": "760c0b55022db735e65c0a952c3cd18f3d807001",
+        "externalRef": "andreigkuznetsov/java-jabki-final-project-api",
+        "uri": "https://github.com/andreigkuznetsov/java-jabki-final-project-api",
+        "checksum": "760c0b55022db735e65c0a952c3cd18f3d807001",
+        "metadata": {}
+      }
+    ],
+    "nodes": [
+      {
+        "id": "US-REG-001",
+        "type": "USER_STORY",
+        "name": "Register a BookShop account",
+        "description": "Inferred from implemented and tested behavior: a caller submits account details through POST /auth/register and receives the created user representation.",
+        "status": "CONFIRMED",
+        "tags": ["REGISTRATION", "INFERRED"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "OTHER", "value": "AuthController.register and AuthRegisterValidationIT"},
+            "text": "Implemented and tested registration behavior; no explicit user-story document exists in the repository.",
+            "confidence": 1,
+            "evidenceType": "INFERRED"
+          }
+        ],
+        "metadata": {},
+        "story": {
+          "externalId": "US-REG-001",
+          "actor": "BookShop API caller",
+          "goal": "Register a BookShop account",
+          "businessValue": "Obtain a persisted BookShop user account"
+        }
+      },
+      {
+        "id": "BO-REG-001",
+        "type": "BUSINESS_OPERATION",
+        "name": "Register user",
+        "description": "Processes POST /auth/register, validates the request, applies registration rules, persists an AppUser, and returns UserResponse.",
+        "status": "CONFIRMED",
+        "tags": ["REGISTRATION", "API"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "OPENAPI_PATH", "value": "POST /auth/register"},
+            "text": "AuthController.register delegates registration to AuthService.register.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "operation": {
+          "code": "REGISTER_USER",
+          "domain": "BookShop authentication",
+          "businessOutcome": "A valid new user is persisted and represented in the successful API response"
+        }
+      },
+      {
+        "id": "BR-REG-001",
+        "type": "BUSINESS_RULE",
+        "name": "Registration data must be valid",
+        "description": "Username, password, role, phone, and email must satisfy the declared request constraints.",
+        "status": "CONFIRMED",
+        "tags": ["VALIDATION"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "OTHER", "value": "RegisterRequest, PasswordValidator, and NoEmojiNoXssValidator"},
+            "text": "Registration field constraints are enforced by Bean Validation and custom validators.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "rule": {
+          "code": "VALID_REGISTRATION_DATA",
+          "ruleType": "VALIDATION_RULE",
+          "text": "Registration data must satisfy the username, password, role, phone, and email constraints.",
+          "expression": null
+        }
+      },
+      {
+        "id": "BR-REG-002",
+        "type": "BUSINESS_RULE",
+        "name": "Username must be unique",
+        "description": "Registration is rejected when the submitted username already exists.",
+        "status": "CONFIRMED",
+        "tags": ["UNIQUENESS"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "OTHER", "value": "AuthService.register: AppUserRepository.existsByUsername"},
+            "text": "AuthService throws UserAlreadyExistsException for an existing username.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "rule": {
+          "code": "UNIQUE_USERNAME",
+          "ruleType": "BUSINESS_INVARIANT",
+          "text": "The submitted username must not already exist.",
+          "expression": "!userRepository.existsByUsername(request.username)"
+        }
+      },
+      {
+        "id": "BR-REG-003",
+        "type": "BUSINESS_RULE",
+        "name": "Administrator count is limited to three",
+        "description": "An ADMIN registration is rejected when three administrators already exist.",
+        "status": "CONFIRMED",
+        "tags": ["ADMIN", "LIMIT"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "OTHER", "value": "AuthService.register and AuthRegisterValidationIT.shouldNotAllowMoreThanThreeAdmins"},
+            "text": "AuthService rejects an ADMIN registration when countByRole(ADMIN) is at least three.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "rule": {
+          "code": "MAX_THREE_ADMINS",
+          "ruleType": "BUSINESS_INVARIANT",
+          "text": "The system may contain no more than three administrators.",
+          "expression": "request.role != ADMIN || userRepository.countByRole(ADMIN) < 3"
+        }
+      },
+      {
+        "id": "BR-REG-004",
+        "type": "BUSINESS_RULE",
+        "name": "Initialize a protected novice account",
+        "description": "The password is encoded and a new account is initialized with zero loyalty points and NOVICE loyalty level.",
+        "status": "CONFIRMED",
+        "tags": ["PASSWORD", "LOYALTY", "INITIALIZATION"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "OTHER", "value": "AuthService.register and AppUser"},
+            "text": "AuthService encodes the password and builds AppUser with loyaltyPoints 0 and LoyaltyLevel.NOVICE.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "rule": {
+          "code": "INITIALIZE_PROTECTED_NOVICE_ACCOUNT",
+          "ruleType": "POSTCONDITION",
+          "text": "A persisted new user has an encoded password, zero loyalty points, and NOVICE loyalty level.",
+          "expression": null
+        }
+      },
+      {
+        "id": "SC-REG-001",
+        "type": "SCENARIO",
+        "name": "Register a regular user successfully",
+        "description": "Valid, unused regular-user data produces a successful response and a persisted user.",
+        "status": "CONFIRMED",
+        "tags": ["POSITIVE"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "TEST_CASE", "value": "AuthRegisterValidationIT.shouldRegisterUserSuccessfully"},
+            "text": "The integration test posts a generated USER request and verifies the response and database record.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "scenario": {
+          "code": "REGISTER_USER_SUCCESS",
+          "given": [{"id": "SC-REG-001-GIVEN-001", "text": "Valid registration data uses a previously unused username", "parameters": {}}],
+          "when": [{"id": "SC-REG-001-WHEN-001", "text": "The caller posts the data to /auth/register", "parameters": {}}],
+          "then": [{"id": "SC-REG-001-THEN-001", "text": "The API returns success and the user is persisted with its initial account state", "parameters": {}}]
+        }
+      },
+      {
+        "id": "SC-REG-002",
+        "type": "SCENARIO",
+        "name": "Reject invalid registration data",
+        "description": "Registration data violating a declared constraint produces a bad-request response without creating a user.",
+        "status": "CONFIRMED",
+        "tags": ["NEGATIVE", "VALIDATION"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "TEST_CASE", "value": "AuthRegisterValidationIT validation tests"},
+            "text": "Parameterized tests cover invalid username, password, role, phone, and email values.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "scenario": {
+          "code": "REJECT_INVALID_REGISTRATION_DATA",
+          "given": [{"id": "SC-REG-002-GIVEN-001", "text": "Registration data violates at least one declared request constraint", "parameters": {}}],
+          "when": [{"id": "SC-REG-002-WHEN-001", "text": "The caller posts the data to /auth/register", "parameters": {}}],
+          "then": [{"id": "SC-REG-002-THEN-001", "text": "The API returns a bad-request response and no user is created", "parameters": {}}]
+        }
+      },
+      {
+        "id": "SC-REG-003",
+        "type": "SCENARIO",
+        "name": "Reject a duplicate username",
+        "description": "Submitting a username that already exists is rejected without creating an additional user.",
+        "status": "CONFIRMED",
+        "tags": ["NEGATIVE", "UNIQUENESS"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "TEST_CASE", "value": "AuthRegisterValidationIT.registerWithDuplicateUsernameUSER and registerWithDuplicateUsernameADMIN"},
+            "text": "The integration tests submit duplicate USER and ADMIN usernames and verify rejection.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "scenario": {
+          "code": "REJECT_DUPLICATE_USERNAME",
+          "given": [{"id": "SC-REG-003-GIVEN-001", "text": "A user with the submitted username already exists", "parameters": {}}],
+          "when": [{"id": "SC-REG-003-WHEN-001", "text": "The caller posts another registration with that username", "parameters": {}}],
+          "then": [{"id": "SC-REG-003-THEN-001", "text": "The registration is rejected and no additional user is created", "parameters": {}}]
+        }
+      },
+      {
+        "id": "SC-REG-004",
+        "type": "SCENARIO",
+        "name": "Reject a fourth administrator",
+        "description": "When three administrators exist, another ADMIN registration is rejected.",
+        "status": "CONFIRMED",
+        "tags": ["NEGATIVE", "ADMIN", "LIMIT"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "TEST_CASE", "value": "AuthRegisterValidationIT.shouldNotAllowMoreThanThreeAdmins"},
+            "text": "The integration test verifies that a fourth administrator cannot be registered.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "scenario": {
+          "code": "REJECT_FOURTH_ADMIN",
+          "given": [{"id": "SC-REG-004-GIVEN-001", "text": "Three administrators already exist", "parameters": {}}],
+          "when": [{"id": "SC-REG-004-WHEN-001", "text": "The caller submits another ADMIN registration", "parameters": {}}],
+          "then": [{"id": "SC-REG-004-THEN-001", "text": "The registration is rejected and the administrator count does not exceed three", "parameters": {}}]
+        }
+      },
+      {
+        "id": "TI-REG-001",
+        "type": "TECHNICAL_IMPLEMENTATION",
+        "name": "Registration REST endpoint",
+        "description": "AuthController.register accepts RegisterRequest, invokes AuthService.register, and returns the common API response.",
+        "status": "CONFIRMED",
+        "tags": ["API", "SPRING_MVC"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "OPENAPI_PATH", "value": "AuthController.register: POST /auth/register"},
+            "text": "The controller exposes the public registration endpoint.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "technicalImplementation": {
+          "implementationType": "API",
+          "system": "BookShop API",
+          "details": {"class": "bookShop.controller.AuthController", "method": "register", "path": "POST /auth/register"}
+        }
+      },
+      {
+        "id": "TI-REG-002",
+        "type": "TECHNICAL_IMPLEMENTATION",
+        "name": "Registration request validation",
+        "description": "RegisterRequest annotations and custom validators enforce registration field constraints.",
+        "status": "CONFIRMED",
+        "tags": ["VALIDATION"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "OTHER", "value": "RegisterRequest, PasswordValidator, NoEmojiNoXssValidator, and TrimmingRegisterRequestDeserializer"},
+            "text": "Request deserialization trims fields and validation enforces the declared constraints.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "technicalImplementation": {
+          "implementationType": "API",
+          "system": "BookShop API",
+          "details": {
+            "requestClass": "bookShop.model.request.RegisterRequest",
+            "validators": ["bookShop.validation.PasswordValidator", "bookShop.validation.NoEmojiNoXssValidator"]
+          }
+        }
+      },
+      {
+        "id": "TI-REG-003",
+        "type": "TECHNICAL_IMPLEMENTATION",
+        "name": "Registration service and persistence",
+        "description": "AuthService.register checks registration constraints, encodes the password, initializes AppUser, and saves it through AppUserRepository.",
+        "status": "CONFIRMED",
+        "tags": ["SERVICE", "DATABASE"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "OTHER", "value": "AuthService.register, AppUserRepository, and AppUser"},
+            "text": "The service implements registration rule evaluation and persistence.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "technicalImplementation": {
+          "implementationType": "DATABASE",
+          "system": "BookShop API",
+          "details": {
+            "serviceClass": "bookShop.service.AuthService",
+            "method": "register",
+            "repository": "bookShop.repository.AppUserRepository",
+            "entity": "bookShop.model.AppUser"
+          }
+        }
+      },
+      {
+        "id": "TEST-REG-001",
+        "type": "TEST_IMPLEMENTATION",
+        "name": "Registration API integration suite",
+        "description": "A Spring Boot and REST Assured integration-test class exercises the registration endpoint and verifies HTTP and repository outcomes.",
+        "status": "CONFIRMED",
+        "tags": ["AUTOMATED", "INTEGRATION", "REST_ASSURED"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "TEST_CASE", "value": "bookShop.apiTests.tests.auth.AuthRegisterValidationIT"},
+            "text": "AuthRegisterValidationIT runs against a random-port Spring Boot application.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "testImplementation": {
+          "code": "AUTH_REGISTER_VALIDATION_IT",
+          "executionType": "AUTOMATED",
+          "preconditions": ["The BookShop Spring application and its configured test database are available"],
+          "steps": [
+            {"order": 1, "action": "Prepare registration data for the selected scenario", "expectedResult": "The request represents the scenario precondition"},
+            {"order": 2, "action": "POST the request to /auth/register with REST Assured", "expectedResult": "The endpoint returns the scenario-specific response"},
+            {"order": 3, "action": "Assert the API response and repository state", "expectedResult": "Both observable outcomes match the scenario"}
+          ]
+        }
+      },
+      {
+        "id": "CHECK-REG-001",
+        "type": "CHECK",
+        "name": "Verify registration API response",
+        "description": "Checks successful registration data and applicable error responses.",
+        "status": "CONFIRMED",
+        "tags": ["API_ASSERTION"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "TEST_CASE", "value": "ApiResponseAssert registration assertions"},
+            "text": "The tests assert HTTP status and response fields for successful and rejected registration.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "check": {
+          "checkType": "API",
+          "assertion": "The response status, envelope, returned user data, initial loyalty values, or error details match the exercised registration scenario.",
+          "details": {"assertionHelper": "bookShop.apiTests.common.ApiResponseAssert"}
+        }
+      },
+      {
+        "id": "CHECK-REG-002",
+        "type": "CHECK",
+        "name": "Verify registration database effect",
+        "description": "Checks successful persistence and absence of unintended records after rejected registration.",
+        "status": "CONFIRMED",
+        "tags": ["DATABASE_ASSERTION"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "TEST_CASE", "value": "DbResponseAssert and AppUserRepository count assertions"},
+            "text": "The tests verify the stored user after success and repository counts after rejection.",
+            "confidence": 1,
+            "evidenceType": "OBSERVED"
+          }
+        ],
+        "metadata": {},
+        "check": {
+          "checkType": "SQL",
+          "assertion": "Successful registration stores the expected user, while rejected registration creates no unintended user record.",
+          "details": {"assertionHelper": "bookShop.apiTests.common.DbResponseAssert", "repository": "bookShop.repository.AppUserRepository"}
+        }
+      }
+    ],
+    "relationships": [
+      {"id": "REL-REG-001", "from": "US-REG-001", "type": "DESCRIBES", "to": "BO-REG-001", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-002", "from": "BO-REG-001", "type": "GOVERNED_BY", "to": "BR-REG-001", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-003", "from": "BO-REG-001", "type": "SPECIFIED_BY", "to": "SC-REG-001", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-004", "from": "BO-REG-001", "type": "SPECIFIED_BY", "to": "SC-REG-002", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-005", "from": "BO-REG-001", "type": "SPECIFIED_BY", "to": "SC-REG-003", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-006", "from": "BO-REG-001", "type": "SPECIFIED_BY", "to": "SC-REG-004", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-007", "from": "BO-REG-001", "type": "IMPLEMENTED_BY", "to": "TI-REG-001", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-008", "from": "BO-REG-001", "type": "IMPLEMENTED_BY", "to": "TI-REG-002", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-009", "from": "BO-REG-001", "type": "IMPLEMENTED_BY", "to": "TI-REG-003", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-010", "from": "TEST-REG-001", "type": "VALIDATES", "to": "SC-REG-001", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-011", "from": "TEST-REG-001", "type": "VALIDATES", "to": "SC-REG-002", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-012", "from": "TEST-REG-001", "type": "VALIDATES", "to": "SC-REG-003", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-013", "from": "TEST-REG-001", "type": "VALIDATES", "to": "SC-REG-004", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-014", "from": "TEST-REG-001", "type": "USES", "to": "TI-REG-001", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-015", "from": "TEST-REG-001", "type": "HAS_CHECK", "to": "CHECK-REG-001", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-016", "from": "TEST-REG-001", "type": "HAS_CHECK", "to": "CHECK-REG-002", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-017", "from": "SC-REG-001", "type": "COVERS", "to": "BR-REG-004", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-018", "from": "SC-REG-002", "type": "COVERS", "to": "BR-REG-001", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-019", "from": "SC-REG-003", "type": "COVERS", "to": "BR-REG-002", "properties": {}, "sourceReferences": []},
+      {"id": "REL-REG-020", "from": "SC-REG-004", "type": "COVERS", "to": "BR-REG-003", "properties": {}, "sourceReferences": []}
+    ]
+  },
+  "declaredChanges": [
+    {
+      "artifactCategory": "NODE",
+      "canonicalIdentity": "US-REG-001",
+      "changeKind": "ADDED",
+      "schemaVersion": "0.1",
+      "afterState": {
+        "id": "US-REG-001",
+        "type": "USER_STORY",
+        "name": "Register a BookShop account",
+        "description": "Inferred from implemented and tested behavior: a caller submits account details through POST /auth/register and receives the created user representation.",
+        "status": "CONFIRMED",
+        "tags": ["REGISTRATION", "INFERRED"],
+        "sourceReferences": [
+          {
+            "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+            "location": {"type": "OTHER", "value": "AuthController.register and AuthRegisterValidationIT"},
+            "text": "Implemented and tested registration behavior; no explicit user-story document exists in the repository.",
+            "confidence": 1,
+            "evidenceType": "INFERRED"
+          }
+        ],
+        "metadata": {},
+        "story": {
+          "externalId": "US-REG-001",
+          "actor": "BookShop API caller",
+          "goal": "Register a BookShop account",
+          "businessValue": "Obtain a persisted BookShop user account"
+        }
+      }
+    }
+  ],
+  "evidenceManifest": {
+    "contractVersion": "impact-evidence-manifest-v1",
+    "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+    "snapshot": {
+      "sourceId": "SRC-BOOKSHOP-REPOSITORY",
+      "snapshotId": "760c0b55022db735e65c0a952c3cd18f3d807001",
+      "contentFingerprint": "760c0b55022db735e65c0a952c3cd18f3d807001"
+    },
+    "normalizationVersion": "impact-evidence-normalization-v1",
+    "canonicalizationVersion": "impact-evidence-canonical-v1",
+    "manifestFingerprint": "760c0b55022db735e65c0a952c3cd18f3d807001",
+    "identityAssertions": [],
+    "relationships": [],
+    "provenance": [
+      {
+        "provenanceId": "PROV-BOOKSHOP-REPOSITORY",
+        "originLocator": "https://github.com/andreigkuznetsov/java-jabki-final-project-api/tree/760c0b55022db735e65c0a952c3cd18f3d807001",
+        "originHash": "760c0b55022db735e65c0a952c3cd18f3d807001",
+        "normalizationActivity": "Manual canonical graph design from source code and integration tests",
+        "normalizationVersion": "impact-evidence-normalization-v1"
+      }
+    ]
+  },
+  "subject": {
+    "localArtifactId": "US-REG-001"
+  },
+  "analysisContext": {
+    "qualificationVersion": "impact-evidence-qualification-v1",
+    "influenceVersion": "impact-evidence-business-rule-depends-on-v1",
+    "algorithmVersion": "impact-evidence-analysis-v1"
+  }
+}
