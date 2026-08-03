@@ -14,14 +14,17 @@ import java.util.Objects;
 public final class DefaultAnalyzeRepositoryService implements AnalyzeRepositoryService {
     private final RepositoryAnalysisService repositoryAnalysisService;
     private final ImportProjectUseCase importProjectUseCase;
+    private final RepositoryAnalysisCatalog catalog;
 
     public DefaultAnalyzeRepositoryService(
             RepositoryAnalysisService repositoryAnalysisService,
-            ImportProjectUseCase importProjectUseCase
+            ImportProjectUseCase importProjectUseCase,
+            RepositoryAnalysisCatalog catalog
     ) {
         this.repositoryAnalysisService = Objects.requireNonNull(
                 repositoryAnalysisService, "repositoryAnalysisService");
         this.importProjectUseCase = Objects.requireNonNull(importProjectUseCase, "importProjectUseCase");
+        this.catalog = Objects.requireNonNull(catalog, "catalog");
     }
 
     @Override
@@ -46,12 +49,16 @@ public final class DefaultAnalyzeRepositoryService implements AnalyzeRepositoryS
                     "Canonical project could not be imported into Runtime");
         }
 
-        return new AnalyzeRepositoryOutcome(
+        var outcome = new AnalyzeRepositoryOutcome(
                 completed.persisted().projectId(),
                 analysis.projectIdentity(),
                 analysis.status(),
                 analysis.discoveredOperationCount(),
                 analysis.warnings());
+        catalog.save(new RepositoryAnalysisRecord(
+                outcome.repositoryId(), outcome.projectIdentity(), outcome.analysisStatus(),
+                outcome.discoveredOperationCount(), outcome.warnings()));
+        return outcome;
     }
 
     private static Path repositoryRoot(String value) {

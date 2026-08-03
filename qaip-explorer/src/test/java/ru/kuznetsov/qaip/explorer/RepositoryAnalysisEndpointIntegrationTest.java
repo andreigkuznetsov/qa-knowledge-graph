@@ -16,6 +16,7 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -59,5 +60,17 @@ class RepositoryAnalysisEndpointIntegrationTest {
 
         String repositoryId = JSON.readTree(response).get("repositoryId").textValue();
         assertTrue(runtime.projectReader().findById(repositoryId).isPresent());
+
+        mvc.perform(get("/api/v1/repositories/{repositoryId}/summary", repositoryId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.repositoryId").value(repositoryId))
+                .andExpect(jsonPath("$.projectIdentity").value(repositoryId))
+                .andExpect(jsonPath("$.analysisStatus").value("COMPLETE"))
+                .andExpect(jsonPath("$.operationCount").value(1))
+                .andExpect(jsonPath("$.businessRuleCount").value(0))
+                .andExpect(jsonPath("$.implementationNodeCount").value(1))
+                .andExpect(jsonPath("$.testCount").value(0))
+                .andExpect(jsonPath("$.checkCount").value(0))
+                .andExpect(jsonPath("$.warningCount").value(0));
     }
 }

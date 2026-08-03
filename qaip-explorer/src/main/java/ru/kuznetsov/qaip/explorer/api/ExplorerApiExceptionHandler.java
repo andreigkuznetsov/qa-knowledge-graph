@@ -7,9 +7,21 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import ru.kuznetsov.qaip.explorer.application.RepositoryAnalysisErrorCode;
 import ru.kuznetsov.qaip.explorer.application.RepositoryAnalysisException;
+import ru.kuznetsov.qaip.explorer.application.RepositorySummaryException;
 
 @RestControllerAdvice
 public class ExplorerApiExceptionHandler {
+
+    @ExceptionHandler(RepositorySummaryException.class)
+    ResponseEntity<ExplorerErrorResponse> repositorySummary(RepositorySummaryException exception) {
+        HttpStatus status = switch (exception.code()) {
+            case REPOSITORY_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case ANALYSIS_UNAVAILABLE -> HttpStatus.CONFLICT;
+            case RUNTIME_FAILURE -> HttpStatus.INTERNAL_SERVER_ERROR;
+        };
+        return ResponseEntity.status(status).body(
+                new ExplorerErrorResponse(exception.code().name(), exception.getMessage()));
+    }
 
     @ExceptionHandler(RepositoryAnalysisException.class)
     ResponseEntity<ExplorerErrorResponse> repositoryAnalysis(RepositoryAnalysisException exception) {

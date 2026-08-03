@@ -36,7 +36,7 @@ class DefaultAnalyzeRepositoryServiceTest {
         when(analysis.analyze(any())).thenReturn(success(RepositoryAnalysisStatus.COMPLETE, List.of()));
         when(importer.execute(any())).thenReturn(importCompleted());
 
-        var outcome = new DefaultAnalyzeRepositoryService(analysis, importer)
+        var outcome = new DefaultAnalyzeRepositoryService(analysis, importer, catalog())
                 .analyze(command());
 
         assertEquals("PROJECT-1", outcome.repositoryId());
@@ -53,7 +53,7 @@ class DefaultAnalyzeRepositoryServiceTest {
                 RepositoryAnalysisStatus.PARTIAL, List.of("Unsupported construct omitted")));
         when(importer.execute(any())).thenReturn(importCompleted());
 
-        var outcome = new DefaultAnalyzeRepositoryService(analysis, importer).analyze(command());
+        var outcome = new DefaultAnalyzeRepositoryService(analysis, importer, catalog()).analyze(command());
 
         assertEquals(RepositoryAnalysisStatus.PARTIAL, outcome.analysisStatus());
         assertEquals(List.of("Unsupported construct omitted"), outcome.warnings());
@@ -69,7 +69,7 @@ class DefaultAnalyzeRepositoryServiceTest {
                 RepositoryAnalysisStatus.FAILED, null, null, 0, List.of(), Optional.of("No operations")));
 
         var exception = assertThrows(RepositoryAnalysisException.class,
-                () -> new DefaultAnalyzeRepositoryService(analysis, importer).analyze(command()));
+                () -> new DefaultAnalyzeRepositoryService(analysis, importer, catalog()).analyze(command()));
 
         assertEquals(RepositoryAnalysisErrorCode.REPOSITORY_ANALYSIS_FAILED, exception.code());
         verify(importer, never()).execute(any());
@@ -83,7 +83,7 @@ class DefaultAnalyzeRepositoryServiceTest {
                 repository.resolve("missing").toString(), "Example project");
 
         var exception = assertThrows(RepositoryAnalysisException.class,
-                () -> new DefaultAnalyzeRepositoryService(analysis, importer).analyze(command));
+                () -> new DefaultAnalyzeRepositoryService(analysis, importer, catalog()).analyze(command));
 
         assertEquals(RepositoryAnalysisErrorCode.INVALID_REPOSITORY_INPUT, exception.code());
         verify(analysis, never()).analyze(any());
@@ -108,5 +108,9 @@ class DefaultAnalyzeRepositoryServiceTest {
     private static ImportProjectCompleted importCompleted() {
         return new ImportProjectCompleted(
                 mock(ProjectImportSuccess.class), new PersistProjectAccepted("PROJECT-1"));
+    }
+
+    private static RepositoryAnalysisCatalog catalog() {
+        return new InMemoryRepositoryAnalysisCatalog();
     }
 }
