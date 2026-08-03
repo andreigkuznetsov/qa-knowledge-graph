@@ -6,7 +6,11 @@ plugins {
 description = 'QAIP Explorer application'
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation project(':qa-model-extractor')
+    implementation(project(':qaip-core')) {
+        exclude group: 'org.slf4j', module: 'slf4j-nop'
+    }
+    implementation 'org.springframework.boot:spring-boot-starter-web'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
