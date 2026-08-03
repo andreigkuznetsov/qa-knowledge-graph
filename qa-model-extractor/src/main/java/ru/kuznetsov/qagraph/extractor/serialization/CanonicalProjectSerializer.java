@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import ru.kuznetsov.qagraph.extractor.assembly.EvidenceGraphProjection;
+import ru.kuznetsov.qagraph.extractor.assembly.ProjectEvidenceGraphProjection;
 import ru.kuznetsov.qagraph.extractor.rest.mapping.BusinessOperationProjection;
 
 import java.util.ArrayList;
@@ -23,6 +24,13 @@ public final class CanonicalProjectSerializer {
 
     public byte[] serialize(EvidenceGraphProjection graph, ProjectSerializationMetadata metadata) {
         Objects.requireNonNull(graph, "graph");
+        return serializeProject(new ProjectEvidenceGraphProjection(
+                List.of(graph.businessOperation()), graph.businessRules(), graph.technicalImplementations(),
+                graph.testImplementations(), graph.checks(), graph.relationships()), metadata);
+    }
+
+    public byte[] serializeProject(ProjectEvidenceGraphProjection graph, ProjectSerializationMetadata metadata) {
+        Objects.requireNonNull(graph, "graph");
         Objects.requireNonNull(metadata, "metadata");
         verifySubject(graph, metadata.subjectLocalArtifactId());
         try {
@@ -32,7 +40,7 @@ public final class CanonicalProjectSerializer {
         }
     }
 
-    private static ObjectNode document(EvidenceGraphProjection graph, ProjectSerializationMetadata metadata) {
+    private static ObjectNode document(ProjectEvidenceGraphProjection graph, ProjectSerializationMetadata metadata) {
         ObjectNode root = JSON.createObjectNode();
         root.put("projectContractVersion", PROJECT_CONTRACT_VERSION);
         root.set("baseModel", baseModel(graph, metadata));
@@ -44,7 +52,7 @@ public final class CanonicalProjectSerializer {
         return root;
     }
 
-    private static ObjectNode baseModel(EvidenceGraphProjection graph, ProjectSerializationMetadata metadata) {
+    private static ObjectNode baseModel(ProjectEvidenceGraphProjection graph, ProjectSerializationMetadata metadata) {
         ObjectNode base = JSON.createObjectNode();
         base.put("schemaVersion", BASE_MODEL_SCHEMA_VERSION);
         ObjectNode project = base.putObject("project");
@@ -73,9 +81,9 @@ public final class CanonicalProjectSerializer {
         return sources;
     }
 
-    private static ArrayNode nodes(EvidenceGraphProjection graph, String sourceId) {
+    private static ArrayNode nodes(ProjectEvidenceGraphProjection graph, String sourceId) {
         List<ObjectNode> nodes = new ArrayList<>();
-        nodes.add(operationNode(graph.businessOperation(), sourceId));
+        graph.businessOperations().forEach(value -> nodes.add(operationNode(value, sourceId)));
         graph.businessRules().forEach(value -> nodes.add(ruleNode(value, sourceId)));
         graph.technicalImplementations().forEach(value -> nodes.add(technicalNode(value, sourceId)));
         graph.testImplementations().forEach(value -> nodes.add(testNode(value, sourceId)));
@@ -194,7 +202,7 @@ public final class CanonicalProjectSerializer {
         return location;
     }
 
-    private static ArrayNode relationships(EvidenceGraphProjection graph) {
+    private static ArrayNode relationships(ProjectEvidenceGraphProjection graph) {
         ArrayNode result = JSON.createArrayNode();
         graph.relationships().stream()
                 .sorted(Comparator.comparing(EvidenceGraphProjection.RelationshipProjection::id))
@@ -211,7 +219,7 @@ public final class CanonicalProjectSerializer {
     }
 
     private static ArrayNode declaredChanges(
-            EvidenceGraphProjection graph, String subjectId, String sourceId) {
+            ProjectEvidenceGraphProjection graph, String subjectId, String sourceId) {
         ObjectNode subject = findNode(nodes(graph, sourceId), subjectId);
         if (subject == null) throw new IllegalArgumentException("subjectLocalArtifactId is not a graph node");
         ArrayNode changes = JSON.createArrayNode();
@@ -278,8 +286,8 @@ public final class CanonicalProjectSerializer {
         if (value == null) target.putNull(field); else target.put(field, value);
     }
 
-    private static void verifySubject(EvidenceGraphProjection graph, String subjectId) {
-        boolean present = graph.businessOperation().id().equals(subjectId)
+    private static void verifySubject(ProjectEvidenceGraphProjection graph, String subjectId) {
+        boolean present = graph.businessOperations().stream().anyMatch(node -> node.id().equals(subjectId))
                 || graph.businessRules().stream().anyMatch(node -> node.id().equals(subjectId))
                 || graph.technicalImplementations().stream().anyMatch(node -> node.id().equals(subjectId))
                 || graph.testImplementations().stream().anyMatch(node -> node.id().equals(subjectId))
