@@ -17,3 +17,4 @@ include 'qa-model-simulation-api'
 include 'qaip-core'
 
 include 'qaip-analysis'
+include 'qaip-explorer'
