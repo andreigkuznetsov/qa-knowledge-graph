@@ -74,11 +74,12 @@ class RepositoryAnalysisContractTest {
                 RepositoryAnalysisStatus.FAILED,
                 null,
                 null,
-                0,
+                2,
                 List.of(),
                 Optional.of("Repository cannot be analyzed"));
 
         assertEquals(RepositoryAnalysisStatus.FAILED, result.status());
+        assertEquals(2, result.discoveredOperationCount());
         assertEquals(Optional.of("Repository cannot be analyzed"), result.failureMessage());
     }
 

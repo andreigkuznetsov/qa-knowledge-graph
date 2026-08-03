@@ -41,9 +41,6 @@ public record RepositoryAnalysisResult(
                 if (projectIdentity != null || canonicalProjectJson != null) {
                     throw new IllegalArgumentException("FAILED result must not contain project output");
                 }
-                if (discoveredOperationCount != 0) {
-                    throw new IllegalArgumentException("FAILED result must have zero discovered operations");
-                }
                 if (failureMessage.isEmpty() || failureMessage.orElseThrow().isBlank()) {
                     throw new IllegalArgumentException("FAILED result must contain a non-blank failure message");
                 }
