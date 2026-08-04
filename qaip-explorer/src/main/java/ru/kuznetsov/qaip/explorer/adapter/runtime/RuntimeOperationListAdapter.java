@@ -9,7 +9,6 @@ import ru.kuznetsov.qaip.explorer.application.OperationListGateway;
 import ru.kuznetsov.qaip.explorer.application.RepositoryAnalysisCatalog;
 import ru.kuznetsov.qaip.explorer.view.OperationListItemView;
 import ru.kuznetsov.qaip.explorer.view.OperationListView;
-import ru.kuznetsov.qaip.explorer.view.OperationVerificationStatus;
 import ru.kuznetsov.qaip.runtime.QaipRuntime;
 
 import java.util.Objects;
@@ -52,15 +51,9 @@ public final class RuntimeOperationListAdapter implements OperationListGateway {
                 operation.method(),
                 operation.path(),
                 operation.displayName(),
-                verificationStatus(operation.testCount(), operation.checkCount()),
+                OperationVerificationStatusMapper.fromCounts(operation.testCount(), operation.checkCount()),
                 operation.testCount(),
                 operation.checkCount());
-    }
-
-    private static OperationVerificationStatus verificationStatus(int testCount, int checkCount) {
-        if (testCount > 0 && checkCount > 0) return OperationVerificationStatus.VERIFIED;
-        if (testCount > 0 || checkCount > 0) return OperationVerificationStatus.PARTIALLY_VERIFIED;
-        return OperationVerificationStatus.UNVERIFIED;
     }
 
     private static void requireRepositoryId(String repositoryId) {

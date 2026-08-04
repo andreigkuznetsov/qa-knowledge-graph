@@ -7,11 +7,25 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import ru.kuznetsov.qaip.explorer.application.RepositoryAnalysisErrorCode;
 import ru.kuznetsov.qaip.explorer.application.RepositoryAnalysisException;
+import ru.kuznetsov.qaip.explorer.application.OperationDetailsException;
 import ru.kuznetsov.qaip.explorer.application.OperationListException;
 import ru.kuznetsov.qaip.explorer.application.RepositorySummaryException;
 
 @RestControllerAdvice
 public class ExplorerApiExceptionHandler {
+
+    @ExceptionHandler(OperationDetailsException.class)
+    ResponseEntity<ExplorerErrorResponse> operationDetails(OperationDetailsException exception) {
+        HttpStatus status = switch (exception.code()) {
+            case REPOSITORY_NOT_FOUND, OPERATION_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case INCOMPLETE_IMPLEMENTATION_PATH, AMBIGUOUS_IMPLEMENTATION_PATH ->
+                    HttpStatus.UNPROCESSABLE_ENTITY;
+            case ANALYSIS_UNAVAILABLE -> HttpStatus.CONFLICT;
+            case RUNTIME_FAILURE -> HttpStatus.INTERNAL_SERVER_ERROR;
+        };
+        return ResponseEntity.status(status).body(
+                new ExplorerErrorResponse(exception.code().name(), exception.getMessage()));
+    }
 
     @ExceptionHandler(OperationListException.class)
     ResponseEntity<ExplorerErrorResponse> operationList(OperationListException exception) {
