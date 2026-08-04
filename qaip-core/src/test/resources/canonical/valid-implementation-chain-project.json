@@ -1,0 +1,105 @@
+{
+  "projectContractVersion": "qaip-project-v1",
+  "baseModel": {
+    "schemaVersion": "0.1",
+    "project": {"id": "P-IMPLEMENTATION", "name": "Implementation project"},
+    "sources": [],
+    "nodes": [
+      {
+        "id": "OP-1",
+        "type": "BUSINESS_OPERATION",
+        "name": "POST /orders",
+        "operation": {"code": "CREATE_ORDER"}
+      },
+      {
+        "id": "TI-CONTROLLER",
+        "type": "TECHNICAL_IMPLEMENTATION",
+        "name": "example.OrdersController.create",
+        "technicalImplementation": {
+          "implementationType": "API",
+          "system": "example",
+          "details": {
+            "controllerClass": "example.OrdersController",
+            "controllerMethod": "create",
+            "endpoint": "POST /orders"
+          }
+        }
+      },
+      {
+        "id": "TI-SERVICE",
+        "type": "TECHNICAL_IMPLEMENTATION",
+        "name": "example.OrderService.create",
+        "technicalImplementation": {
+          "implementationType": "OTHER",
+          "system": "example",
+          "details": {"flowStage": "SERVICE"}
+        }
+      },
+      {
+        "id": "TI-REPOSITORY",
+        "type": "TECHNICAL_IMPLEMENTATION",
+        "name": "example.OrderRepository",
+        "technicalImplementation": {
+          "implementationType": "DATABASE",
+          "system": "example",
+          "details": {"flowStage": "REPOSITORY"}
+        }
+      }
+    ],
+    "relationships": [
+      {
+        "id": "R-OP-CONTROLLER",
+        "from": "OP-1",
+        "type": "IMPLEMENTED_BY",
+        "to": "TI-CONTROLLER"
+      },
+      {
+        "id": "R-CONTROLLER-SERVICE",
+        "from": "TI-CONTROLLER",
+        "type": "USES",
+        "to": "TI-SERVICE"
+      },
+      {
+        "id": "R-SERVICE-REPOSITORY",
+        "from": "TI-SERVICE",
+        "type": "USES",
+        "to": "TI-REPOSITORY"
+      }
+    ]
+  },
+  "declaredChanges": [
+    {
+      "artifactCategory": "NODE",
+      "canonicalIdentity": "OP-1",
+      "changeKind": "ADDED",
+      "schemaVersion": "0.1",
+      "afterState": {
+        "id": "OP-1",
+        "type": "BUSINESS_OPERATION",
+        "name": "POST /orders",
+        "operation": {"code": "CREATE_ORDER"}
+      }
+    }
+  ],
+  "evidenceManifest": {
+    "contractVersion": "impact-evidence-manifest-v1",
+    "sourceId": "repository",
+    "snapshot": {
+      "sourceId": "repository",
+      "snapshotId": "snapshot-1",
+      "contentFingerprint": "sha256:implementation"
+    },
+    "normalizationVersion": "impact-evidence-normalization-v1",
+    "canonicalizationVersion": "impact-evidence-canonical-v1",
+    "manifestFingerprint": "sha256:manifest",
+    "identityAssertions": [],
+    "relationships": [],
+    "provenance": []
+  },
+  "subject": {"localArtifactId": "OP-1"},
+  "analysisContext": {
+    "qualificationVersion": "impact-evidence-qualification-v1",
+    "influenceVersion": "impact-evidence-business-rule-depends-on-v1",
+    "algorithmVersion": "impact-evidence-analysis-v1"
+  }
+}

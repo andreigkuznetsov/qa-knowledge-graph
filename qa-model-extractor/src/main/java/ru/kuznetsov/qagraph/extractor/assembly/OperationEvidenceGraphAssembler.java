@@ -226,10 +226,7 @@ public final class OperationEvidenceGraphAssembler {
                         packageName(flow.repositoryClass()),
                         Map.of(
                                 "flowStage", "REPOSITORY",
-                                "injection", flow.repositoryInjection().name(),
-                                "invocationKind", flow.invocationKind().name(),
-                                "invokedBy", flow.serviceClass() + '.' + flow.serviceMethod(),
-                                "repositoryMethod", flow.repositoryMethod())));
+                                "injection", flow.repositoryInjection().name())));
     }
 
     private static EvidenceGraphProjection.TestImplementationProjection testImplementation(
@@ -358,6 +355,7 @@ public final class OperationEvidenceGraphAssembler {
         String style = switch (evidence.testStyle()) {
             case REST_ASSURED -> "REST Assured";
             case MOCK_MVC -> "MockMvc";
+            case TEST_REST_TEMPLATE -> "TestRestTemplate";
             case MIXED -> "REST Assured and MockMvc";
             case DIRECT_ASSERTION -> "direct assertion-library";
         };

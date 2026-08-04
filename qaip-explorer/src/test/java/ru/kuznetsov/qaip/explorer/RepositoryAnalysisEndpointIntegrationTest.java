@@ -61,6 +61,14 @@ class RepositoryAnalysisEndpointIntegrationTest {
         String repositoryId = JSON.readTree(response).get("repositoryId").textValue();
         assertTrue(runtime.projectReader().findById(repositoryId).isPresent());
 
+        mvc.perform(post("/api/v1/repositories/analyze")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PROJECT_ALREADY_EXISTS"))
+                .andExpect(jsonPath("$.message").value("Project already imported."))
+                .andExpect(jsonPath("$.repositoryId").value(repositoryId));
+
         mvc.perform(get("/api/v1/repositories/{repositoryId}/summary", repositoryId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.repositoryId").value(repositoryId))
@@ -72,5 +80,23 @@ class RepositoryAnalysisEndpointIntegrationTest {
                 .andExpect(jsonPath("$.testCount").value(0))
                 .andExpect(jsonPath("$.checkCount").value(0))
                 .andExpect(jsonPath("$.warningCount").value(0));
+
+        String operations = mvc.perform(get("/api/v1/repositories/{repositoryId}/operations", repositoryId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.repositoryId").value(repositoryId))
+                .andExpect(jsonPath("$.operations.length()").value(1))
+                .andExpect(jsonPath("$.operations[0].method").value("GET"))
+                .andExpect(jsonPath("$.operations[0].path").value("/orders"))
+                .andExpect(jsonPath("$.operations[0].verificationStatus").value("UNVERIFIED"))
+                .andExpect(jsonPath("$.operations[0].testCount").value(0))
+                .andExpect(jsonPath("$.operations[0].checkCount").value(0))
+                .andReturn().getResponse().getContentAsString();
+        String operationId = JSON.readTree(operations).get("operations").get(0).get("operationId").textValue();
+
+        mvc.perform(get("/api/v1/repositories/{repositoryId}/operations/{operationId}",
+                        repositoryId, operationId))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("INCOMPLETE_IMPLEMENTATION_PATH"))
+                .andExpect(jsonPath("$.message").value("Operation implementation path is incomplete"));
     }
 }

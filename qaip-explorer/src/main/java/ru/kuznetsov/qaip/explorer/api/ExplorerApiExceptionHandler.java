@@ -7,10 +7,36 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import ru.kuznetsov.qaip.explorer.application.RepositoryAnalysisErrorCode;
 import ru.kuznetsov.qaip.explorer.application.RepositoryAnalysisException;
+import ru.kuznetsov.qaip.explorer.application.OperationDetailsException;
+import ru.kuznetsov.qaip.explorer.application.OperationListException;
 import ru.kuznetsov.qaip.explorer.application.RepositorySummaryException;
 
 @RestControllerAdvice
 public class ExplorerApiExceptionHandler {
+
+    @ExceptionHandler(OperationDetailsException.class)
+    ResponseEntity<ExplorerErrorResponse> operationDetails(OperationDetailsException exception) {
+        HttpStatus status = switch (exception.code()) {
+            case REPOSITORY_NOT_FOUND, OPERATION_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case INCOMPLETE_IMPLEMENTATION_PATH, AMBIGUOUS_IMPLEMENTATION_PATH ->
+                    HttpStatus.UNPROCESSABLE_ENTITY;
+            case ANALYSIS_UNAVAILABLE -> HttpStatus.CONFLICT;
+            case RUNTIME_FAILURE -> HttpStatus.INTERNAL_SERVER_ERROR;
+        };
+        return ResponseEntity.status(status).body(
+                new ExplorerErrorResponse(exception.code().name(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(OperationListException.class)
+    ResponseEntity<ExplorerErrorResponse> operationList(OperationListException exception) {
+        HttpStatus status = switch (exception.code()) {
+            case REPOSITORY_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case ANALYSIS_UNAVAILABLE -> HttpStatus.CONFLICT;
+            case RUNTIME_FAILURE -> HttpStatus.INTERNAL_SERVER_ERROR;
+        };
+        return ResponseEntity.status(status).body(
+                new ExplorerErrorResponse(exception.code().name(), exception.getMessage()));
+    }
 
     @ExceptionHandler(RepositorySummaryException.class)
     ResponseEntity<ExplorerErrorResponse> repositorySummary(RepositorySummaryException exception) {
@@ -28,10 +54,12 @@ public class ExplorerApiExceptionHandler {
         HttpStatus status = switch (exception.code()) {
             case INVALID_REPOSITORY_INPUT -> HttpStatus.BAD_REQUEST;
             case REPOSITORY_ANALYSIS_FAILED -> HttpStatus.UNPROCESSABLE_ENTITY;
-            case RUNTIME_IMPORT_FAILED -> HttpStatus.INTERNAL_SERVER_ERROR;
+            case PROJECT_ALREADY_EXISTS -> HttpStatus.CONFLICT;
+            case RUNTIME_IMPORT_REJECTED, RUNTIME_PERSISTENCE_FAILED -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
         return ResponseEntity.status(status).body(
-                new ExplorerErrorResponse(exception.code().name(), exception.getMessage()));
+                new ExplorerErrorResponse(
+                        exception.code().name(), exception.getMessage(), exception.repositoryId()));
     }
 
     @ExceptionHandler({IllegalArgumentException.class, NullPointerException.class,

@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -50,6 +51,20 @@ class ProjectImporterIntegrationTest {
         assertEquals("MALFORMED_JSON", failure.findings().getFirst().code());
     }
 
+    @Test
+    void real_pipeline_accepts_canonical_direct_implementation_chain() throws IOException {
+        ProjectImportSuccess success = assertInstanceOf(ProjectImportSuccess.class,
+                importer.importProject(new RawProjectJson(resource(
+                        "/canonical/valid-implementation-chain-project.json"))));
+
+        var project = success.document().project();
+        assertTrue(success.warnings().isEmpty());
+        assertEquals(4, project.nodes().size());
+        assertEquals(3, project.relationships().size());
+        assertEquals(List.of("IMPLEMENTED_BY", "USES", "USES"),
+                project.relationships().stream().map(relationship -> relationship.type()).toList());
+    }
+
     private static String representativeProjectWithNumericMetadata() throws IOException {
         try (var stream = ProjectImporterIntegrationTest.class.getResourceAsStream(
                 "/schema/valid/representative-project.json")) {
@@ -58,6 +73,13 @@ class ProjectImporterIntegrationTest {
                     "\"project\":{\"id\":\"P-1\",\"name\":\"Project\",\"metadata\":{"
                             + "\"largeInteger\":9223372036854775808,"
                             + "\"preciseDecimal\":1234567890.123456789012345678900}}" );
+        }
+    }
+
+    private static String resource(String path) throws IOException {
+        try (var stream = ProjectImporterIntegrationTest.class.getResourceAsStream(path)) {
+            if (stream == null) throw new IOException("Canonical project fixture is missing: " + path);
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 }

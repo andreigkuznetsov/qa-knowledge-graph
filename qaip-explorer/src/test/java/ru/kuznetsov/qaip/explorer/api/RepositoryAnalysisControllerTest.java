@@ -10,6 +10,8 @@ import ru.kuznetsov.qagraph.extractor.repositoryanalysis.RepositoryAnalysisStatu
 import ru.kuznetsov.qaip.explorer.application.AnalyzeRepositoryCommand;
 import ru.kuznetsov.qaip.explorer.application.AnalyzeRepositoryOutcome;
 import ru.kuznetsov.qaip.explorer.application.AnalyzeRepositoryService;
+import ru.kuznetsov.qaip.explorer.application.RepositoryAnalysisErrorCode;
+import ru.kuznetsov.qaip.explorer.application.RepositoryAnalysisException;
 
 import java.util.List;
 
@@ -64,5 +66,38 @@ class RepositoryAnalysisControllerTest {
                         .content("{\"repositoryPath\":\"repository\",\"projectName\":\" \"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REPOSITORY_INPUT"));
+    }
+
+    @Test
+    void duplicate_project_returns_conflict_with_existing_identity() throws Exception {
+        when(service.analyze(any())).thenThrow(new RepositoryAnalysisException(
+                RepositoryAnalysisErrorCode.PROJECT_ALREADY_EXISTS,
+                "Project already imported.",
+                "PROJECT-1"));
+
+        mvc.perform(post("/api/v1/repositories/analyze")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(JSON.writeValueAsBytes(
+                                new AnalyzeRepositoryRequest("repository", "Example project"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PROJECT_ALREADY_EXISTS"))
+                .andExpect(jsonPath("$.message").value("Project already imported."))
+                .andExpect(jsonPath("$.repositoryId").value("PROJECT-1"));
+    }
+
+    @Test
+    void sanitized_runtime_failure_remains_internal_server_error() throws Exception {
+        when(service.analyze(any())).thenThrow(new RepositoryAnalysisException(
+                RepositoryAnalysisErrorCode.RUNTIME_IMPORT_REJECTED,
+                "Canonical project was rejected by Runtime"));
+
+        mvc.perform(post("/api/v1/repositories/analyze")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(JSON.writeValueAsBytes(
+                                new AnalyzeRepositoryRequest("repository", "Example project"))))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("RUNTIME_IMPORT_REJECTED"))
+                .andExpect(jsonPath("$.message").value("Canonical project was rejected by Runtime"))
+                .andExpect(jsonPath("$.repositoryId").doesNotExist());
     }
 }

@@ -83,10 +83,13 @@ public final class IntegrationTestEvidenceExtractor {
         List<HttpInteractionEvidence> interactions = new ArrayList<>();
         List<AssertionEvidence> assertions = new ArrayList<>();
         StaticTestEndpointResolver endpointResolver = StaticTestEndpointResolver.from(testFiles, parser);
+        StaticTestRestTemplateInteractionResolver testRestTemplateResolver =
+                StaticTestRestTemplateInteractionResolver.from(
+                        normalizedRoot, testFiles, parser, endpointResolver);
         StaticTestHelperAssertionResolver helperResolver =
                 StaticTestHelperAssertionResolver.from(normalizedRoot, testFiles, parser);
         for (Path testFile : testFiles) {
-            extractFile(normalizedRoot, testFile, endpointResolver, helperResolver,
+            extractFile(normalizedRoot, testFile, endpointResolver, testRestTemplateResolver, helperResolver,
                     tests, interactions, assertions);
         }
         tests.sort(TEST_ORDER);
@@ -102,6 +105,7 @@ public final class IntegrationTestEvidenceExtractor {
             Path repositoryRoot,
             Path testFile,
             StaticTestEndpointResolver endpointResolver,
+            StaticTestRestTemplateInteractionResolver testRestTemplateResolver,
             StaticTestHelperAssertionResolver helperResolver,
             List<TestImplementationEvidence> tests,
             List<HttpInteractionEvidence> interactions,
@@ -119,8 +123,12 @@ public final class IntegrationTestEvidenceExtractor {
             Optional<AnnotationExpr> testAnnotation = supportedTestAnnotation(unit, method);
             boolean restAssured = containsRestAssuredCall(unit, method);
             boolean mockMvc = containsMockMvcCall(unit, method);
+            List<HttpInteractionEvidence> testRestTemplateInteractions =
+                    testRestTemplateResolver.resolve(unit, method, owningType(method), relativePath);
+            boolean testRestTemplate = !testRestTemplateInteractions.isEmpty();
             boolean directAssertion = containsDirectAssertion(unit, method);
-            if (testAnnotation.isEmpty() || !restAssured && !mockMvc && !directAssertion) continue;
+            if (testAnnotation.isEmpty()
+                    || !restAssured && !mockMvc && !testRestTemplate && !directAssertion) continue;
 
             String testClass = owningType(method);
             String testMethod = method.getNameAsString();
@@ -133,7 +141,9 @@ public final class IntegrationTestEvidenceExtractor {
                     relativePath,
                     testPosition.line,
                     testPosition.column,
-                    testStyle(restAssured, mockMvc, directAssertion)));
+                    testStyle(restAssured, mockMvc, testRestTemplate, directAssertion)));
+
+            interactions.addAll(testRestTemplateInteractions);
 
             for (MethodCallExpr call : method.findAll(MethodCallExpr.class)) {
                 restAssuredInteraction(unit, call, endpointResolver, testClass, testMethod, relativePath)
@@ -417,10 +427,13 @@ public final class IntegrationTestEvidenceExtractor {
     }
 
     private static IntegrationTestStyle testStyle(
-            boolean restAssured, boolean mockMvc, boolean directAssertion) {
-        if (restAssured && mockMvc) return IntegrationTestStyle.MIXED;
+            boolean restAssured, boolean mockMvc, boolean testRestTemplate, boolean directAssertion) {
+        if ((restAssured ? 1 : 0) + (mockMvc ? 1 : 0) + (testRestTemplate ? 1 : 0) > 1) {
+            return IntegrationTestStyle.MIXED;
+        }
         if (mockMvc) return IntegrationTestStyle.MOCK_MVC;
         if (restAssured) return IntegrationTestStyle.REST_ASSURED;
+        if (testRestTemplate) return IntegrationTestStyle.TEST_REST_TEMPLATE;
         if (directAssertion) return IntegrationTestStyle.DIRECT_ASSERTION;
         throw new IllegalArgumentException("A supported test style is required");
     }

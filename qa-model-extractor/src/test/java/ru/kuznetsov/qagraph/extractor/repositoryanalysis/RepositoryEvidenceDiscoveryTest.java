@@ -3,12 +3,15 @@ package ru.kuznetsov.qagraph.extractor.repositoryanalysis;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import ru.kuznetsov.qagraph.extractor.assembly.EvidenceGraphProjection;
+import ru.kuznetsov.qagraph.extractor.assembly.ProjectEvidenceGraphAggregator;
+import ru.kuznetsov.qagraph.model.RelationshipType;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -123,6 +126,39 @@ class RepositoryEvidenceDiscoveryTest {
     }
 
     @Test
+    void shared_repository_declaration_is_invariant_across_operation_flows() throws Exception {
+        writeMain("example/SharedRepositoryController.java", sharedRepositoryFlows());
+
+        var firstDiscovery = discover();
+        var secondDiscovery = discover();
+        var firstRepository = firstDiscovery.operationEvidence().get(0).technicalImplementations().get(2);
+        var secondRepository = firstDiscovery.operationEvidence().get(1).technicalImplementations().get(2);
+
+        assertEquals(firstDiscovery, secondDiscovery);
+        assertEquals(firstRepository, secondRepository);
+        assertEquals(Map.of("flowStage", "REPOSITORY", "injection", "AUTOWIRED_FIELD"),
+                firstRepository.technicalImplementation().details());
+        assertEquals("src/main/java/example/SharedRepositoryController.java:21:7#example.OrderRepository",
+                firstRepository.sourceReferences().getFirst().location().value());
+
+        var aggregated = new ProjectEvidenceGraphAggregator().aggregate(firstDiscovery.operationEvidence());
+        assertEquals(1, aggregated.technicalImplementations().stream()
+                .filter(node -> "REPOSITORY".equals(
+                        node.technicalImplementation().details().get("flowStage")))
+                .count());
+        assertEquals(2, aggregated.relationships().stream()
+                .filter(relationship -> relationship.type() == RelationshipType.USES)
+                .filter(relationship -> relationship.to().equals(firstRepository.id()))
+                .count());
+
+        var analysis = new DefaultRepositoryAnalysisService();
+        var firstAnalysis = analysis.analyze(new RepositoryAnalysisRequest(repository, "Shared repository"));
+        var secondAnalysis = analysis.analyze(new RepositoryAnalysisRequest(repository, "Shared repository"));
+        assertEquals(RepositoryAnalysisStatus.COMPLETE, firstAnalysis.status());
+        assertEquals(firstAnalysis, secondAnalysis);
+    }
+
+    @Test
     void source_locations_are_repository_relative() throws Exception {
         writeMain("example/OrdersController.java", simpleController("OrdersController", "orders", "/orders"));
 
@@ -231,6 +267,35 @@ class RepositoryEvidenceDiscoveryTest {
                 }
                 @Repository
                 class OrderRepository { String save() { return "saved"; } }
+                """;
+    }
+
+    private static String sharedRepositoryFlows() {
+        return """
+                package example;
+                import org.springframework.beans.factory.annotation.Autowired;
+                import org.springframework.stereotype.Repository;
+                import org.springframework.stereotype.Service;
+                import org.springframework.web.bind.annotation.GetMapping;
+                import org.springframework.web.bind.annotation.PatchMapping;
+                import org.springframework.web.bind.annotation.RestController;
+                @RestController
+                class OrdersController {
+                    @Autowired OrderService service;
+                    @GetMapping("/orders/one") String one() { return service.find(); }
+                    @PatchMapping("/orders/two") String two() { return service.update(); }
+                }
+                @Service
+                class OrderService {
+                    @Autowired OrderRepository repository;
+                    String find() { return repository.findById(); }
+                    String update() { return repository.save(); }
+                }
+                @Repository
+                class OrderRepository {
+                    String findById() { return "found"; }
+                    String save() { return "saved"; }
+                }
                 """;
     }
 }
