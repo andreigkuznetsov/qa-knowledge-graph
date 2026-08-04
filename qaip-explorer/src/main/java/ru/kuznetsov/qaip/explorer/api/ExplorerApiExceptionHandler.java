@@ -54,10 +54,12 @@ public class ExplorerApiExceptionHandler {
         HttpStatus status = switch (exception.code()) {
             case INVALID_REPOSITORY_INPUT -> HttpStatus.BAD_REQUEST;
             case REPOSITORY_ANALYSIS_FAILED -> HttpStatus.UNPROCESSABLE_ENTITY;
-            case RUNTIME_IMPORT_FAILED -> HttpStatus.INTERNAL_SERVER_ERROR;
+            case PROJECT_ALREADY_EXISTS -> HttpStatus.CONFLICT;
+            case RUNTIME_IMPORT_REJECTED, RUNTIME_PERSISTENCE_FAILED -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
         return ResponseEntity.status(status).body(
-                new ExplorerErrorResponse(exception.code().name(), exception.getMessage()));
+                new ExplorerErrorResponse(
+                        exception.code().name(), exception.getMessage(), exception.repositoryId()));
     }
 
     @ExceptionHandler({IllegalArgumentException.class, NullPointerException.class,

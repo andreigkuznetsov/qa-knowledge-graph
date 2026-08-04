@@ -61,6 +61,14 @@ class RepositoryAnalysisEndpointIntegrationTest {
         String repositoryId = JSON.readTree(response).get("repositoryId").textValue();
         assertTrue(runtime.projectReader().findById(repositoryId).isPresent());
 
+        mvc.perform(post("/api/v1/repositories/analyze")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PROJECT_ALREADY_EXISTS"))
+                .andExpect(jsonPath("$.message").value("Project already imported."))
+                .andExpect(jsonPath("$.repositoryId").value(repositoryId));
+
         mvc.perform(get("/api/v1/repositories/{repositoryId}/summary", repositoryId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.repositoryId").value(repositoryId))

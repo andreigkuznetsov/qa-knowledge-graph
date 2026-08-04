@@ -3,6 +3,9 @@ package ru.kuznetsov.qaip.explorer.application;
 import ru.kuznetsov.qagraph.extractor.repositoryanalysis.RepositoryAnalysisService;
 import ru.kuznetsov.qagraph.extractor.repositoryanalysis.RepositoryAnalysisStatus;
 import ru.kuznetsov.qaip.core.application.importproject.ImportProjectCompleted;
+import ru.kuznetsov.qaip.core.application.importproject.ImportProjectPersistenceFailed;
+import ru.kuznetsov.qaip.core.application.importproject.ImportProjectPersistenceRejected;
+import ru.kuznetsov.qaip.core.application.importproject.ImportProjectRejected;
 import ru.kuznetsov.qaip.core.application.importproject.ImportProjectUseCase;
 import ru.kuznetsov.qaip.core.importing.parsing.RawProjectJson;
 
@@ -43,11 +46,19 @@ public final class DefaultAnalyzeRepositoryService implements AnalyzeRepositoryS
 
         var imported = importProjectUseCase.execute(
                 new RawProjectJson(analysis.canonicalProjectJson().toString()));
-        if (!(imported instanceof ImportProjectCompleted completed)) {
-            throw new RepositoryAnalysisException(
-                    RepositoryAnalysisErrorCode.RUNTIME_IMPORT_FAILED,
-                    "Canonical project could not be imported into Runtime");
-        }
+        ImportProjectCompleted completed = switch (imported) {
+            case ImportProjectCompleted result -> result;
+            case ImportProjectPersistenceRejected rejected -> throw new RepositoryAnalysisException(
+                    RepositoryAnalysisErrorCode.PROJECT_ALREADY_EXISTS,
+                    "Project already imported.",
+                    rejected.rejection().finding().projectId());
+            case ImportProjectRejected ignored -> throw new RepositoryAnalysisException(
+                    RepositoryAnalysisErrorCode.RUNTIME_IMPORT_REJECTED,
+                    "Canonical project was rejected by Runtime");
+            case ImportProjectPersistenceFailed ignored -> throw new RepositoryAnalysisException(
+                    RepositoryAnalysisErrorCode.RUNTIME_PERSISTENCE_FAILED,
+                    "Canonical project could not be persisted by Runtime");
+        };
 
         var outcome = new AnalyzeRepositoryOutcome(
                 completed.persisted().projectId(),
