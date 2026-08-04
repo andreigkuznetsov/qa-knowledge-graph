@@ -27,6 +27,7 @@ public final class DefaultProjectApplicationValidator implements ProjectApplicat
             triple("BUSINESS_OPERATION", "IMPLEMENTED_BY", "TECHNICAL_IMPLEMENTATION"),
             triple("TEST_IMPLEMENTATION", "VALIDATES", "SCENARIO"),
             triple("TEST_IMPLEMENTATION", "USES", "TECHNICAL_IMPLEMENTATION"),
+            triple("TECHNICAL_IMPLEMENTATION", "USES", "TECHNICAL_IMPLEMENTATION"),
             triple("TEST_IMPLEMENTATION", "HAS_CHECK", "CHECK"),
             triple("SCENARIO", "COVERS", "BUSINESS_RULE"),
             triple("SCENARIO", "REFINES", "SCENARIO"),

@@ -87,6 +87,43 @@ class DefaultProjectApplicationValidatorTest {
     }
 
     @Test
+    void canonical_direct_implementation_relationships_are_allowed() {
+        Node controller = ValidationFixtures.node("TI-CONTROLLER", "TECHNICAL_IMPLEMENTATION");
+        Node service = ValidationFixtures.node("TI-SERVICE", "TECHNICAL_IMPLEMENTATION");
+        Node repository = ValidationFixtures.node("TI-REPOSITORY", "TECHNICAL_IMPLEMENTATION");
+
+        assertInstanceOf(ApplicationValidationSuccess.class, validator.validate(ValidationFixtures.bound(
+                List.of(controller, service), List.of(ValidationFixtures.relationship(
+                        "R-CONTROLLER-SERVICE", "TI-CONTROLLER", "USES", "TI-SERVICE")))));
+        assertInstanceOf(ApplicationValidationSuccess.class, validator.validate(ValidationFixtures.bound(
+                List.of(service, repository), List.of(ValidationFixtures.relationship(
+                        "R-SERVICE-REPOSITORY", "TI-SERVICE", "USES", "TI-REPOSITORY")))));
+        assertInstanceOf(ApplicationValidationSuccess.class, validator.validate(ValidationFixtures.bound(
+                List.of(controller, service, repository), List.of(
+                        ValidationFixtures.relationship(
+                                "R-CONTROLLER-SERVICE", "TI-CONTROLLER", "USES", "TI-SERVICE"),
+                        ValidationFixtures.relationship(
+                                "R-SERVICE-REPOSITORY", "TI-SERVICE", "USES", "TI-REPOSITORY")))));
+    }
+
+    @Test
+    void other_technical_relationships_remain_disallowed() {
+        List<Node> nodes = List.of(
+                ValidationFixtures.node("TI-1", "TECHNICAL_IMPLEMENTATION"),
+                ValidationFixtures.node("TI-2", "TECHNICAL_IMPLEMENTATION"),
+                ValidationFixtures.node("BO-1", "BUSINESS_OPERATION"));
+
+        ApplicationValidationFailure failure = failure(ValidationFixtures.bound(nodes, List.of(
+                ValidationFixtures.relationship("R-1", "TI-1", "IMPLEMENTED_BY", "TI-2"),
+                ValidationFixtures.relationship("R-2", "TI-1", "USES", "BO-1"))));
+
+        assertEquals(List.of("RELATIONSHIP_NOT_ALLOWED", "RELATIONSHIP_NOT_ALLOWED"),
+                failure.findings().stream().map(ApplicationValidationFinding::code).toList());
+        assertEquals(List.of("project.relationships[0].type", "project.relationships[1].type"),
+                failure.findings().stream().map(ApplicationValidationFinding::location).toList());
+    }
+
+    @Test
     void scenario_coverage_is_warning_only_and_deterministic() {
         Node firstScenario = ValidationFixtures.node("SC-1", "SCENARIO");
         Node secondScenario = ValidationFixtures.node("SC-2", "SCENARIO");
