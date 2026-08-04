@@ -54,11 +54,11 @@ public final class DefaultOperationDetailsQuery implements OperationDetailsQuery
 
     private static PathResolution resolvePath(Project project, String operationId) {
         Graph graph = new Graph(project);
-        Level controller = graph.uniqueTarget(operationId, IMPLEMENTED_BY, "CONTROLLER");
+        Level controller = graph.uniqueTechnicalTarget(operationId, IMPLEMENTED_BY);
         if (controller.reason() != null) return PathResolution.unavailable(controller.reason());
-        Level service = graph.uniqueTarget(controller.node().id(), USES, "SERVICE");
+        Level service = graph.uniqueStagedTarget(controller.node().id(), USES, "SERVICE");
         if (service.reason() != null) return PathResolution.unavailable(service.reason());
-        Level repository = graph.uniqueTarget(service.node().id(), USES, "REPOSITORY");
+        Level repository = graph.uniqueStagedTarget(service.node().id(), USES, "REPOSITORY");
         if (repository.reason() != null) return PathResolution.unavailable(repository.reason());
         return new PathResolution(controller.node(), service.node(), repository.node(), null);
     }
@@ -85,6 +85,14 @@ public final class DefaultOperationDetailsQuery implements OperationDetailsQuery
             relationships = project.relationships();
         }
 
+        private Level uniqueTechnicalTarget(String sourceId, String relationshipType) {
+            return uniqueTarget(sourceId, relationshipType, null);
+        }
+
+        private Level uniqueStagedTarget(String sourceId, String relationshipType, String stage) {
+            return uniqueTarget(sourceId, relationshipType, stage);
+        }
+
         private Level uniqueTarget(String sourceId, String relationshipType, String stage) {
             List<Node> candidates = relationships.stream()
                     .filter(relationship -> sourceId.equals(relationship.from()))
@@ -92,7 +100,7 @@ public final class DefaultOperationDetailsQuery implements OperationDetailsQuery
                     .map(relationship -> nodes.get(relationship.to()))
                     .filter(Objects::nonNull)
                     .filter(node -> TECHNICAL_IMPLEMENTATION.equals(node.type()))
-                    .filter(node -> stage.equals(flowStage(node)))
+                    .filter(node -> stage == null || stage.equals(flowStage(node)))
                     .distinct()
                     .toList();
             if (candidates.isEmpty()) {
