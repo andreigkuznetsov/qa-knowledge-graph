@@ -133,6 +133,7 @@ class DefaultOperationDetailsQueryTest {
                 technicalWithoutStage("CONTROLLER", "OrdersController.create"),
                 technical("SERVICE", "OrderService.create", "SERVICE"),
                 technical("REPOSITORY", "OrderRepository", "REPOSITORY"),
+                technical("TECHNICAL-CALLER", "TechnicalCaller", "SERVICE"),
                 node("TEST-1", "TEST_IMPLEMENTATION"),
                 node("CHECK-1", "CHECK"),
                 node("CHECK-2", "CHECK"));
@@ -140,6 +141,7 @@ class DefaultOperationDetailsQueryTest {
                 relationship("OP-IMPLEMENTS", "OP-1", "IMPLEMENTED_BY", "CONTROLLER"),
                 relationship("CONTROLLER-USES-SERVICE", "CONTROLLER", "USES", "SERVICE"),
                 relationship("SERVICE-USES-REPOSITORY", "SERVICE", "USES", "REPOSITORY"),
+                relationship("TECHNICAL-CALLER-USES-CONTROLLER", "TECHNICAL-CALLER", "USES", "CONTROLLER"),
                 relationship("TEST-USES-CONTROLLER", "TEST-1", "USES", "CONTROLLER"),
                 relationship("TEST-CHECK-1", "TEST-1", "HAS_CHECK", "CHECK-1"),
                 relationship("TEST-CHECK-2", "TEST-1", "HAS_CHECK", "CHECK-2"));

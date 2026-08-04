@@ -16,6 +16,7 @@ import java.util.Set;
 /** Projects operation verification inputs from the canonical relationship graph in one place. */
 public final class OperationListProjector {
     private static final String BUSINESS_OPERATION = "BUSINESS_OPERATION";
+    private static final String TEST_IMPLEMENTATION = "TEST_IMPLEMENTATION";
     private static final String IMPLEMENTED_BY = "IMPLEMENTED_BY";
     private static final String SPECIFIED_BY = "SPECIFIED_BY";
     private static final String USES = "USES";
@@ -25,11 +26,17 @@ public final class OperationListProjector {
     public List<OperationQueryResult> project(Project project) {
         Objects.requireNonNull(project, "project");
         RelationshipIndex relationships = new RelationshipIndex(project.relationships());
+        Set<String> qualifiedTests = new HashSet<>();
+        project.nodes().stream()
+                .filter(node -> TEST_IMPLEMENTATION.equals(node.type()))
+                .map(Node::id)
+                .forEach(qualifiedTests::add);
         List<OperationQueryResult> operations = new ArrayList<>();
         for (Node node : project.nodes()) {
             if (!BUSINESS_OPERATION.equals(node.type())) continue;
             Endpoint endpoint = Endpoint.from(node);
             Set<String> tests = relatedTests(node.id(), relationships);
+            tests.retainAll(qualifiedTests);
             Set<String> checks = new HashSet<>();
             tests.forEach(testId -> checks.addAll(relationships.targets(testId, HAS_CHECK)));
             operations.add(new OperationQueryResult(

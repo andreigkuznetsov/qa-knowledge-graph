@@ -39,6 +39,51 @@ class DefaultOperationListQueryTest {
     }
 
     @Test
+    void does_not_count_technical_implementation_using_operation_implementation_as_test() {
+        Project project = project(
+                List.of(operation("OP-1", "GET /orders", "ignored"),
+                        node("CONTROLLER", "TECHNICAL_IMPLEMENTATION"),
+                        node("TECHNICAL-CALLER", "TECHNICAL_IMPLEMENTATION")),
+                List.of(relationship("OP-1", "IMPLEMENTED_BY", "CONTROLLER"),
+                        relationship("TECHNICAL-CALLER", "USES", "CONTROLLER")));
+
+        OperationQueryResult operation = projectedOperation(project);
+
+        assertEquals(0, operation.testCount());
+        assertEquals(0, operation.checkCount());
+    }
+
+    @Test
+    void counts_only_tests_from_mixed_incoming_sources_and_preserves_their_checks() {
+        Project project = project(
+                List.of(operation("OP-1", "GET /orders", "ignored"),
+                        node("CONTROLLER", "TECHNICAL_IMPLEMENTATION"),
+                        node("TEST-1", "TEST_IMPLEMENTATION"),
+                        node("TECHNICAL-CALLER", "TECHNICAL_IMPLEMENTATION"),
+                        node("OTHER", "BUSINESS_RULE"), node("CHECK-1", "CHECK")),
+                List.of(relationship("OP-1", "IMPLEMENTED_BY", "CONTROLLER"),
+                        relationship("TEST-1", "USES", "CONTROLLER"),
+                        relationship("TECHNICAL-CALLER", "USES", "CONTROLLER"),
+                        relationship("OTHER", "USES", "CONTROLLER"),
+                        relationship("TEST-1", "HAS_CHECK", "CHECK-1")));
+
+        OperationQueryResult operation = projectedOperation(project);
+
+        assertEquals(new OperationQueryResult("OP-1", "GET", "/orders", "GET /orders", 1, 1), operation);
+    }
+
+    @Test
+    void duplicate_qualified_test_relationships_are_counted_once() {
+        Relationship duplicate = relationship("TEST-1", "USES", "CONTROLLER");
+        Project project = project(
+                List.of(operation("OP-1", "GET /orders", "ignored"),
+                        node("CONTROLLER", "TECHNICAL_IMPLEMENTATION"), node("TEST-1", "TEST_IMPLEMENTATION")),
+                List.of(relationship("OP-1", "IMPLEMENTED_BY", "CONTROLLER"), duplicate, duplicate));
+
+        assertEquals(1, projectedOperation(project).testCount());
+    }
+
+    @Test
     void returns_multiple_operations_in_method_path_and_id_order() {
         Project project = project(List.of(
                 operation("OP-3", "POST /orders", "ignored"),
@@ -100,6 +145,11 @@ class DefaultOperationListQueryTest {
     private OperationListQuery query(Project project) {
         ProjectReader reader = id -> Optional.of(project);
         return new DefaultOperationListQuery(reader, projector);
+    }
+
+    private OperationQueryResult projectedOperation(Project project) {
+        OperationListFound found = assertInstanceOf(OperationListFound.class, query(project).execute("P-1"));
+        return found.operations().getFirst();
     }
 
     private static Project project(List<Node> nodes, List<Relationship> relationships) {
