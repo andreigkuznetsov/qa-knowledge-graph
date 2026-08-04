@@ -226,10 +226,7 @@ public final class OperationEvidenceGraphAssembler {
                         packageName(flow.repositoryClass()),
                         Map.of(
                                 "flowStage", "REPOSITORY",
-                                "injection", flow.repositoryInjection().name(),
-                                "invocationKind", flow.invocationKind().name(),
-                                "invokedBy", flow.serviceClass() + '.' + flow.serviceMethod(),
-                                "repositoryMethod", flow.repositoryMethod())));
+                                "injection", flow.repositoryInjection().name())));
     }
 
     private static EvidenceGraphProjection.TestImplementationProjection testImplementation(
