@@ -7,6 +7,7 @@ import ru.kuznetsov.qaip.core.application.persistence.DefaultPersistProject;
 import ru.kuznetsov.qaip.core.application.query.node.ProjectNodeLookup;
 import ru.kuznetsov.qaip.core.application.query.nodedetails.DefaultNodeDetailsUseCase;
 import ru.kuznetsov.qaip.core.application.query.nodedetails.NodeDetailsMapper;
+import ru.kuznetsov.qaip.core.application.query.operationdetails.DefaultOperationDetailsQuery;
 import ru.kuznetsov.qaip.core.application.query.operationlist.DefaultOperationListQuery;
 import ru.kuznetsov.qaip.core.application.query.operationlist.OperationListProjector;
 import ru.kuznetsov.qaip.core.application.query.projectsummary.DefaultProjectSummaryUseCase;
@@ -48,11 +49,13 @@ public final class QaipRuntimeFactory {
         ProjectNodeLookup nodeLookup = new ProjectNodeLookup();
         ValidationEngine validationEngine = new ValidationEngine(List.of(
                 new IsolatedNodeValidationRule(), new ScenarioWithoutTestValidationRule()));
+        OperationListProjector operationProjector = new OperationListProjector();
 
         return new QaipRuntime(
                 importUseCase,
                 reader,
-                new DefaultOperationListQuery(reader, new OperationListProjector()),
+                new DefaultOperationDetailsQuery(reader, operationProjector),
+                new DefaultOperationListQuery(reader, operationProjector),
                 new DefaultProjectSummaryUseCase(reader, new ProjectSummaryMapper()),
                 new DefaultNodeDetailsUseCase(reader, nodeLookup, new NodeDetailsMapper()),
                 new DefaultRelationshipsUseCase(
