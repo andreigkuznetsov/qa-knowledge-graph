@@ -2,6 +2,7 @@ package ru.kuznetsov.qaip.runtime;
 
 import ru.kuznetsov.qaip.core.application.importproject.ImportProjectUseCase;
 import ru.kuznetsov.qaip.core.application.query.nodedetails.NodeDetailsUseCase;
+import ru.kuznetsov.qaip.core.application.query.operationlist.OperationListQuery;
 import ru.kuznetsov.qaip.core.application.query.projectsummary.ProjectSummaryUseCase;
 import ru.kuznetsov.qaip.core.application.query.relationship.RelationshipsUseCase;
 import ru.kuznetsov.qaip.core.application.query.trace.TraceUseCase;
@@ -13,6 +14,7 @@ import java.util.Objects;
 public record QaipRuntime(
         ImportProjectUseCase importProjectUseCase,
         ProjectReader projectReader,
+        OperationListQuery operationListQuery,
         ProjectSummaryUseCase projectSummaryUseCase,
         NodeDetailsUseCase nodeDetailsUseCase,
         RelationshipsUseCase relationshipsUseCase,
@@ -22,6 +24,7 @@ public record QaipRuntime(
     public QaipRuntime {
         Objects.requireNonNull(importProjectUseCase, "importProjectUseCase");
         Objects.requireNonNull(projectReader, "projectReader");
+        Objects.requireNonNull(operationListQuery, "operationListQuery");
         Objects.requireNonNull(projectSummaryUseCase, "projectSummaryUseCase");
         Objects.requireNonNull(nodeDetailsUseCase, "nodeDetailsUseCase");
         Objects.requireNonNull(relationshipsUseCase, "relationshipsUseCase");
