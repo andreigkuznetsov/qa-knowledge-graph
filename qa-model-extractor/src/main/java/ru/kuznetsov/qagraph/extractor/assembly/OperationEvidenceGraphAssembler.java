@@ -355,6 +355,7 @@ public final class OperationEvidenceGraphAssembler {
         String style = switch (evidence.testStyle()) {
             case REST_ASSURED -> "REST Assured";
             case MOCK_MVC -> "MockMvc";
+            case TEST_REST_TEMPLATE -> "TestRestTemplate";
             case MIXED -> "REST Assured and MockMvc";
             case DIRECT_ASSERTION -> "direct assertion-library";
         };
