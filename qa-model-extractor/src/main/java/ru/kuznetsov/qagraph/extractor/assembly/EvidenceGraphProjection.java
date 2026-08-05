@@ -210,7 +210,8 @@ public record EvidenceGraphProjection(
             String id,
             String from,
             RelationshipType type,
-            String to
+            String to,
+            List<SourceReferenceProjection> sourceReferences
     ) {
         public RelationshipProjection {
             requireNonBlank(id, "id");
@@ -218,6 +219,11 @@ public record EvidenceGraphProjection(
             Objects.requireNonNull(type, "type");
             requireNonBlank(to, "to");
             if (from.equals(to)) throw new IllegalArgumentException("self-reference is not supported");
+            sourceReferences = List.copyOf(Objects.requireNonNull(sourceReferences, "sourceReferences"));
+        }
+
+        public RelationshipProjection(String id, String from, RelationshipType type, String to) {
+            this(id, from, type, to, List.of());
         }
     }
 

@@ -46,5 +46,18 @@ class KafkaProducerQualificationVerificationTest {
                         node.path("technicalImplementation").path("implementationRole").asText()))
                 .allMatch(node -> "Kafka".equals(
                         node.path("technicalImplementation").path("details").path("technology").asText())));
+
+        var destinations = java.util.stream.StreamSupport.stream(nodes.spliterator(), false)
+                .filter(node -> "MESSAGE_DESTINATION".equals(
+                        node.path("technicalImplementation").path("implementationRole").asText()))
+                .filter(node -> "orders.created".equals(node.path("name").asText()))
+                .toList();
+        var publications = java.util.stream.StreamSupport.stream(
+                        result.canonicalProjectJson().at("/baseModel/relationships").spliterator(), false)
+                .filter(relationship -> "PUBLISHES_TO".equals(relationship.path("type").asText()))
+                .toList();
+        assertEquals(1, destinations.size());
+        assertEquals(1, publications.size());
+        assertEquals(1, publications.getFirst().path("sourceReferences").size());
     }
 }

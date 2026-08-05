@@ -5,6 +5,7 @@ import ru.kuznetsov.qagraph.extractor.assembly.OperationEvidenceAssemblyRequest;
 import ru.kuznetsov.qagraph.extractor.assembly.OperationEvidenceGraphAssembler;
 import ru.kuznetsov.qagraph.extractor.implementationflow.DirectImplementationFlowExtractor;
 import ru.kuznetsov.qagraph.extractor.implementationflow.DirectKafkaMessageProducerExtractor;
+import ru.kuznetsov.qagraph.extractor.implementationflow.DirectKafkaMessageDestinationExtractor;
 import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestEvidenceExtractor;
 import ru.kuznetsov.qagraph.extractor.rest.SpringMvcRestOperationScanner;
 import ru.kuznetsov.qagraph.extractor.rest.binding.ControllerRequestModelBindingExtractor;
@@ -27,6 +28,7 @@ public final class RepositoryEvidenceDiscovery {
     private final BeanValidationEvidenceExtractor validationExtractor;
     private final DirectImplementationFlowExtractor implementationFlowExtractor;
     private final DirectKafkaMessageProducerExtractor messageProducerExtractor;
+    private final DirectKafkaMessageDestinationExtractor messageDestinationExtractor;
     private final IntegrationTestEvidenceExtractor testEvidenceExtractor;
     private final OperationEvidenceGraphAssembler assembler;
 
@@ -36,6 +38,7 @@ public final class RepositoryEvidenceDiscovery {
                 new BeanValidationEvidenceExtractor(),
                 new DirectImplementationFlowExtractor(),
                 new DirectKafkaMessageProducerExtractor(),
+                new DirectKafkaMessageDestinationExtractor(),
                 new IntegrationTestEvidenceExtractor(),
                 new OperationEvidenceGraphAssembler());
     }
@@ -46,6 +49,7 @@ public final class RepositoryEvidenceDiscovery {
             BeanValidationEvidenceExtractor validationExtractor,
             DirectImplementationFlowExtractor implementationFlowExtractor,
             DirectKafkaMessageProducerExtractor messageProducerExtractor,
+            DirectKafkaMessageDestinationExtractor messageDestinationExtractor,
             IntegrationTestEvidenceExtractor testEvidenceExtractor,
             OperationEvidenceGraphAssembler assembler
     ) {
@@ -55,6 +59,8 @@ public final class RepositoryEvidenceDiscovery {
         this.implementationFlowExtractor = Objects.requireNonNull(
                 implementationFlowExtractor, "implementationFlowExtractor");
         this.messageProducerExtractor = Objects.requireNonNull(messageProducerExtractor, "messageProducerExtractor");
+        this.messageDestinationExtractor = Objects.requireNonNull(
+                messageDestinationExtractor, "messageDestinationExtractor");
         this.testEvidenceExtractor = Objects.requireNonNull(testEvidenceExtractor, "testEvidenceExtractor");
         this.assembler = Objects.requireNonNull(assembler, "assembler");
     }
@@ -68,7 +74,8 @@ public final class RepositoryEvidenceDiscovery {
             OperationEvidenceGraphAssembler assembler
     ) {
         this(operationScanner, requestBindingExtractor, validationExtractor, implementationFlowExtractor,
-                new DirectKafkaMessageProducerExtractor(), testEvidenceExtractor, assembler);
+                new DirectKafkaMessageProducerExtractor(), new DirectKafkaMessageDestinationExtractor(),
+                testEvidenceExtractor, assembler);
     }
 
     public RepositoryEvidenceDiscoveryResult discover(RepositoryAnalysisRequest request) throws IOException {
@@ -87,8 +94,13 @@ public final class RepositoryEvidenceDiscovery {
                     .map(List::of)
                     .orElseGet(List::of);
             var messageProducers = messageProducerExtractor.extract(repositoryRoot, operation);
+            var messageDestinations = new ArrayList<ru.kuznetsov.qagraph.extractor.implementationflow.MessageDestinationEvidence>();
+            for (var producer : messageProducers) {
+                messageDestinationExtractor.extract(repositoryRoot, producer).ifPresent(messageDestinations::add);
+            }
             projections.add(assembler.assemble(new OperationEvidenceAssemblyRequest(
-                    operation, bindings, validationEvidence, testEvidence, implementationFlows, messageProducers)));
+                    operation, bindings, validationEvidence, testEvidence, implementationFlows,
+                    messageProducers, messageDestinations)));
         }
 
         projections.sort(STABLE_ORDER);

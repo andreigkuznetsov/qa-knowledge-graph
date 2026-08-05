@@ -8,6 +8,7 @@ import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestStyle;
 import ru.kuznetsov.qagraph.extractor.integrationtest.TestImplementationEvidence;
 import ru.kuznetsov.qagraph.extractor.implementationflow.ImplementationFlowEvidence;
 import ru.kuznetsov.qagraph.extractor.implementationflow.MessageProducerEvidence;
+import ru.kuznetsov.qagraph.extractor.implementationflow.MessageDestinationEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.RestOperationEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.SourceLocation;
 import ru.kuznetsov.qagraph.extractor.rest.mapping.BusinessOperationProjection;
@@ -41,6 +42,7 @@ public final class OperationEvidenceGraphAssembler {
         List<EvidenceGraphProjection.TechnicalImplementationProjection> implementations =
                 implementationFlow(request, implementation);
         implementations = withMessageProducers(request, implementations);
+        implementations = withMessageDestinations(request, implementations);
 
         Map<String, EvidenceGraphProjection.BusinessRuleProjection> rules = new TreeMap<>();
         Set<String> boundRequestModelTypes = request.requestModelBindings().stream()
@@ -64,6 +66,11 @@ public final class OperationEvidenceGraphAssembler {
                     implementations.get(0).id(), RelationshipType.USES, implementations.get(1).id()));
             relationships.add(relationship(
                     implementations.get(1).id(), RelationshipType.USES, implementations.get(2).id()));
+        }
+        for (MessageDestinationEvidence destination : request.messageDestinations()) {
+            var producerNode = messageProducerImplementation(destination.producer());
+            var destinationNode = messageDestinationImplementation(destination);
+            relationships.add(publishingRelationship(destination, producerNode.id(), destinationNode.id()));
         }
         for (var rule : rules.values()) {
             relationships.add(relationship(operation.id(), RelationshipType.GOVERNED_BY, rule.id()));
@@ -116,6 +123,20 @@ public final class OperationEvidenceGraphAssembler {
         if (producers.isEmpty()) return implementations;
         List<EvidenceGraphProjection.TechnicalImplementationProjection> result = new ArrayList<>(implementations);
         result.addAll(producers.values());
+        return List.copyOf(result);
+    }
+
+    private static List<EvidenceGraphProjection.TechnicalImplementationProjection> withMessageDestinations(
+            OperationEvidenceAssemblyRequest request,
+            List<EvidenceGraphProjection.TechnicalImplementationProjection> implementations) {
+        Map<String, EvidenceGraphProjection.TechnicalImplementationProjection> destinations = new TreeMap<>();
+        request.messageDestinations().stream()
+                .filter(evidence -> evidence.producer().operation().equals(request.operation()))
+                .map(OperationEvidenceGraphAssembler::messageDestinationImplementation)
+                .forEach(destination -> destinations.putIfAbsent(destination.id(), destination));
+        if (destinations.isEmpty()) return implementations;
+        List<EvidenceGraphProjection.TechnicalImplementationProjection> result = new ArrayList<>(implementations);
+        result.addAll(destinations.values());
         return List.copyOf(result);
     }
 
@@ -280,6 +301,48 @@ public final class OperationEvidenceGraphAssembler {
                                 "producerField", evidence.producerField(),
                                 "publishingMethod", evidence.publishingMethod(),
                                 "injection", evidence.injectionKind().name())));
+    }
+
+    private static EvidenceGraphProjection.TechnicalImplementationProjection messageDestinationImplementation(
+            MessageDestinationEvidence evidence) {
+        String identity = sha256("MESSAGE_DESTINATION|" + evidence.technology() + '|'
+                + evidence.destinationKind() + '|' + evidence.destinationName());
+        String location = sourceLocation(evidence.declarationLocation().repositoryRelativePath(),
+                evidence.declarationLocation().line(), evidence.declarationLocation().column());
+        return new EvidenceGraphProjection.TechnicalImplementationProjection(
+                "TI-MESSAGE-DESTINATION-" + identity,
+                NodeType.TECHNICAL_IMPLEMENTATION,
+                evidence.destinationName(),
+                "Kafka topic " + evidence.destinationName() + ".",
+                List.of(sourceReference(
+                        "SRC-CONFIG-" + sha256(evidence.declarationLocation().repositoryRelativePath()),
+                        EvidenceGraphProjection.LocationType.OTHER,
+                        location,
+                        "Kafka topic declaration " + evidence.destinationName())),
+                new EvidenceGraphProjection.TechnicalProjection(
+                        EvidenceGraphProjection.ImplementationType.MESSAGE,
+                        ImplementationRole.MESSAGE_DESTINATION,
+                        "Kafka",
+                        Map.of(
+                                "technology", evidence.technology(),
+                                "destinationName", evidence.destinationName(),
+                                "destinationKind", evidence.destinationKind())));
+    }
+
+    private static EvidenceGraphProjection.RelationshipProjection publishingRelationship(
+            MessageDestinationEvidence evidence, String producerId, String destinationId) {
+        String location = sourceLocation(evidence.producer().publishingLocation().repositoryRelativePath(),
+                evidence.producer().publishingLocation().line(), evidence.producer().publishingLocation().column());
+        return new EvidenceGraphProjection.RelationshipProjection(
+                "REL-" + sha256(producerId + '|' + RelationshipType.PUBLISHES_TO + '|' + destinationId),
+                producerId,
+                RelationshipType.PUBLISHES_TO,
+                destinationId,
+                List.of(sourceReference(
+                        "SRC-JAVA-" + sha256(evidence.producer().ownerClass()),
+                        EvidenceGraphProjection.LocationType.OTHER,
+                        location + "#" + evidence.producer().ownerClass() + '.' + evidence.producer().ownerMethod(),
+                        "KafkaTemplate.send invocation publishing to " + evidence.destinationName())));
     }
 
     private static EvidenceGraphProjection.TestImplementationProjection testImplementation(
