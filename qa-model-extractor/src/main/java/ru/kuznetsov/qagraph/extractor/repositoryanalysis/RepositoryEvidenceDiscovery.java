@@ -4,6 +4,7 @@ import ru.kuznetsov.qagraph.extractor.assembly.EvidenceGraphProjection;
 import ru.kuznetsov.qagraph.extractor.assembly.OperationEvidenceAssemblyRequest;
 import ru.kuznetsov.qagraph.extractor.assembly.OperationEvidenceGraphAssembler;
 import ru.kuznetsov.qagraph.extractor.implementationflow.DirectImplementationFlowExtractor;
+import ru.kuznetsov.qagraph.extractor.implementationflow.DirectKafkaMessageProducerExtractor;
 import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestEvidenceExtractor;
 import ru.kuznetsov.qagraph.extractor.rest.SpringMvcRestOperationScanner;
 import ru.kuznetsov.qagraph.extractor.rest.binding.ControllerRequestModelBindingExtractor;
@@ -25,6 +26,7 @@ public final class RepositoryEvidenceDiscovery {
     private final ControllerRequestModelBindingExtractor requestBindingExtractor;
     private final BeanValidationEvidenceExtractor validationExtractor;
     private final DirectImplementationFlowExtractor implementationFlowExtractor;
+    private final DirectKafkaMessageProducerExtractor messageProducerExtractor;
     private final IntegrationTestEvidenceExtractor testEvidenceExtractor;
     private final OperationEvidenceGraphAssembler assembler;
 
@@ -33,8 +35,28 @@ public final class RepositoryEvidenceDiscovery {
                 new ControllerRequestModelBindingExtractor(),
                 new BeanValidationEvidenceExtractor(),
                 new DirectImplementationFlowExtractor(),
+                new DirectKafkaMessageProducerExtractor(),
                 new IntegrationTestEvidenceExtractor(),
                 new OperationEvidenceGraphAssembler());
+    }
+
+    RepositoryEvidenceDiscovery(
+            SpringMvcRestOperationScanner operationScanner,
+            ControllerRequestModelBindingExtractor requestBindingExtractor,
+            BeanValidationEvidenceExtractor validationExtractor,
+            DirectImplementationFlowExtractor implementationFlowExtractor,
+            DirectKafkaMessageProducerExtractor messageProducerExtractor,
+            IntegrationTestEvidenceExtractor testEvidenceExtractor,
+            OperationEvidenceGraphAssembler assembler
+    ) {
+        this.operationScanner = Objects.requireNonNull(operationScanner, "operationScanner");
+        this.requestBindingExtractor = Objects.requireNonNull(requestBindingExtractor, "requestBindingExtractor");
+        this.validationExtractor = Objects.requireNonNull(validationExtractor, "validationExtractor");
+        this.implementationFlowExtractor = Objects.requireNonNull(
+                implementationFlowExtractor, "implementationFlowExtractor");
+        this.messageProducerExtractor = Objects.requireNonNull(messageProducerExtractor, "messageProducerExtractor");
+        this.testEvidenceExtractor = Objects.requireNonNull(testEvidenceExtractor, "testEvidenceExtractor");
+        this.assembler = Objects.requireNonNull(assembler, "assembler");
     }
 
     RepositoryEvidenceDiscovery(
@@ -45,13 +67,8 @@ public final class RepositoryEvidenceDiscovery {
             IntegrationTestEvidenceExtractor testEvidenceExtractor,
             OperationEvidenceGraphAssembler assembler
     ) {
-        this.operationScanner = Objects.requireNonNull(operationScanner, "operationScanner");
-        this.requestBindingExtractor = Objects.requireNonNull(requestBindingExtractor, "requestBindingExtractor");
-        this.validationExtractor = Objects.requireNonNull(validationExtractor, "validationExtractor");
-        this.implementationFlowExtractor = Objects.requireNonNull(
-                implementationFlowExtractor, "implementationFlowExtractor");
-        this.testEvidenceExtractor = Objects.requireNonNull(testEvidenceExtractor, "testEvidenceExtractor");
-        this.assembler = Objects.requireNonNull(assembler, "assembler");
+        this(operationScanner, requestBindingExtractor, validationExtractor, implementationFlowExtractor,
+                new DirectKafkaMessageProducerExtractor(), testEvidenceExtractor, assembler);
     }
 
     public RepositoryEvidenceDiscoveryResult discover(RepositoryAnalysisRequest request) throws IOException {
@@ -69,8 +86,9 @@ public final class RepositoryEvidenceDiscovery {
             var implementationFlows = implementationFlowExtractor.extract(repositoryRoot, operation)
                     .map(List::of)
                     .orElseGet(List::of);
+            var messageProducers = messageProducerExtractor.extract(repositoryRoot, operation);
             projections.add(assembler.assemble(new OperationEvidenceAssemblyRequest(
-                    operation, bindings, validationEvidence, testEvidence, implementationFlows)));
+                    operation, bindings, validationEvidence, testEvidence, implementationFlows, messageProducers)));
         }
 
         projections.sort(STABLE_ORDER);

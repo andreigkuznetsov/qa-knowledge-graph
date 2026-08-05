@@ -121,6 +121,9 @@ public final class CanonicalProjectSerializer {
         node.set("sourceReferences", references(value.sourceReferences(), sourceId));
         ObjectNode content = node.putObject("technicalImplementation");
         content.put("implementationType", value.technicalImplementation().implementationType().name());
+        if (value.technicalImplementation().implementationRole() != null) {
+            content.put("implementationRole", value.technicalImplementation().implementationRole().name());
+        }
         content.put("system", value.technicalImplementation().system());
         content.set("details", stringMap(value.technicalImplementation().details()));
         return node;

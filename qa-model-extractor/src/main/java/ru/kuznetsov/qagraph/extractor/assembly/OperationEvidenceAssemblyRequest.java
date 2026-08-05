@@ -2,6 +2,7 @@ package ru.kuznetsov.qagraph.extractor.assembly;
 
 import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestEvidence;
 import ru.kuznetsov.qagraph.extractor.implementationflow.ImplementationFlowEvidence;
+import ru.kuznetsov.qagraph.extractor.implementationflow.MessageProducerEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.RestOperationEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.binding.RequestModelBindingEvidence;
 import ru.kuznetsov.qagraph.extractor.validation.BeanValidationEvidence;
@@ -14,7 +15,8 @@ public record OperationEvidenceAssemblyRequest(
         List<RequestModelBindingEvidence> requestModelBindings,
         List<BeanValidationEvidence> validationEvidence,
         IntegrationTestEvidence integrationTestEvidence,
-        List<ImplementationFlowEvidence> implementationFlows
+        List<ImplementationFlowEvidence> implementationFlows,
+        List<MessageProducerEvidence> messageProducers
 ) {
     public OperationEvidenceAssemblyRequest {
         Objects.requireNonNull(operation, "operation");
@@ -22,6 +24,7 @@ public record OperationEvidenceAssemblyRequest(
         validationEvidence = List.copyOf(Objects.requireNonNull(validationEvidence, "validationEvidence"));
         Objects.requireNonNull(integrationTestEvidence, "integrationTestEvidence");
         implementationFlows = List.copyOf(Objects.requireNonNull(implementationFlows, "implementationFlows"));
+        messageProducers = List.copyOf(Objects.requireNonNull(messageProducers, "messageProducers"));
     }
 
     public OperationEvidenceAssemblyRequest(
@@ -29,6 +32,16 @@ public record OperationEvidenceAssemblyRequest(
             List<RequestModelBindingEvidence> requestModelBindings,
             List<BeanValidationEvidence> validationEvidence,
             IntegrationTestEvidence integrationTestEvidence) {
-        this(operation, requestModelBindings, validationEvidence, integrationTestEvidence, List.of());
+        this(operation, requestModelBindings, validationEvidence, integrationTestEvidence, List.of(), List.of());
+    }
+
+    public OperationEvidenceAssemblyRequest(
+            RestOperationEvidence operation,
+            List<RequestModelBindingEvidence> requestModelBindings,
+            List<BeanValidationEvidence> validationEvidence,
+            IntegrationTestEvidence integrationTestEvidence,
+            List<ImplementationFlowEvidence> implementationFlows) {
+        this(operation, requestModelBindings, validationEvidence, integrationTestEvidence,
+                implementationFlows, List.of());
     }
 }

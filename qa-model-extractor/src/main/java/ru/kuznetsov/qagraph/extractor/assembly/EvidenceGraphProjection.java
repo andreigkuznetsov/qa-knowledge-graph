@@ -2,6 +2,7 @@ package ru.kuznetsov.qagraph.extractor.assembly;
 
 import ru.kuznetsov.qagraph.extractor.rest.mapping.BusinessOperationProjection;
 import ru.kuznetsov.qagraph.model.NodeType;
+import ru.kuznetsov.qagraph.model.ImplementationRole;
 import ru.kuznetsov.qagraph.model.RelationshipType;
 
 import java.util.Collections;
@@ -75,6 +76,7 @@ public record EvidenceGraphProjection(
 
     public record TechnicalProjection(
             ImplementationType implementationType,
+            ImplementationRole implementationRole,
             String system,
             Map<String, String> details
     ) {
@@ -83,11 +85,16 @@ public record EvidenceGraphProjection(
             requireNonBlank(system, "system");
             details = immutableSortedMap(details);
         }
+
+        public TechnicalProjection(ImplementationType implementationType, String system, Map<String, String> details) {
+            this(implementationType, null, system, details);
+        }
     }
 
     public enum ImplementationType {
         API,
         DATABASE,
+        MESSAGE,
         OTHER
     }
 

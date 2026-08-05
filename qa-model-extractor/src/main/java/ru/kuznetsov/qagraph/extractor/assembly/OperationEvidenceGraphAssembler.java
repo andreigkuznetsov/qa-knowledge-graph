@@ -7,12 +7,14 @@ import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestEvidence;
 import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestStyle;
 import ru.kuznetsov.qagraph.extractor.integrationtest.TestImplementationEvidence;
 import ru.kuznetsov.qagraph.extractor.implementationflow.ImplementationFlowEvidence;
+import ru.kuznetsov.qagraph.extractor.implementationflow.MessageProducerEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.RestOperationEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.SourceLocation;
 import ru.kuznetsov.qagraph.extractor.rest.mapping.BusinessOperationProjection;
 import ru.kuznetsov.qagraph.extractor.rest.mapping.RestOperationEvidenceMapper;
 import ru.kuznetsov.qagraph.extractor.validation.BeanValidationEvidence;
 import ru.kuznetsov.qagraph.model.NodeType;
+import ru.kuznetsov.qagraph.model.ImplementationRole;
 import ru.kuznetsov.qagraph.model.RelationshipType;
 
 import java.nio.charset.StandardCharsets;
@@ -38,6 +40,7 @@ public final class OperationEvidenceGraphAssembler {
                 technicalImplementation(request.operation(), operation);
         List<EvidenceGraphProjection.TechnicalImplementationProjection> implementations =
                 implementationFlow(request, implementation);
+        implementations = withMessageProducers(request, implementations);
 
         Map<String, EvidenceGraphProjection.BusinessRuleProjection> rules = new TreeMap<>();
         Set<String> boundRequestModelTypes = request.requestModelBindings().stream()
@@ -56,7 +59,7 @@ public final class OperationEvidenceGraphAssembler {
         List<EvidenceGraphProjection.RelationshipProjection> relationships = new ArrayList<>();
         relationships.add(relationship(
                 operation.id(), RelationshipType.IMPLEMENTED_BY, implementation.id()));
-        if (implementations.size() == 3) {
+        if (hasSynchronousFlow(implementations)) {
             relationships.add(relationship(
                     implementations.get(0).id(), RelationshipType.USES, implementations.get(1).id()));
             relationships.add(relationship(
@@ -91,6 +94,29 @@ public final class OperationEvidenceGraphAssembler {
         if (matching.size() != 1) return List.of(controller);
         ImplementationFlowEvidence flow = matching.getFirst();
         return List.of(controller, serviceImplementation(flow), repositoryImplementation(flow));
+    }
+
+    private static boolean hasSynchronousFlow(
+            List<EvidenceGraphProjection.TechnicalImplementationProjection> implementations) {
+        return implementations.size() >= 3
+                && "SERVICE".equals(implementations.get(1).technicalImplementation().details().get("flowStage"))
+                && "REPOSITORY".equals(implementations.get(2).technicalImplementation().details().get("flowStage"));
+    }
+
+    private static List<EvidenceGraphProjection.TechnicalImplementationProjection> withMessageProducers(
+            OperationEvidenceAssemblyRequest request,
+            List<EvidenceGraphProjection.TechnicalImplementationProjection> implementations) {
+        Map<String, EvidenceGraphProjection.TechnicalImplementationProjection> producers = new TreeMap<>();
+        request.messageProducers().stream()
+                .filter(evidence -> evidence.operation().equals(request.operation()))
+                .filter(evidence -> evidence.ownerClass().equals(qualifiedController(request.operation())))
+                .filter(evidence -> evidence.ownerMethod().equals(request.operation().controllerMethod()))
+                .map(OperationEvidenceGraphAssembler::messageProducerImplementation)
+                .forEach(producer -> producers.putIfAbsent(producer.id(), producer));
+        if (producers.isEmpty()) return implementations;
+        List<EvidenceGraphProjection.TechnicalImplementationProjection> result = new ArrayList<>(implementations);
+        result.addAll(producers.values());
+        return List.copyOf(result);
     }
 
     private static void addTestsAndChecks(
@@ -227,6 +253,33 @@ public final class OperationEvidenceGraphAssembler {
                         Map.of(
                                 "flowStage", "REPOSITORY",
                                 "injection", flow.repositoryInjection().name())));
+    }
+
+    private static EvidenceGraphProjection.TechnicalImplementationProjection messageProducerImplementation(
+            MessageProducerEvidence evidence) {
+        String location = sourceLocation(evidence.publishingLocation().repositoryRelativePath(),
+                evidence.publishingLocation().line(), evidence.publishingLocation().column());
+        String owner = evidence.ownerClass() + '.' + evidence.ownerMethod();
+        String identity = sha256("MESSAGE_PRODUCER|" + owner + '|' + location);
+        return new EvidenceGraphProjection.TechnicalImplementationProjection(
+                "TI-MESSAGE-PRODUCER-" + identity,
+                NodeType.TECHNICAL_IMPLEMENTATION,
+                owner,
+                "Direct Kafka publishing action owned by " + owner + ".",
+                List.of(sourceReference(
+                        "SRC-JAVA-" + sha256(evidence.ownerClass()),
+                        EvidenceGraphProjection.LocationType.OTHER,
+                        location + "#" + owner,
+                        "KafkaTemplate." + evidence.publishingMethod() + " invocation in " + owner)),
+                new EvidenceGraphProjection.TechnicalProjection(
+                        EvidenceGraphProjection.ImplementationType.MESSAGE,
+                        ImplementationRole.MESSAGE_PRODUCER,
+                        packageName(evidence.ownerClass()),
+                        Map.of(
+                                "technology", "Kafka",
+                                "producerField", evidence.producerField(),
+                                "publishingMethod", evidence.publishingMethod(),
+                                "injection", evidence.injectionKind().name())));
     }
 
     private static EvidenceGraphProjection.TestImplementationProjection testImplementation(

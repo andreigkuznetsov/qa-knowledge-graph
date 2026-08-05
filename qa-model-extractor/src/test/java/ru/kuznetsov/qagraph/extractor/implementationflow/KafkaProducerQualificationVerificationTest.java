@@ -1,0 +1,50 @@
+package ru.kuznetsov.qagraph.extractor.implementationflow;
+
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
+import ru.kuznetsov.qagraph.extractor.repositoryanalysis.DefaultRepositoryAnalysisService;
+import ru.kuznetsov.qagraph.extractor.repositoryanalysis.RepositoryAnalysisRequest;
+import ru.kuznetsov.qagraph.extractor.repositoryanalysis.RepositoryAnalysisStatus;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class KafkaProducerQualificationVerificationTest {
+    @Test
+    void orderCommandCreateOrderProducesOneMessageProducerAndPreservesRestNode() {
+        String configured = System.getenv("ORDER_EVENTS_KAFKA_REPOSITORY");
+        Assumptions.assumeTrue(configured != null && !configured.isBlank(),
+                "ORDER_EVENTS_KAFKA_REPOSITORY is not configured");
+        Path repository = Path.of(configured).toAbsolutePath().normalize();
+        Assumptions.assumeTrue(Files.isDirectory(repository.resolve("src/main/java")),
+                "Kafka qualification production sources are unavailable");
+
+        var result = new DefaultRepositoryAnalysisService().analyze(
+                new RepositoryAnalysisRequest(repository, "order-events-kafka-tests"));
+
+        assertEquals(RepositoryAnalysisStatus.COMPLETE, result.status());
+        var nodes = result.canonicalProjectJson().path("baseModel").path("nodes");
+        long producers = java.util.stream.StreamSupport.stream(nodes.spliterator(), false)
+                .filter(node -> "MESSAGE_PRODUCER".equals(
+                        node.path("technicalImplementation").path("implementationRole").asText()))
+                .filter(node -> "com.example.kafkaorders.controller.OrderCommandController.createOrder"
+                        .equals(node.path("name").asText()))
+                .count();
+        long restNodes = java.util.stream.StreamSupport.stream(nodes.spliterator(), false)
+                .filter(node -> "API".equals(node.path("technicalImplementation").path("implementationType").asText()))
+                .filter(node -> "com.example.kafkaorders.controller.OrderCommandController.createOrder"
+                        .equals(node.path("name").asText()))
+                .count();
+
+        assertEquals(1, producers);
+        assertEquals(1, restNodes);
+        assertTrue(java.util.stream.StreamSupport.stream(nodes.spliterator(), false)
+                .filter(node -> "MESSAGE_PRODUCER".equals(
+                        node.path("technicalImplementation").path("implementationRole").asText()))
+                .allMatch(node -> "Kafka".equals(
+                        node.path("technicalImplementation").path("details").path("technology").asText())));
+    }
+}
