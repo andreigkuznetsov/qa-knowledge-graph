@@ -4,6 +4,7 @@ import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestEvidence;
 import ru.kuznetsov.qagraph.extractor.implementationflow.ImplementationFlowEvidence;
 import ru.kuznetsov.qagraph.extractor.implementationflow.MessageProducerEvidence;
 import ru.kuznetsov.qagraph.extractor.implementationflow.MessageDestinationEvidence;
+import ru.kuznetsov.qagraph.extractor.implementationflow.MessageConsumerEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.RestOperationEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.binding.RequestModelBindingEvidence;
 import ru.kuznetsov.qagraph.extractor.validation.BeanValidationEvidence;
@@ -18,7 +19,8 @@ public record OperationEvidenceAssemblyRequest(
         IntegrationTestEvidence integrationTestEvidence,
         List<ImplementationFlowEvidence> implementationFlows,
         List<MessageProducerEvidence> messageProducers,
-        List<MessageDestinationEvidence> messageDestinations
+        List<MessageDestinationEvidence> messageDestinations,
+        List<MessageConsumerEvidence> messageConsumers
 ) {
     public OperationEvidenceAssemblyRequest {
         Objects.requireNonNull(operation, "operation");
@@ -28,6 +30,7 @@ public record OperationEvidenceAssemblyRequest(
         implementationFlows = List.copyOf(Objects.requireNonNull(implementationFlows, "implementationFlows"));
         messageProducers = List.copyOf(Objects.requireNonNull(messageProducers, "messageProducers"));
         messageDestinations = List.copyOf(Objects.requireNonNull(messageDestinations, "messageDestinations"));
+        messageConsumers = List.copyOf(Objects.requireNonNull(messageConsumers, "messageConsumers"));
     }
 
     public OperationEvidenceAssemblyRequest(
@@ -36,7 +39,7 @@ public record OperationEvidenceAssemblyRequest(
             List<BeanValidationEvidence> validationEvidence,
             IntegrationTestEvidence integrationTestEvidence) {
         this(operation, requestModelBindings, validationEvidence, integrationTestEvidence,
-                List.of(), List.of(), List.of());
+                List.of(), List.of(), List.of(), List.of());
     }
 
     public OperationEvidenceAssemblyRequest(
@@ -46,7 +49,7 @@ public record OperationEvidenceAssemblyRequest(
             IntegrationTestEvidence integrationTestEvidence,
             List<ImplementationFlowEvidence> implementationFlows) {
         this(operation, requestModelBindings, validationEvidence, integrationTestEvidence,
-                implementationFlows, List.of(), List.of());
+                implementationFlows, List.of(), List.of(), List.of());
     }
 
     public OperationEvidenceAssemblyRequest(
@@ -57,6 +60,18 @@ public record OperationEvidenceAssemblyRequest(
             List<ImplementationFlowEvidence> implementationFlows,
             List<MessageProducerEvidence> messageProducers) {
         this(operation, requestModelBindings, validationEvidence, integrationTestEvidence,
-                implementationFlows, messageProducers, List.of());
+                implementationFlows, messageProducers, List.of(), List.of());
+    }
+
+    public OperationEvidenceAssemblyRequest(
+            RestOperationEvidence operation,
+            List<RequestModelBindingEvidence> requestModelBindings,
+            List<BeanValidationEvidence> validationEvidence,
+            IntegrationTestEvidence integrationTestEvidence,
+            List<ImplementationFlowEvidence> implementationFlows,
+            List<MessageProducerEvidence> messageProducers,
+            List<MessageDestinationEvidence> messageDestinations) {
+        this(operation, requestModelBindings, validationEvidence, integrationTestEvidence,
+                implementationFlows, messageProducers, messageDestinations, List.of());
     }
 }

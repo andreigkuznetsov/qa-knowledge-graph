@@ -6,6 +6,7 @@ import ru.kuznetsov.qagraph.extractor.assembly.OperationEvidenceGraphAssembler;
 import ru.kuznetsov.qagraph.extractor.implementationflow.DirectImplementationFlowExtractor;
 import ru.kuznetsov.qagraph.extractor.implementationflow.DirectKafkaMessageProducerExtractor;
 import ru.kuznetsov.qagraph.extractor.implementationflow.DirectKafkaMessageDestinationExtractor;
+import ru.kuznetsov.qagraph.extractor.implementationflow.DirectKafkaMessageConsumerExtractor;
 import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestEvidenceExtractor;
 import ru.kuznetsov.qagraph.extractor.rest.SpringMvcRestOperationScanner;
 import ru.kuznetsov.qagraph.extractor.rest.binding.ControllerRequestModelBindingExtractor;
@@ -29,6 +30,7 @@ public final class RepositoryEvidenceDiscovery {
     private final DirectImplementationFlowExtractor implementationFlowExtractor;
     private final DirectKafkaMessageProducerExtractor messageProducerExtractor;
     private final DirectKafkaMessageDestinationExtractor messageDestinationExtractor;
+    private final DirectKafkaMessageConsumerExtractor messageConsumerExtractor;
     private final IntegrationTestEvidenceExtractor testEvidenceExtractor;
     private final OperationEvidenceGraphAssembler assembler;
 
@@ -39,6 +41,7 @@ public final class RepositoryEvidenceDiscovery {
                 new DirectImplementationFlowExtractor(),
                 new DirectKafkaMessageProducerExtractor(),
                 new DirectKafkaMessageDestinationExtractor(),
+                new DirectKafkaMessageConsumerExtractor(),
                 new IntegrationTestEvidenceExtractor(),
                 new OperationEvidenceGraphAssembler());
     }
@@ -50,6 +53,7 @@ public final class RepositoryEvidenceDiscovery {
             DirectImplementationFlowExtractor implementationFlowExtractor,
             DirectKafkaMessageProducerExtractor messageProducerExtractor,
             DirectKafkaMessageDestinationExtractor messageDestinationExtractor,
+            DirectKafkaMessageConsumerExtractor messageConsumerExtractor,
             IntegrationTestEvidenceExtractor testEvidenceExtractor,
             OperationEvidenceGraphAssembler assembler
     ) {
@@ -61,6 +65,7 @@ public final class RepositoryEvidenceDiscovery {
         this.messageProducerExtractor = Objects.requireNonNull(messageProducerExtractor, "messageProducerExtractor");
         this.messageDestinationExtractor = Objects.requireNonNull(
                 messageDestinationExtractor, "messageDestinationExtractor");
+        this.messageConsumerExtractor = Objects.requireNonNull(messageConsumerExtractor, "messageConsumerExtractor");
         this.testEvidenceExtractor = Objects.requireNonNull(testEvidenceExtractor, "testEvidenceExtractor");
         this.assembler = Objects.requireNonNull(assembler, "assembler");
     }
@@ -75,7 +80,7 @@ public final class RepositoryEvidenceDiscovery {
     ) {
         this(operationScanner, requestBindingExtractor, validationExtractor, implementationFlowExtractor,
                 new DirectKafkaMessageProducerExtractor(), new DirectKafkaMessageDestinationExtractor(),
-                testEvidenceExtractor, assembler);
+                new DirectKafkaMessageConsumerExtractor(), testEvidenceExtractor, assembler);
     }
 
     public RepositoryEvidenceDiscoveryResult discover(RepositoryAnalysisRequest request) throws IOException {
@@ -86,6 +91,7 @@ public final class RepositoryEvidenceDiscovery {
 
         var validationEvidence = validationExtractor.extract(repositoryRoot);
         var testEvidence = testEvidenceExtractor.extract(repositoryRoot);
+        var messageConsumers = messageConsumerExtractor.extract(repositoryRoot);
         List<EvidenceGraphProjection> projections = new ArrayList<>();
 
         for (var operation : operations) {
@@ -100,7 +106,7 @@ public final class RepositoryEvidenceDiscovery {
             }
             projections.add(assembler.assemble(new OperationEvidenceAssemblyRequest(
                     operation, bindings, validationEvidence, testEvidence, implementationFlows,
-                    messageProducers, messageDestinations)));
+                    messageProducers, messageDestinations, messageConsumers)));
         }
 
         projections.sort(STABLE_ORDER);
