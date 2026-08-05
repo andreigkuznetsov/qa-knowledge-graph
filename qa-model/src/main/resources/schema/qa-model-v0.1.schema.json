@@ -683,6 +683,16 @@
                 "OTHER"
               ]
             },
+            "implementationRole": {
+              "enum": [
+                "REST_CONTROLLER",
+                "APPLICATION_SERVICE",
+                "REPOSITORY",
+                "MESSAGE_PRODUCER",
+                "MESSAGE_DESTINATION",
+                "MESSAGE_CONSUMER"
+              ]
+            },
             "system": {
               "$ref": "#/$defs/nonBlankString"
             },
