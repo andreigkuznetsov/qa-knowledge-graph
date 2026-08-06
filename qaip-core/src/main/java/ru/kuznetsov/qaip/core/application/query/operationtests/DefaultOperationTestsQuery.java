@@ -43,16 +43,35 @@ public final class DefaultOperationTestsQuery implements OperationTestsQuery {
         List<QualifiedOperationTest> tests = value.nodes().stream()
                 .filter(node -> TEST_IMPLEMENTATION.equals(node.type()))
                 .filter(node -> qualifiedIds.contains(node.id()))
-                .map(DefaultOperationTestsQuery::test)
+                .map(node -> test(value, node))
                 .toList();
+        int checkCount = tests.stream().mapToInt(QualifiedOperationTest::qualifiedCheckCount).sum();
         return new OperationTestsFound(requestedProjectId, requestedOperationId,
-                OperationVerificationStatus.PARTIALLY_VERIFIED, tests);
+                OperationVerificationStatus.fromCounts(tests.size(), checkCount), tests);
     }
 
-    private static QualifiedOperationTest test(Node node) {
+    private QualifiedOperationTest test(Project project, Node node) {
         TestDeclaration declaration = declaration(node);
-        return new QualifiedOperationTest(
-                node.id(), node.name(), declaration.testClass(), declaration.testMethod(), 0, List.of());
+        Set<String> checkIds = qualificationProjector.qualifiedCheckIds(project, node.id());
+        List<QualifiedOperationCheck> checks = project.nodes().stream()
+                .filter(candidate -> "CHECK".equals(candidate.type()))
+                .filter(candidate -> checkIds.contains(candidate.id()))
+                .map(DefaultOperationTestsQuery::check)
+                .toList();
+        return new QualifiedOperationTest(node.id(), node.name(), declaration.testClass(),
+                declaration.testMethod(), checks.size(), checks);
+    }
+
+    private static QualifiedOperationCheck check(Node node) {
+        Object content = node.attributes().get("check");
+        if (!(content instanceof Map<?, ?> values)) {
+            throw new IllegalArgumentException("qualified check content is unavailable: " + node.id());
+        }
+        Object type = values.get("checkType");
+        if (!(type instanceof String value)) {
+            throw new IllegalArgumentException("qualified check type is unavailable: " + node.id());
+        }
+        return new QualifiedOperationCheck(node.id(), node.name(), OperationCheckType.valueOf(value));
     }
 
     private static TestDeclaration declaration(Node node) {

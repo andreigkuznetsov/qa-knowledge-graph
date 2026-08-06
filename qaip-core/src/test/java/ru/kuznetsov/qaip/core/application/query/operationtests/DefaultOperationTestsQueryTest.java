@@ -22,7 +22,7 @@ class DefaultOperationTestsQueryTest {
     private final OperationListProjector qualificationProjector = new OperationListProjector();
 
     @Test
-    void returns_qualified_test_implementations_without_checks() {
+    void returns_checks_attached_to_their_qualified_tests() {
         Project project = qualifiedProject();
 
         OperationTestsFound found = assertInstanceOf(
@@ -35,6 +35,27 @@ class DefaultOperationTestsQueryTest {
                 .map(QualifiedOperationTest::testClass).toList());
         assertEquals(List.of("createsOrder", "rejectsOrder"), found.tests().stream()
                 .map(QualifiedOperationTest::testMethod).toList());
+        assertEquals(List.of("CHECK-1", "CHECK-2"), found.tests().getFirst().checks().stream()
+                .map(QualifiedOperationCheck::checkId).toList());
+        assertEquals(List.of("CHECK-3"), found.tests().get(1).checks().stream()
+                .map(QualifiedOperationCheck::checkId).toList());
+        assertEquals(2, found.tests().getFirst().qualifiedCheckCount());
+        assertEquals(1, found.tests().get(1).qualifiedCheckCount());
+        assertEquals(3, found.checkCount());
+        assertEquals(OperationVerificationStatus.VERIFIED, found.verificationStatus());
+    }
+
+    @Test
+    void qualified_test_without_checks_remains_valid() {
+        Node test = test("TEST-1", "example.FirstIT.createsOrder", null);
+        Project project = project(List.of(operation(), implementation(), test), List.of(
+                relationship("OP-IMPL", "OP", "IMPLEMENTED_BY", "IMPL"),
+                relationship("T1-USES", "TEST-1", "USES", "IMPL")));
+
+        OperationTestsFound found = assertInstanceOf(
+                OperationTestsFound.class, query(project).execute("P", "OP"));
+
+        assertEquals(List.of(), found.tests().getFirst().checks());
         assertEquals(0, found.checkCount());
         assertEquals(OperationVerificationStatus.PARTIALLY_VERIFIED, found.verificationStatus());
     }
@@ -62,6 +83,8 @@ class DefaultOperationTestsQueryTest {
         assertEquals(2, first.tests().size());
         assertEquals(List.of("TEST-1", "TEST-2"), first.tests().stream()
                 .map(QualifiedOperationTest::testId).toList());
+        assertEquals(List.of("CHECK-1", "CHECK-2"), first.tests().getFirst().checks().stream()
+                .map(QualifiedOperationCheck::checkId).toList());
     }
 
     @Test
@@ -81,6 +104,9 @@ class DefaultOperationTestsQueryTest {
         assertEquals(2, assertInstanceOf(
                 ru.kuznetsov.qaip.core.application.query.operationlist.OperationListFound.class,
                 operationList.execute("P")).operations().getFirst().testCount());
+        assertEquals(3, assertInstanceOf(
+                ru.kuznetsov.qaip.core.application.query.operationlist.OperationListFound.class,
+                operationList.execute("P")).operations().getFirst().checkCount());
         assertInstanceOf(ru.kuznetsov.qaip.core.application.query.eventpath.EventPathIncomplete.class,
                 new DefaultEventPathQuery(id -> Optional.of(project)).execute("P", "OP"));
     }
@@ -92,11 +118,16 @@ class DefaultOperationTestsQueryTest {
     private static Project qualifiedProject() {
         Node second = test("TEST-2", "display second", "JUnit 5 test method example.SecondIT.rejectsOrder.");
         Node first = test("TEST-1", "display first", "JUnit 5 test method example.FirstIT.createsOrder.");
+        Node unrelated = check("CHECK-X", OperationCheckType.API);
         Relationship firstUse = relationship("T1-USES", "TEST-1", "USES", "IMPL");
-        return project(List.of(second, implementation(), operation(), first), List.of(
+        Relationship firstCheck = relationship("T1-C1", "TEST-1", "HAS_CHECK", "CHECK-1");
+        return project(List.of(second, check("CHECK-3", OperationCheckType.API), implementation(), unrelated,
+                operation(), check("CHECK-2", OperationCheckType.SQL), first,
+                check("CHECK-1", OperationCheckType.API)), List.of(
                 relationship("OP-IMPL", "OP", "IMPLEMENTED_BY", "IMPL"),
                 relationship("T2-USES", "TEST-2", "USES", "IMPL"), firstUse, firstUse,
-                relationship("T1-CHECK", "TEST-1", "HAS_CHECK", "CHECK-1")));
+                relationship("T2-C3", "TEST-2", "HAS_CHECK", "CHECK-3"), firstCheck, firstCheck,
+                relationship("T1-C2", "TEST-1", "HAS_CHECK", "CHECK-2")));
     }
 
     private static Project project(List<Node> nodes, List<Relationship> relationships) {
@@ -120,6 +151,11 @@ class DefaultOperationTestsQueryTest {
                 : List.of(Map.of("text", evidenceText));
         return new Node(id, "TEST_IMPLEMENTATION", name, null, "CONFIRMED",
                 List.of(), references, Map.of(), Map.of());
+    }
+
+    private static Node check(String id, OperationCheckType type) {
+        return new Node(id, "CHECK", id, null, "CONFIRMED", List.of(), List.of(), Map.of(),
+                Map.of("check", Map.of("checkType", type.name(), "assertion", "assertThat(value)")));
     }
 
     private static Node node(String id, String type, String name) {
