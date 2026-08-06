@@ -8,6 +8,7 @@ import ru.kuznetsov.qaip.core.application.importproject.ImportProjectCompleted;
 import ru.kuznetsov.qaip.core.importing.parsing.RawProjectJson;
 import ru.kuznetsov.qaip.explorer.application.OperationTestsProjectionFound;
 import ru.kuznetsov.qaip.explorer.application.OperationTestsProjectionNoneQualified;
+import ru.kuznetsov.qaip.explorer.api.OperationTestsController;
 import ru.kuznetsov.qaip.runtime.QaipRuntimeFactory;
 
 import java.nio.file.Files;
@@ -15,10 +16,13 @@ import java.nio.file.Path;
 import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class OperationTestsProductionQualificationTest {
     @Test
-    void projects_two_tests_and_sixteen_owned_checks_for_create_order() {
+    void projects_two_tests_and_sixteen_owned_checks_for_create_order() throws Exception {
         String configured = System.getenv("ORDER_EVENTS_KAFKA_REPOSITORY");
         Assumptions.assumeTrue(configured != null && !configured.isBlank(),
                 "ORDER_EVENTS_KAFKA_REPOSITORY is not configured");
@@ -52,6 +56,20 @@ class OperationTestsProductionQualificationTest {
         });
         assertThat(service.getOperationTests(projectId, getOperationId))
                 .isInstanceOf(OperationTestsProjectionNoneQualified.class);
+
+        var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders
+                .standaloneSetup(new OperationTestsController(service)).build();
+        mvc.perform(get("/api/v1/repositories/{repositoryId}/operations/{operationId}/tests",
+                        projectId, postOperationId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verificationStatus").value("VERIFIED"))
+                .andExpect(jsonPath("$.testCount").value(2))
+                .andExpect(jsonPath("$.checkCount").value(16));
+        mvc.perform(get("/api/v1/repositories/{repositoryId}/operations/{operationId}/tests",
+                        projectId, getOperationId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verificationStatus").value("UNVERIFIED"))
+                .andExpect(jsonPath("$.tests").isEmpty());
     }
 
     private static String operationId(
