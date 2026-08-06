@@ -2,7 +2,6 @@ package ru.kuznetsov.qagraph.extractor.assembly;
 
 import ru.kuznetsov.qagraph.extractor.integrationtest.AssertionCategory;
 import ru.kuznetsov.qagraph.extractor.integrationtest.AssertionEvidence;
-import ru.kuznetsov.qagraph.extractor.integrationtest.HttpInteractionEvidence;
 import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestEvidence;
 import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestStyle;
 import ru.kuznetsov.qagraph.extractor.integrationtest.TestImplementationEvidence;
@@ -234,10 +233,7 @@ public final class OperationEvidenceGraphAssembler {
             List<EvidenceGraphProjection.RelationshipProjection> relationships) {
         IntegrationTestEvidence testEvidence = request.integrationTestEvidence();
         for (TestImplementationEvidence test : testEvidence.tests()) {
-            List<HttpInteractionEvidence> interactions = testEvidence.httpInteractions().stream()
-                    .filter(interaction -> sameTest(interaction, test))
-                    .toList();
-            if (interactions.size() != 1 || !matchesOperation(interactions.getFirst(), request.operation())) {
+            if (OperationTestQualification.qualifyingInteraction(test, request.operation(), testEvidence).isEmpty()) {
                 continue;
             }
 
@@ -640,18 +636,6 @@ public final class OperationEvidenceGraphAssembler {
                 EvidenceGraphProjection.EvidenceType.OBSERVED);
     }
 
-    private static boolean matchesOperation(
-            HttpInteractionEvidence interaction, RestOperationEvidence operation) {
-        return interaction.httpMethod().name().equals(operation.httpMethod().name())
-                && normalizePath(interaction.endpointPath()).equals(normalizePath(operation.endpointPath()));
-    }
-
-    private static boolean sameTest(
-            HttpInteractionEvidence interaction, TestImplementationEvidence test) {
-        return interaction.owningTestClass().equals(test.testClass())
-                && interaction.owningTestMethod().equals(test.testMethod());
-    }
-
     private static boolean sameTest(AssertionEvidence assertion, TestImplementationEvidence test) {
         return assertion.owningTestClass().equals(test.testClass())
                 && assertion.owningTestMethod().equals(test.testMethod());
@@ -674,15 +658,6 @@ public final class OperationEvidenceGraphAssembler {
 
     private static String sourceLocation(String path, int line, int column) {
         return path + ':' + line + ':' + column;
-    }
-
-    private static String normalizePath(String path) {
-        String normalized = path.trim().replaceAll("/{2,}", "/");
-        if (!normalized.startsWith("/")) normalized = "/" + normalized;
-        if (normalized.length() > 1 && normalized.endsWith("/")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return normalized;
     }
 
     private static String simpleName(String name) {

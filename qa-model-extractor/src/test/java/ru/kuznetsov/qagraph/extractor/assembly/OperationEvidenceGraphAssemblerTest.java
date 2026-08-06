@@ -107,6 +107,78 @@ class OperationEvidenceGraphAssemblerTest {
     }
 
     @Test
+    void qualifiesTwoTestsForOneExactMethodAndPath() {
+        OperationEvidenceAssemblyRequest input = request();
+        TestImplementationEvidence second = test("example.api.SecondRegistrationApiIT", "register", 10);
+        IntegrationTestEvidence original = input.integrationTestEvidence();
+        IntegrationTestEvidence evidence = new IntegrationTestEvidence(
+                List.of(original.tests().getFirst(), second),
+                List.of(original.httpInteractions().getFirst(),
+                        interaction(second, IntegrationHttpMethod.POST, "/auth/register", 14)),
+                original.assertions());
+
+        EvidenceGraphProjection graph = assembler.assemble(new OperationEvidenceAssemblyRequest(
+                input.operation(), input.requestModelBindings(), input.validationEvidence(), evidence));
+
+        assertEquals(2, graph.testImplementations().size());
+        assertEquals(2, graph.relationships().stream()
+                .filter(relationship -> relationship.type() == RelationshipType.USES).count());
+    }
+
+    @Test
+    void duplicateEquivalentInteractionEvidenceDoesNotDuplicateOrDisqualifyTest() {
+        OperationEvidenceAssemblyRequest input = request();
+        IntegrationTestEvidence original = input.integrationTestEvidence();
+        TestImplementationEvidence success = original.tests().getFirst();
+        IntegrationTestEvidence evidence = new IntegrationTestEvidence(
+                List.of(success),
+                List.of(original.httpInteractions().getFirst(),
+                        interaction(success, IntegrationHttpMethod.POST, "/auth/register/", 15)),
+                original.assertions());
+
+        EvidenceGraphProjection first = assembler.assemble(new OperationEvidenceAssemblyRequest(
+                input.operation(), input.requestModelBindings(), input.validationEvidence(), evidence));
+        EvidenceGraphProjection second = assembler.assemble(new OperationEvidenceAssemblyRequest(
+                input.operation(), input.requestModelBindings(), input.validationEvidence(), evidence));
+
+        assertEquals(1, first.testImplementations().size());
+        assertEquals(first, second);
+    }
+
+    @Test
+    void rejectsWrongMethodAndWrongPathIndependently() {
+        OperationEvidenceAssemblyRequest input = request();
+        TestImplementationEvidence test = input.integrationTestEvidence().tests().getFirst();
+
+        for (HttpInteractionEvidence interaction : List.of(
+                interaction(test, IntegrationHttpMethod.GET, "/auth/register", 14),
+                interaction(test, IntegrationHttpMethod.POST, "/auth/other", 14))) {
+            IntegrationTestEvidence evidence = new IntegrationTestEvidence(
+                    List.of(test), List.of(interaction), input.integrationTestEvidence().assertions());
+            EvidenceGraphProjection graph = assembler.assemble(new OperationEvidenceAssemblyRequest(
+                    input.operation(), input.requestModelBindings(), input.validationEvidence(), evidence));
+            assertTrue(graph.testImplementations().isEmpty());
+            assertTrue(graph.checks().isEmpty());
+        }
+    }
+
+    @Test
+    void ambiguousOperationMatchRemovesInteractionBeforeAssembly() {
+        OperationEvidenceAssemblyRequest input = request();
+        RestOperationEvidence duplicate = new RestOperationEvidence(
+                RestHttpMethod.POST, "/auth/register/", "OtherController", "register",
+                "example.other", new SourceLocation("src/main/java/example/other/OtherController.java", 10, 5));
+
+        IntegrationTestEvidence filtered = OperationTestQualification.withoutAmbiguousOperationMatches(
+                List.of(input.operation(), duplicate), input.integrationTestEvidence());
+        EvidenceGraphProjection graph = assembler.assemble(new OperationEvidenceAssemblyRequest(
+                input.operation(), input.requestModelBindings(), input.validationEvidence(), filtered));
+
+        assertTrue(graph.testImplementations().isEmpty());
+        assertTrue(graph.checks().isEmpty());
+    }
+
+    @Test
     void omitsValidationEvidenceWithoutExplicitRequestModelBinding() {
         OperationEvidenceAssemblyRequest input = request();
         OperationEvidenceAssemblyRequest unbound = new OperationEvidenceAssemblyRequest(

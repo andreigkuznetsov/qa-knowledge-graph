@@ -3,6 +3,7 @@ package ru.kuznetsov.qagraph.extractor.repositoryanalysis;
 import ru.kuznetsov.qagraph.extractor.assembly.EvidenceGraphProjection;
 import ru.kuznetsov.qagraph.extractor.assembly.OperationEvidenceAssemblyRequest;
 import ru.kuznetsov.qagraph.extractor.assembly.OperationEvidenceGraphAssembler;
+import ru.kuznetsov.qagraph.extractor.assembly.OperationTestQualification;
 import ru.kuznetsov.qagraph.extractor.implementationflow.DirectImplementationFlowExtractor;
 import ru.kuznetsov.qagraph.extractor.implementationflow.DirectKafkaMessageProducerExtractor;
 import ru.kuznetsov.qagraph.extractor.implementationflow.DirectKafkaMessageDestinationExtractor;
@@ -103,7 +104,8 @@ public final class RepositoryEvidenceDiscovery {
         if (operations.isEmpty()) return new RepositoryEvidenceDiscoveryResult(List.of(), List.of());
 
         var validationEvidence = validationExtractor.extract(repositoryRoot);
-        var testEvidence = testEvidenceExtractor.extract(repositoryRoot);
+        var testEvidence = OperationTestQualification.withoutAmbiguousOperationMatches(
+                operations, testEvidenceExtractor.extract(repositoryRoot));
         var messageConsumers = messageConsumerExtractor.extract(repositoryRoot);
         var consumerApplicationServices = consumerApplicationServiceExtractor.extract(
                 repositoryRoot, messageConsumers);
