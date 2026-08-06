@@ -35,4 +35,22 @@ class RelationshipRulesTest {
                 NodeType.TECHNICAL_IMPLEMENTATION
         ));
     }
+
+    @Test
+    void shouldAllowTechnicalImplementationToPublishToTechnicalImplementation() {
+        assertTrue(RelationshipRules.isAllowed(
+                NodeType.TECHNICAL_IMPLEMENTATION,
+                RelationshipType.PUBLISHES_TO,
+                NodeType.TECHNICAL_IMPLEMENTATION
+        ));
+    }
+
+    @Test
+    void shouldAllowTechnicalImplementationToConsumeFromTechnicalImplementation() {
+        assertTrue(RelationshipRules.isAllowed(
+                NodeType.TECHNICAL_IMPLEMENTATION,
+                RelationshipType.CONSUMES_FROM,
+                NodeType.TECHNICAL_IMPLEMENTATION
+        ));
+    }
 }

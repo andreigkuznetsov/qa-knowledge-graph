@@ -2,6 +2,7 @@ package ru.kuznetsov.qagraph.extractor.assembly;
 
 import ru.kuznetsov.qagraph.extractor.rest.mapping.BusinessOperationProjection;
 import ru.kuznetsov.qagraph.model.NodeType;
+import ru.kuznetsov.qagraph.model.ImplementationRole;
 import ru.kuznetsov.qagraph.model.RelationshipType;
 
 import java.util.Collections;
@@ -75,6 +76,7 @@ public record EvidenceGraphProjection(
 
     public record TechnicalProjection(
             ImplementationType implementationType,
+            ImplementationRole implementationRole,
             String system,
             Map<String, String> details
     ) {
@@ -83,11 +85,16 @@ public record EvidenceGraphProjection(
             requireNonBlank(system, "system");
             details = immutableSortedMap(details);
         }
+
+        public TechnicalProjection(ImplementationType implementationType, String system, Map<String, String> details) {
+            this(implementationType, null, system, details);
+        }
     }
 
     public enum ImplementationType {
         API,
         DATABASE,
+        MESSAGE,
         OTHER
     }
 
@@ -203,7 +210,8 @@ public record EvidenceGraphProjection(
             String id,
             String from,
             RelationshipType type,
-            String to
+            String to,
+            List<SourceReferenceProjection> sourceReferences
     ) {
         public RelationshipProjection {
             requireNonBlank(id, "id");
@@ -211,6 +219,11 @@ public record EvidenceGraphProjection(
             Objects.requireNonNull(type, "type");
             requireNonBlank(to, "to");
             if (from.equals(to)) throw new IllegalArgumentException("self-reference is not supported");
+            sourceReferences = List.copyOf(Objects.requireNonNull(sourceReferences, "sourceReferences"));
+        }
+
+        public RelationshipProjection(String id, String from, RelationshipType type, String to) {
+            this(id, from, type, to, List.of());
         }
     }
 

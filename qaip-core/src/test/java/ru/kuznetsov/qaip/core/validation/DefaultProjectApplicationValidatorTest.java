@@ -107,6 +107,41 @@ class DefaultProjectApplicationValidatorTest {
     }
 
     @Test
+    void canonical_messaging_relationships_between_technical_implementations_are_allowed() {
+        Node producer = ValidationFixtures.node("TI-PRODUCER", "TECHNICAL_IMPLEMENTATION");
+        Node destination = ValidationFixtures.node("TI-DESTINATION", "TECHNICAL_IMPLEMENTATION");
+        Node consumer = ValidationFixtures.node("TI-CONSUMER", "TECHNICAL_IMPLEMENTATION");
+
+        assertInstanceOf(ApplicationValidationSuccess.class, validator.validate(ValidationFixtures.bound(
+                List.of(producer, destination), List.of(ValidationFixtures.relationship(
+                        "R-PUBLISHES", "TI-PRODUCER", "PUBLISHES_TO", "TI-DESTINATION")))));
+        assertInstanceOf(ApplicationValidationSuccess.class, validator.validate(ValidationFixtures.bound(
+                List.of(consumer, destination), List.of(ValidationFixtures.relationship(
+                        "R-CONSUMES", "TI-CONSUMER", "CONSUMES_FROM", "TI-DESTINATION")))));
+    }
+
+    @Test
+    void messaging_relationships_reject_unapproved_node_type_combinations() {
+        List<Node> nodes = List.of(
+                ValidationFixtures.node("TI-1", "TECHNICAL_IMPLEMENTATION"),
+                ValidationFixtures.node("TI-2", "TECHNICAL_IMPLEMENTATION"),
+                ValidationFixtures.node("BO-1", "BUSINESS_OPERATION"));
+
+        ApplicationValidationFailure failure = failure(ValidationFixtures.bound(nodes, List.of(
+                ValidationFixtures.relationship("R-1", "BO-1", "PUBLISHES_TO", "TI-1"),
+                ValidationFixtures.relationship("R-2", "TI-1", "PUBLISHES_TO", "BO-1"),
+                ValidationFixtures.relationship("R-3", "BO-1", "CONSUMES_FROM", "TI-2"),
+                ValidationFixtures.relationship("R-4", "TI-2", "CONSUMES_FROM", "BO-1"))));
+
+        assertEquals(List.of(
+                        "RELATIONSHIP_NOT_ALLOWED",
+                        "RELATIONSHIP_NOT_ALLOWED",
+                        "RELATIONSHIP_NOT_ALLOWED",
+                        "RELATIONSHIP_NOT_ALLOWED"),
+                failure.findings().stream().map(ApplicationValidationFinding::code).toList());
+    }
+
+    @Test
     void other_technical_relationships_remain_disallowed() {
         List<Node> nodes = List.of(
                 ValidationFixtures.node("TI-1", "TECHNICAL_IMPLEMENTATION"),

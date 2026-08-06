@@ -7,12 +7,18 @@ import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestEvidence;
 import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestStyle;
 import ru.kuznetsov.qagraph.extractor.integrationtest.TestImplementationEvidence;
 import ru.kuznetsov.qagraph.extractor.implementationflow.ImplementationFlowEvidence;
+import ru.kuznetsov.qagraph.extractor.implementationflow.MessageProducerEvidence;
+import ru.kuznetsov.qagraph.extractor.implementationflow.MessageDestinationEvidence;
+import ru.kuznetsov.qagraph.extractor.implementationflow.MessageConsumerEvidence;
+import ru.kuznetsov.qagraph.extractor.implementationflow.ConsumerApplicationServiceEvidence;
+import ru.kuznetsov.qagraph.extractor.implementationflow.ApplicationServiceRepositoryEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.RestOperationEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.SourceLocation;
 import ru.kuznetsov.qagraph.extractor.rest.mapping.BusinessOperationProjection;
 import ru.kuznetsov.qagraph.extractor.rest.mapping.RestOperationEvidenceMapper;
 import ru.kuznetsov.qagraph.extractor.validation.BeanValidationEvidence;
 import ru.kuznetsov.qagraph.model.NodeType;
+import ru.kuznetsov.qagraph.model.ImplementationRole;
 import ru.kuznetsov.qagraph.model.RelationshipType;
 
 import java.nio.charset.StandardCharsets;
@@ -38,6 +44,11 @@ public final class OperationEvidenceGraphAssembler {
                 technicalImplementation(request.operation(), operation);
         List<EvidenceGraphProjection.TechnicalImplementationProjection> implementations =
                 implementationFlow(request, implementation);
+        implementations = withMessageProducers(request, implementations);
+        implementations = withMessageDestinations(request, implementations);
+        implementations = withMessageConsumers(request, implementations);
+        implementations = withConsumerApplicationServices(request, implementations);
+        implementations = withApplicationServiceRepositories(request, implementations);
 
         Map<String, EvidenceGraphProjection.BusinessRuleProjection> rules = new TreeMap<>();
         Set<String> boundRequestModelTypes = request.requestModelBindings().stream()
@@ -56,11 +67,45 @@ public final class OperationEvidenceGraphAssembler {
         List<EvidenceGraphProjection.RelationshipProjection> relationships = new ArrayList<>();
         relationships.add(relationship(
                 operation.id(), RelationshipType.IMPLEMENTED_BY, implementation.id()));
-        if (implementations.size() == 3) {
+        for (MessageProducerEvidence producer : request.messageProducers()) {
+            if (!producer.operation().equals(request.operation())
+                    || !producer.ownerClass().equals(qualifiedController(request.operation()))
+                    || !producer.ownerMethod().equals(request.operation().controllerMethod())) continue;
+            var producerNode = messageProducerImplementation(producer);
+            relationships.add(controllerUsesProducerRelationship(
+                    producer, implementation.id(), producerNode.id()));
+        }
+        if (hasSynchronousFlow(implementations)) {
             relationships.add(relationship(
                     implementations.get(0).id(), RelationshipType.USES, implementations.get(1).id()));
             relationships.add(relationship(
                     implementations.get(1).id(), RelationshipType.USES, implementations.get(2).id()));
+        }
+        for (MessageDestinationEvidence destination : request.messageDestinations()) {
+            var producerNode = messageProducerImplementation(destination.producer());
+            var destinationNode = messageDestinationImplementation(destination);
+            relationships.add(publishingRelationship(destination, producerNode.id(), destinationNode.id()));
+        }
+        for (MessageConsumerEvidence consumer : request.messageConsumers()) {
+            var consumerNode = messageConsumerImplementation(consumer);
+            var destinationNode = messageDestinationImplementation(consumer);
+            relationships.add(consumingRelationship(consumer, consumerNode.id(), destinationNode.id()));
+        }
+        for (ConsumerApplicationServiceEvidence service : request.consumerApplicationServices()) {
+            var consumerNode = messageConsumerImplementation(service.consumer());
+            var serviceNode = applicationServiceImplementation(
+                    service.serviceClass(), service.serviceMethod(), service.serviceMethodLocation());
+            relationships.add(consumerUsesServiceRelationship(service, consumerNode.id(), serviceNode.id()));
+        }
+        for (ApplicationServiceRepositoryEvidence repository : request.applicationServiceRepositories()) {
+            var serviceNode = applicationServiceImplementation(
+                    repository.applicationService().serviceClass(),
+                    repository.applicationService().serviceMethod(),
+                    repository.applicationService().serviceMethodLocation());
+            var repositoryNode = repositoryImplementation(
+                    repository.repositoryClass(), repository.repositoryDeclarationLocation());
+            relationships.add(serviceUsesRepositoryRelationship(
+                    repository, serviceNode.id(), repositoryNode.id()));
         }
         for (var rule : rules.values()) {
             relationships.add(relationship(operation.id(), RelationshipType.GOVERNED_BY, rule.id()));
@@ -91,6 +136,94 @@ public final class OperationEvidenceGraphAssembler {
         if (matching.size() != 1) return List.of(controller);
         ImplementationFlowEvidence flow = matching.getFirst();
         return List.of(controller, serviceImplementation(flow), repositoryImplementation(flow));
+    }
+
+    private static boolean hasSynchronousFlow(
+            List<EvidenceGraphProjection.TechnicalImplementationProjection> implementations) {
+        return implementations.size() >= 3
+                && "SERVICE".equals(implementations.get(1).technicalImplementation().details().get("flowStage"))
+                && "REPOSITORY".equals(implementations.get(2).technicalImplementation().details().get("flowStage"));
+    }
+
+    private static List<EvidenceGraphProjection.TechnicalImplementationProjection> withMessageProducers(
+            OperationEvidenceAssemblyRequest request,
+            List<EvidenceGraphProjection.TechnicalImplementationProjection> implementations) {
+        Map<String, EvidenceGraphProjection.TechnicalImplementationProjection> producers = new TreeMap<>();
+        request.messageProducers().stream()
+                .filter(evidence -> evidence.operation().equals(request.operation()))
+                .filter(evidence -> evidence.ownerClass().equals(qualifiedController(request.operation())))
+                .filter(evidence -> evidence.ownerMethod().equals(request.operation().controllerMethod()))
+                .map(OperationEvidenceGraphAssembler::messageProducerImplementation)
+                .forEach(producer -> producers.putIfAbsent(producer.id(), producer));
+        if (producers.isEmpty()) return implementations;
+        List<EvidenceGraphProjection.TechnicalImplementationProjection> result = new ArrayList<>(implementations);
+        result.addAll(producers.values());
+        return List.copyOf(result);
+    }
+
+    private static List<EvidenceGraphProjection.TechnicalImplementationProjection> withMessageDestinations(
+            OperationEvidenceAssemblyRequest request,
+            List<EvidenceGraphProjection.TechnicalImplementationProjection> implementations) {
+        Map<String, EvidenceGraphProjection.TechnicalImplementationProjection> destinations = new TreeMap<>();
+        request.messageDestinations().stream()
+                .filter(evidence -> evidence.producer().operation().equals(request.operation()))
+                .map(OperationEvidenceGraphAssembler::messageDestinationImplementation)
+                .forEach(destination -> destinations.putIfAbsent(destination.id(), destination));
+        if (destinations.isEmpty()) return implementations;
+        List<EvidenceGraphProjection.TechnicalImplementationProjection> result = new ArrayList<>(implementations);
+        result.addAll(destinations.values());
+        return List.copyOf(result);
+    }
+
+    private static List<EvidenceGraphProjection.TechnicalImplementationProjection> withMessageConsumers(
+            OperationEvidenceAssemblyRequest request,
+            List<EvidenceGraphProjection.TechnicalImplementationProjection> implementations) {
+        Map<String, EvidenceGraphProjection.TechnicalImplementationProjection> additions = new TreeMap<>();
+        request.messageConsumers().forEach(consumer -> {
+            var destination = messageDestinationImplementation(consumer);
+            additions.putIfAbsent(destination.id(), destination);
+            var consumerNode = messageConsumerImplementation(consumer);
+            additions.putIfAbsent(consumerNode.id(), consumerNode);
+        });
+        if (additions.isEmpty()) return implementations;
+        List<EvidenceGraphProjection.TechnicalImplementationProjection> result = new ArrayList<>(implementations);
+        Set<String> existing = implementations.stream()
+                .map(EvidenceGraphProjection.TechnicalImplementationProjection::id)
+                .collect(java.util.stream.Collectors.toSet());
+        additions.values().stream().filter(value -> !existing.contains(value.id())).forEach(result::add);
+        return List.copyOf(result);
+    }
+
+    private static List<EvidenceGraphProjection.TechnicalImplementationProjection> withConsumerApplicationServices(
+            OperationEvidenceAssemblyRequest request,
+            List<EvidenceGraphProjection.TechnicalImplementationProjection> implementations) {
+        Map<String, EvidenceGraphProjection.TechnicalImplementationProjection> additions = new TreeMap<>();
+        request.consumerApplicationServices().stream()
+                .map(value -> applicationServiceImplementation(
+                        value.serviceClass(), value.serviceMethod(), value.serviceMethodLocation()))
+                .forEach(value -> additions.putIfAbsent(value.id(), value));
+        List<EvidenceGraphProjection.TechnicalImplementationProjection> result = new ArrayList<>(implementations);
+        Set<String> existing = implementations.stream()
+                .map(EvidenceGraphProjection.TechnicalImplementationProjection::id)
+                .collect(java.util.stream.Collectors.toSet());
+        additions.values().stream().filter(value -> !existing.contains(value.id())).forEach(result::add);
+        return List.copyOf(result);
+    }
+
+    private static List<EvidenceGraphProjection.TechnicalImplementationProjection> withApplicationServiceRepositories(
+            OperationEvidenceAssemblyRequest request,
+            List<EvidenceGraphProjection.TechnicalImplementationProjection> implementations) {
+        Map<String, EvidenceGraphProjection.TechnicalImplementationProjection> additions = new TreeMap<>();
+        request.applicationServiceRepositories().stream()
+                .map(value -> repositoryImplementation(
+                        value.repositoryClass(), value.repositoryDeclarationLocation()))
+                .forEach(value -> additions.putIfAbsent(value.id(), value));
+        List<EvidenceGraphProjection.TechnicalImplementationProjection> result = new ArrayList<>(implementations);
+        Set<String> existing = implementations.stream()
+                .map(EvidenceGraphProjection.TechnicalImplementationProjection::id)
+                .collect(java.util.stream.Collectors.toSet());
+        additions.values().stream().filter(value -> !existing.contains(value.id())).forEach(result::add);
+        return List.copyOf(result);
     }
 
     private static void addTestsAndChecks(
@@ -173,6 +306,7 @@ public final class OperationEvidenceGraphAssembler {
                         "Controller method " + controller + '.' + evidence.controllerMethod())),
                 new EvidenceGraphProjection.TechnicalProjection(
                         EvidenceGraphProjection.ImplementationType.API,
+                        ImplementationRole.REST_CONTROLLER,
                         evidence.javaPackage().isBlank() ? evidence.controllerClass() : evidence.javaPackage(),
                         Map.of(
                                 "controllerClass", controller,
@@ -182,51 +316,256 @@ public final class OperationEvidenceGraphAssembler {
 
     private static EvidenceGraphProjection.TechnicalImplementationProjection serviceImplementation(
             ImplementationFlowEvidence flow) {
-        String location = sourceLocation(flow.serviceMethodLocation().repositoryRelativePath(),
-                flow.serviceMethodLocation().line(), flow.serviceMethodLocation().column());
-        String identity = sha256("SERVICE|" + flow.serviceClass() + '#' + flow.serviceMethod() + '|' + location);
+        return applicationServiceImplementation(flow.serviceClass(), flow.serviceMethod(), flow.serviceMethodLocation());
+    }
+
+    private static EvidenceGraphProjection.TechnicalImplementationProjection applicationServiceImplementation(
+            String serviceClass, String serviceMethod, SourceLocation declarationLocation) {
+        String location = sourceLocation(declarationLocation.repositoryRelativePath(),
+                declarationLocation.line(), declarationLocation.column());
+        String identity = sha256("SERVICE|" + serviceClass + '#' + serviceMethod + '|' + location);
         return new EvidenceGraphProjection.TechnicalImplementationProjection(
                 "TI-SERVICE-" + identity,
                 NodeType.TECHNICAL_IMPLEMENTATION,
-                flow.serviceClass() + '.' + flow.serviceMethod(),
+                serviceClass + '.' + serviceMethod,
                 "Directly invoked service method in the implementation flow.",
                 List.of(sourceReference(
-                        "SRC-JAVA-" + sha256(flow.serviceClass()),
+                        "SRC-JAVA-" + sha256(serviceClass),
                         EvidenceGraphProjection.LocationType.OTHER,
-                        location + "#" + flow.serviceClass() + '.' + flow.serviceMethod(),
-                        "Service method " + flow.serviceClass() + '.' + flow.serviceMethod())),
+                        location + "#" + serviceClass + '.' + serviceMethod,
+                        "Service method " + serviceClass + '.' + serviceMethod)),
                 new EvidenceGraphProjection.TechnicalProjection(
                         EvidenceGraphProjection.ImplementationType.OTHER,
-                        packageName(flow.serviceClass()),
+                        ImplementationRole.APPLICATION_SERVICE,
+                        packageName(serviceClass),
                         Map.of(
                                 "flowStage", "SERVICE",
-                                "injection", flow.serviceInjection().name(),
-                                "invocationKind", flow.invocationKind().name(),
-                                "invokedBy", flow.controllerClass() + '.' + flow.controllerMethod(),
-                                "invokes", flow.repositoryClass() + '.' + flow.repositoryMethod())));
+                                "serviceClass", serviceClass,
+                                "serviceMethod", serviceMethod)));
     }
 
     private static EvidenceGraphProjection.TechnicalImplementationProjection repositoryImplementation(
             ImplementationFlowEvidence flow) {
-        String location = sourceLocation(flow.repositoryDeclarationLocation().repositoryRelativePath(),
-                flow.repositoryDeclarationLocation().line(), flow.repositoryDeclarationLocation().column());
-        String identity = sha256("REPOSITORY|" + flow.repositoryClass() + '|' + location);
+        return repositoryImplementation(flow.repositoryClass(), flow.repositoryDeclarationLocation());
+    }
+
+    private static EvidenceGraphProjection.TechnicalImplementationProjection repositoryImplementation(
+            String repositoryClass, SourceLocation declarationLocation) {
+        String location = sourceLocation(declarationLocation.repositoryRelativePath(),
+                declarationLocation.line(), declarationLocation.column());
+        String identity = sha256("REPOSITORY|" + repositoryClass + '|' + location);
         return new EvidenceGraphProjection.TechnicalImplementationProjection(
                 "TI-REPOSITORY-" + identity,
                 NodeType.TECHNICAL_IMPLEMENTATION,
-                flow.repositoryClass(),
+                repositoryClass,
                 "Directly invoked repository in the implementation flow.",
                 List.of(sourceReference(
-                        "SRC-JAVA-" + sha256(flow.repositoryClass()),
+                        "SRC-JAVA-" + sha256(repositoryClass),
                         EvidenceGraphProjection.LocationType.OTHER,
-                        location + "#" + flow.repositoryClass(),
-                        "Repository " + flow.repositoryClass())),
+                        location + "#" + repositoryClass,
+                        "Repository " + repositoryClass)),
                 new EvidenceGraphProjection.TechnicalProjection(
                         EvidenceGraphProjection.ImplementationType.DATABASE,
-                        packageName(flow.repositoryClass()),
+                        ImplementationRole.REPOSITORY,
+                        packageName(repositoryClass),
+                        Map.of("flowStage", "REPOSITORY", "repositoryClass", repositoryClass)));
+    }
+
+    private static EvidenceGraphProjection.TechnicalImplementationProjection messageProducerImplementation(
+            MessageProducerEvidence evidence) {
+        SourceLocation declaration = evidence.operation().sourceLocation();
+        String declarationLocation = declaration == null
+                ? evidence.ownerClass() + '.' + evidence.ownerMethod()
+                : sourceLocation(declaration.repositoryRelativePath(), declaration.line(), declaration.column());
+        String invocationLocation = sourceLocation(evidence.publishingLocation().repositoryRelativePath(),
+                evidence.publishingLocation().line(), evidence.publishingLocation().column());
+        String owner = evidence.ownerClass() + '.' + evidence.ownerMethod();
+        String identity = sha256("MESSAGE_PRODUCER|" + owner + '|' + invocationLocation);
+        return new EvidenceGraphProjection.TechnicalImplementationProjection(
+                "TI-MESSAGE-PRODUCER-" + identity,
+                NodeType.TECHNICAL_IMPLEMENTATION,
+                owner,
+                "Kafka producer responsibility declared by " + owner + ".",
+                List.of(sourceReference(
+                        "SRC-JAVA-" + sha256(evidence.ownerClass()),
+                        EvidenceGraphProjection.LocationType.OTHER,
+                        declarationLocation + "#" + owner,
+                        "Producer-owning controller method " + owner)),
+                new EvidenceGraphProjection.TechnicalProjection(
+                        EvidenceGraphProjection.ImplementationType.MESSAGE,
+                        ImplementationRole.MESSAGE_PRODUCER,
+                        packageName(evidence.ownerClass()),
                         Map.of(
-                                "flowStage", "REPOSITORY",
-                                "injection", flow.repositoryInjection().name())));
+                                "technology", "Kafka",
+                                "ownerClass", evidence.ownerClass(),
+                                "ownerMethod", evidence.ownerMethod())));
+    }
+
+    private static EvidenceGraphProjection.TechnicalImplementationProjection messageDestinationImplementation(
+            MessageDestinationEvidence evidence) {
+        String identity = sha256("MESSAGE_DESTINATION|" + evidence.technology() + '|'
+                + evidence.destinationKind() + '|' + evidence.destinationName());
+        String location = sourceLocation(evidence.declarationLocation().repositoryRelativePath(),
+                evidence.declarationLocation().line(), evidence.declarationLocation().column());
+        return new EvidenceGraphProjection.TechnicalImplementationProjection(
+                "TI-MESSAGE-DESTINATION-" + identity,
+                NodeType.TECHNICAL_IMPLEMENTATION,
+                evidence.destinationName(),
+                "Kafka topic " + evidence.destinationName() + ".",
+                List.of(sourceReference(
+                        "SRC-CONFIG-" + sha256(evidence.declarationLocation().repositoryRelativePath()),
+                        EvidenceGraphProjection.LocationType.OTHER,
+                        location,
+                        "Kafka topic declaration " + evidence.destinationName())),
+                new EvidenceGraphProjection.TechnicalProjection(
+                        EvidenceGraphProjection.ImplementationType.MESSAGE,
+                        ImplementationRole.MESSAGE_DESTINATION,
+                        "Kafka",
+                        Map.of(
+                                "technology", evidence.technology(),
+                                "destinationName", evidence.destinationName(),
+                                "destinationKind", evidence.destinationKind())));
+    }
+
+    private static EvidenceGraphProjection.TechnicalImplementationProjection messageDestinationImplementation(
+            MessageConsumerEvidence evidence) {
+        return messageDestinationImplementation(
+                evidence.technology(), evidence.destinationName(), evidence.destinationKind(),
+                evidence.destinationDeclarationLocation());
+    }
+
+    private static EvidenceGraphProjection.TechnicalImplementationProjection messageDestinationImplementation(
+            String technology, String destinationName, String destinationKind, SourceLocation declarationLocation) {
+        String identity = sha256("MESSAGE_DESTINATION|" + technology + '|' + destinationKind + '|' + destinationName);
+        String location = sourceLocation(declarationLocation.repositoryRelativePath(),
+                declarationLocation.line(), declarationLocation.column());
+        return new EvidenceGraphProjection.TechnicalImplementationProjection(
+                "TI-MESSAGE-DESTINATION-" + identity,
+                NodeType.TECHNICAL_IMPLEMENTATION,
+                destinationName,
+                "Kafka topic " + destinationName + ".",
+                List.of(sourceReference(
+                        "SRC-CONFIG-" + sha256(declarationLocation.repositoryRelativePath()),
+                        EvidenceGraphProjection.LocationType.OTHER,
+                        location,
+                        "Kafka topic declaration " + destinationName)),
+                new EvidenceGraphProjection.TechnicalProjection(
+                        EvidenceGraphProjection.ImplementationType.MESSAGE,
+                        ImplementationRole.MESSAGE_DESTINATION,
+                        "Kafka",
+                        Map.of("technology", technology, "destinationName", destinationName,
+                                "destinationKind", destinationKind)));
+    }
+
+    private static EvidenceGraphProjection.TechnicalImplementationProjection messageConsumerImplementation(
+            MessageConsumerEvidence evidence) {
+        String group = evidence.consumerGroup() == null ? "" : evidence.consumerGroup();
+        String identity = sha256("MESSAGE_CONSUMER|" + evidence.technology() + '|' + evidence.listenerClass()
+                + '#' + evidence.listenerMethod() + '|' + evidence.destinationName() + '|' + group);
+        String location = sourceLocation(evidence.listenerLocation().repositoryRelativePath(),
+                evidence.listenerLocation().line(), evidence.listenerLocation().column());
+        Map<String, String> details = new TreeMap<>();
+        details.put("technology", evidence.technology());
+        details.put("listenerClass", evidence.listenerClass());
+        details.put("listenerMethod", evidence.listenerMethod());
+        details.put("destinationName", evidence.destinationName());
+        if (evidence.consumerGroup() != null) details.put("consumerGroup", evidence.consumerGroup());
+        return new EvidenceGraphProjection.TechnicalImplementationProjection(
+                "TI-MESSAGE-CONSUMER-" + identity,
+                NodeType.TECHNICAL_IMPLEMENTATION,
+                evidence.listenerClass() + '.' + evidence.listenerMethod(),
+                "Spring Kafka listener consuming from " + evidence.destinationName() + ".",
+                List.of(sourceReference(
+                        "SRC-JAVA-" + sha256(evidence.listenerClass()),
+                        EvidenceGraphProjection.LocationType.OTHER,
+                        location + "#" + evidence.listenerClass() + '.' + evidence.listenerMethod(),
+                        "KafkaListener subscription for " + evidence.destinationName())),
+                new EvidenceGraphProjection.TechnicalProjection(
+                        EvidenceGraphProjection.ImplementationType.MESSAGE,
+                        ImplementationRole.MESSAGE_CONSUMER,
+                        packageName(evidence.listenerClass()),
+                        details));
+    }
+
+    private static EvidenceGraphProjection.RelationshipProjection consumingRelationship(
+            MessageConsumerEvidence evidence, String consumerId, String destinationId) {
+        String location = sourceLocation(evidence.listenerLocation().repositoryRelativePath(),
+                evidence.listenerLocation().line(), evidence.listenerLocation().column());
+        return new EvidenceGraphProjection.RelationshipProjection(
+                "REL-" + sha256(consumerId + '|' + RelationshipType.CONSUMES_FROM + '|' + destinationId),
+                consumerId,
+                RelationshipType.CONSUMES_FROM,
+                destinationId,
+                List.of(sourceReference(
+                        "SRC-JAVA-" + sha256(evidence.listenerClass()),
+                        EvidenceGraphProjection.LocationType.OTHER,
+                        location + "#" + evidence.listenerClass() + '.' + evidence.listenerMethod(),
+                        "KafkaListener subscription to " + evidence.destinationName())));
+    }
+
+    private static EvidenceGraphProjection.RelationshipProjection controllerUsesProducerRelationship(
+            MessageProducerEvidence evidence, String controllerId, String producerId) {
+        String location = sourceLocation(evidence.publishingLocation().repositoryRelativePath(),
+                evidence.publishingLocation().line(), evidence.publishingLocation().column());
+        return new EvidenceGraphProjection.RelationshipProjection(
+                "REL-" + sha256(controllerId + '|' + RelationshipType.USES + '|' + producerId),
+                controllerId, RelationshipType.USES, producerId,
+                List.of(sourceReference(
+                        "SRC-JAVA-" + sha256(evidence.ownerClass()),
+                        EvidenceGraphProjection.LocationType.OTHER,
+                        location + "#" + evidence.ownerClass() + '.' + evidence.ownerMethod(),
+                        "Direct " + evidence.producerField() + '.' + evidence.publishingMethod()
+                                + " invocation via " + evidence.injectionKind().name())));
+    }
+
+    private static EvidenceGraphProjection.RelationshipProjection consumerUsesServiceRelationship(
+            ConsumerApplicationServiceEvidence evidence, String consumerId, String serviceId) {
+        String location = sourceLocation(evidence.invocationLocation().repositoryRelativePath(),
+                evidence.invocationLocation().line(), evidence.invocationLocation().column());
+        return new EvidenceGraphProjection.RelationshipProjection(
+                "REL-" + sha256(consumerId + '|' + RelationshipType.USES + '|' + serviceId),
+                consumerId, RelationshipType.USES, serviceId,
+                List.of(sourceReference(
+                        "SRC-JAVA-" + sha256(evidence.consumer().listenerClass()),
+                        EvidenceGraphProjection.LocationType.OTHER,
+                        location + "#" + evidence.consumer().listenerClass() + '.'
+                                + evidence.consumer().listenerMethod(),
+                        "Direct " + evidence.serviceClass() + '.' + evidence.serviceMethod() + " invocation")));
+    }
+
+    private static EvidenceGraphProjection.RelationshipProjection serviceUsesRepositoryRelationship(
+            ApplicationServiceRepositoryEvidence evidence, String serviceId, String repositoryId) {
+        List<EvidenceGraphProjection.SourceReferenceProjection> references = evidence.invocations().stream()
+                .map(invocation -> {
+                    String location = sourceLocation(invocation.invocationLocation().repositoryRelativePath(),
+                            invocation.invocationLocation().line(), invocation.invocationLocation().column());
+                    return sourceReference(
+                            "SRC-JAVA-" + sha256(evidence.applicationService().serviceClass()),
+                            EvidenceGraphProjection.LocationType.OTHER,
+                            location + "#" + evidence.applicationService().serviceClass() + '.'
+                                    + evidence.applicationService().serviceMethod(),
+                            "Direct " + evidence.repositoryClass() + '.' + invocation.repositoryMethod()
+                                    + " invocation");
+                }).toList();
+        return new EvidenceGraphProjection.RelationshipProjection(
+                "REL-" + sha256(serviceId + '|' + RelationshipType.USES + '|' + repositoryId),
+                serviceId, RelationshipType.USES, repositoryId, references);
+    }
+
+    private static EvidenceGraphProjection.RelationshipProjection publishingRelationship(
+            MessageDestinationEvidence evidence, String producerId, String destinationId) {
+        String location = sourceLocation(evidence.producer().publishingLocation().repositoryRelativePath(),
+                evidence.producer().publishingLocation().line(), evidence.producer().publishingLocation().column());
+        return new EvidenceGraphProjection.RelationshipProjection(
+                "REL-" + sha256(producerId + '|' + RelationshipType.PUBLISHES_TO + '|' + destinationId),
+                producerId,
+                RelationshipType.PUBLISHES_TO,
+                destinationId,
+                List.of(sourceReference(
+                        "SRC-JAVA-" + sha256(evidence.producer().ownerClass()),
+                        EvidenceGraphProjection.LocationType.OTHER,
+                        location + "#" + evidence.producer().ownerClass() + '.' + evidence.producer().ownerMethod(),
+                        "KafkaTemplate.send invocation publishing to " + evidence.destinationName())));
     }
 
     private static EvidenceGraphProjection.TestImplementationProjection testImplementation(

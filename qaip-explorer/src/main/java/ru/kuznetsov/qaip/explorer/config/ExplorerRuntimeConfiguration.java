@@ -17,6 +17,9 @@ import ru.kuznetsov.qaip.explorer.application.OperationDetailsService;
 import ru.kuznetsov.qaip.explorer.application.OperationListService;
 import ru.kuznetsov.qaip.explorer.application.RepositorySummaryGateway;
 import ru.kuznetsov.qaip.explorer.application.RepositorySummaryService;
+import ru.kuznetsov.qaip.explorer.application.GetEventPathService;
+import ru.kuznetsov.qaip.explorer.adapter.runtime.EventPathViewMapper;
+import ru.kuznetsov.qaip.explorer.adapter.runtime.RuntimeEventPathProjectionService;
 import ru.kuznetsov.qaip.explorer.adapter.runtime.RuntimeRepositorySummaryAdapter;
 import ru.kuznetsov.qaip.explorer.adapter.runtime.RuntimeOperationListAdapter;
 import ru.kuznetsov.qaip.explorer.adapter.runtime.RuntimeOperationDetailsAdapter;
@@ -82,5 +85,10 @@ public class ExplorerRuntimeConfiguration {
     @Bean
     OperationDetailsService operationDetailsService(OperationDetailsGateway gateway) {
         return new DefaultOperationDetailsService(gateway);
+    }
+
+    @Bean
+    GetEventPathService getEventPathService(QaipRuntime qaipRuntime) {
+        return new RuntimeEventPathProjectionService(qaipRuntime.eventPathQuery(), new EventPathViewMapper());
     }
 }

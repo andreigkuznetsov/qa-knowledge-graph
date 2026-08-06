@@ -63,7 +63,7 @@ public final class CanonicalProjectSerializer {
         project.set("metadata", stringMap(metadata.projectMetadata()));
         base.set("sources", sources(metadata.repositorySource()));
         base.set("nodes", nodes(graph, metadata.repositorySource().id()));
-        base.set("relationships", relationships(graph));
+        base.set("relationships", relationships(graph, metadata.repositorySource().id()));
         return base;
     }
 
@@ -121,6 +121,9 @@ public final class CanonicalProjectSerializer {
         node.set("sourceReferences", references(value.sourceReferences(), sourceId));
         ObjectNode content = node.putObject("technicalImplementation");
         content.put("implementationType", value.technicalImplementation().implementationType().name());
+        if (value.technicalImplementation().implementationRole() != null) {
+            content.put("implementationRole", value.technicalImplementation().implementationRole().name());
+        }
         content.put("system", value.technicalImplementation().system());
         content.set("details", stringMap(value.technicalImplementation().details()));
         return node;
@@ -202,7 +205,7 @@ public final class CanonicalProjectSerializer {
         return location;
     }
 
-    private static ArrayNode relationships(ProjectEvidenceGraphProjection graph) {
+    private static ArrayNode relationships(ProjectEvidenceGraphProjection graph, String sourceId) {
         ArrayNode result = JSON.createArrayNode();
         graph.relationships().stream()
                 .sorted(Comparator.comparing(EvidenceGraphProjection.RelationshipProjection::id))
@@ -213,7 +216,7 @@ public final class CanonicalProjectSerializer {
                     relationship.put("type", value.type().name());
                     relationship.put("to", value.to());
                     relationship.set("properties", JSON.createObjectNode());
-                    relationship.set("sourceReferences", JSON.createArrayNode());
+                relationship.set("sourceReferences", references(value.sourceReferences(), sourceId));
                 });
         return result;
     }

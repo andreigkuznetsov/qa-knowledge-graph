@@ -7,6 +7,8 @@ public enum RelationshipType {
     IMPLEMENTED_BY,
     VALIDATES,
     USES,
+    PUBLISHES_TO,
+    CONSUMES_FROM,
     HAS_CHECK,
     COVERS,
     DEPENDS_ON,
