@@ -5,6 +5,7 @@ import ru.kuznetsov.qaip.core.application.importing.ProjectImporter;
 import ru.kuznetsov.qaip.core.application.importproject.DefaultImportProjectUseCase;
 import ru.kuznetsov.qaip.core.application.persistence.DefaultPersistProject;
 import ru.kuznetsov.qaip.core.application.query.node.ProjectNodeLookup;
+import ru.kuznetsov.qaip.core.application.query.eventpath.DefaultEventPathQuery;
 import ru.kuznetsov.qaip.core.application.query.nodedetails.DefaultNodeDetailsUseCase;
 import ru.kuznetsov.qaip.core.application.query.nodedetails.NodeDetailsMapper;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.DefaultOperationDetailsQuery;
@@ -54,6 +55,7 @@ public final class QaipRuntimeFactory {
         return new QaipRuntime(
                 importUseCase,
                 reader,
+                new DefaultEventPathQuery(reader),
                 new DefaultOperationDetailsQuery(reader, operationProjector),
                 new DefaultOperationListQuery(reader, operationProjector),
                 new DefaultProjectSummaryUseCase(reader, new ProjectSummaryMapper()),

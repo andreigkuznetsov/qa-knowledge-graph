@@ -24,6 +24,7 @@ class QaipRuntimeFactoryTest {
 
         assertNotNull(runtime.importProjectUseCase());
         assertNotNull(runtime.projectReader());
+        assertNotNull(runtime.eventPathQuery());
         assertNotNull(runtime.operationDetailsQuery());
         assertNotNull(runtime.operationListQuery());
         assertNotNull(runtime.projectSummaryUseCase());
