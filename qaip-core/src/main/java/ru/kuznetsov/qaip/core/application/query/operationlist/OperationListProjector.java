@@ -26,17 +26,11 @@ public final class OperationListProjector {
     public List<OperationQueryResult> project(Project project) {
         Objects.requireNonNull(project, "project");
         RelationshipIndex relationships = new RelationshipIndex(project.relationships());
-        Set<String> qualifiedTests = new HashSet<>();
-        project.nodes().stream()
-                .filter(node -> TEST_IMPLEMENTATION.equals(node.type()))
-                .map(Node::id)
-                .forEach(qualifiedTests::add);
         List<OperationQueryResult> operations = new ArrayList<>();
         for (Node node : project.nodes()) {
             if (!BUSINESS_OPERATION.equals(node.type())) continue;
             Endpoint endpoint = Endpoint.from(node);
-            Set<String> tests = relatedTests(node.id(), relationships);
-            tests.retainAll(qualifiedTests);
+            Set<String> tests = qualifiedTestIds(project, node.id());
             Set<String> checks = new HashSet<>();
             tests.forEach(testId -> checks.addAll(relationships.targets(testId, HAS_CHECK)));
             operations.add(new OperationQueryResult(
@@ -46,6 +40,21 @@ public final class OperationListProjector {
                 .thenComparing(OperationQueryResult::path)
                 .thenComparing(OperationQueryResult::operationId));
         return List.copyOf(operations);
+    }
+
+    /** Returns the same deduplicated qualified test identities used by operation count projection. */
+    public Set<String> qualifiedTestIds(Project project, String operationId) {
+        Objects.requireNonNull(project, "project");
+        Objects.requireNonNull(operationId, "operationId");
+        RelationshipIndex relationships = new RelationshipIndex(project.relationships());
+        Set<String> testNodeIds = new HashSet<>();
+        project.nodes().stream()
+                .filter(node -> TEST_IMPLEMENTATION.equals(node.type()))
+                .map(Node::id)
+                .forEach(testNodeIds::add);
+        Set<String> result = relatedTests(operationId, relationships);
+        result.retainAll(testNodeIds);
+        return Set.copyOf(result);
     }
 
     private static Set<String> relatedTests(String operationId, RelationshipIndex relationships) {

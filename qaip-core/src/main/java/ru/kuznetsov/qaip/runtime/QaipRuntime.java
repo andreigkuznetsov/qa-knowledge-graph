@@ -5,6 +5,7 @@ import ru.kuznetsov.qaip.core.application.query.nodedetails.NodeDetailsUseCase;
 import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathQuery;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.OperationDetailsQuery;
 import ru.kuznetsov.qaip.core.application.query.operationlist.OperationListQuery;
+import ru.kuznetsov.qaip.core.application.query.operationtests.OperationTestsQuery;
 import ru.kuznetsov.qaip.core.application.query.projectsummary.ProjectSummaryUseCase;
 import ru.kuznetsov.qaip.core.application.query.relationship.RelationshipsUseCase;
 import ru.kuznetsov.qaip.core.application.query.trace.TraceUseCase;
@@ -19,6 +20,7 @@ public record QaipRuntime(
         EventPathQuery eventPathQuery,
         OperationDetailsQuery operationDetailsQuery,
         OperationListQuery operationListQuery,
+        OperationTestsQuery operationTestsQuery,
         ProjectSummaryUseCase projectSummaryUseCase,
         NodeDetailsUseCase nodeDetailsUseCase,
         RelationshipsUseCase relationshipsUseCase,
@@ -31,6 +33,7 @@ public record QaipRuntime(
         Objects.requireNonNull(eventPathQuery, "eventPathQuery");
         Objects.requireNonNull(operationDetailsQuery, "operationDetailsQuery");
         Objects.requireNonNull(operationListQuery, "operationListQuery");
+        Objects.requireNonNull(operationTestsQuery, "operationTestsQuery");
         Objects.requireNonNull(projectSummaryUseCase, "projectSummaryUseCase");
         Objects.requireNonNull(nodeDetailsUseCase, "nodeDetailsUseCase");
         Objects.requireNonNull(relationshipsUseCase, "relationshipsUseCase");

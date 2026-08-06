@@ -11,6 +11,7 @@ import ru.kuznetsov.qaip.core.application.query.nodedetails.NodeDetailsMapper;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.DefaultOperationDetailsQuery;
 import ru.kuznetsov.qaip.core.application.query.operationlist.DefaultOperationListQuery;
 import ru.kuznetsov.qaip.core.application.query.operationlist.OperationListProjector;
+import ru.kuznetsov.qaip.core.application.query.operationtests.DefaultOperationTestsQuery;
 import ru.kuznetsov.qaip.core.application.query.projectsummary.DefaultProjectSummaryUseCase;
 import ru.kuznetsov.qaip.core.application.query.projectsummary.ProjectSummaryMapper;
 import ru.kuznetsov.qaip.core.application.query.relationship.DefaultRelationshipsUseCase;
@@ -58,6 +59,7 @@ public final class QaipRuntimeFactory {
                 new DefaultEventPathQuery(reader),
                 new DefaultOperationDetailsQuery(reader, operationProjector),
                 new DefaultOperationListQuery(reader, operationProjector),
+                new DefaultOperationTestsQuery(reader, operationProjector),
                 new DefaultProjectSummaryUseCase(reader, new ProjectSummaryMapper()),
                 new DefaultNodeDetailsUseCase(reader, nodeLookup, new NodeDetailsMapper()),
                 new DefaultRelationshipsUseCase(
