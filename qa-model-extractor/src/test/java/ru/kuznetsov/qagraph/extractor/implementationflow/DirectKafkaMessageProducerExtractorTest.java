@@ -8,6 +8,7 @@ import ru.kuznetsov.qagraph.extractor.integrationtest.IntegrationTestEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.RestOperationEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.SpringMvcRestOperationScanner;
 import ru.kuznetsov.qagraph.model.ImplementationRole;
+import ru.kuznetsov.qagraph.model.RelationshipType;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -76,10 +77,22 @@ class DirectKafkaMessageProducerExtractorTest {
         assertTrue(producers.getFirst().id().startsWith("TI-MESSAGE-PRODUCER-"));
         assertEquals("MESSAGE", producers.getFirst().technicalImplementation().implementationType().name());
         assertEquals("Kafka", producers.getFirst().technicalImplementation().details().get("technology"));
+        assertEquals(List.of("ownerClass", "ownerMethod", "technology"),
+                producers.getFirst().technicalImplementation().details().keySet().stream().toList());
         assertEquals(1, producers.getFirst().sourceReferences().size());
         assertTrue(producers.getFirst().sourceReferences().getFirst().location().value()
                 .contains("FirstController.java:"));
-        assertEquals(1, first.relationships().size(), "producer extraction adds no relationship");
+        assertEquals(ImplementationRole.REST_CONTROLLER,
+                first.technicalImplementations().getFirst().technicalImplementation().implementationRole());
+        assertEquals(2, first.relationships().size());
+        var controllerUsesProducer = first.relationships().stream()
+                .filter(value -> value.type() == RelationshipType.USES).toList();
+        assertEquals(1, controllerUsesProducer.size());
+        assertEquals(first.technicalImplementations().getFirst().id(), controllerUsesProducer.getFirst().from());
+        assertEquals(producers.getFirst().id(), controllerUsesProducer.getFirst().to());
+        assertEquals(1, controllerUsesProducer.getFirst().sourceReferences().size());
+        assertTrue(controllerUsesProducer.getFirst().sourceReferences().getFirst().text()
+                .contains("kafkaTemplate.send"));
     }
 
     private List<MessageProducerEvidence> extractAll() throws Exception {

@@ -67,6 +67,14 @@ public final class OperationEvidenceGraphAssembler {
         List<EvidenceGraphProjection.RelationshipProjection> relationships = new ArrayList<>();
         relationships.add(relationship(
                 operation.id(), RelationshipType.IMPLEMENTED_BY, implementation.id()));
+        for (MessageProducerEvidence producer : request.messageProducers()) {
+            if (!producer.operation().equals(request.operation())
+                    || !producer.ownerClass().equals(qualifiedController(request.operation()))
+                    || !producer.ownerMethod().equals(request.operation().controllerMethod())) continue;
+            var producerNode = messageProducerImplementation(producer);
+            relationships.add(controllerUsesProducerRelationship(
+                    producer, implementation.id(), producerNode.id()));
+        }
         if (hasSynchronousFlow(implementations)) {
             relationships.add(relationship(
                     implementations.get(0).id(), RelationshipType.USES, implementations.get(1).id()));
@@ -298,6 +306,7 @@ public final class OperationEvidenceGraphAssembler {
                         "Controller method " + controller + '.' + evidence.controllerMethod())),
                 new EvidenceGraphProjection.TechnicalProjection(
                         EvidenceGraphProjection.ImplementationType.API,
+                        ImplementationRole.REST_CONTROLLER,
                         evidence.javaPackage().isBlank() ? evidence.controllerClass() : evidence.javaPackage(),
                         Map.of(
                                 "controllerClass", controller,
@@ -364,29 +373,32 @@ public final class OperationEvidenceGraphAssembler {
 
     private static EvidenceGraphProjection.TechnicalImplementationProjection messageProducerImplementation(
             MessageProducerEvidence evidence) {
-        String location = sourceLocation(evidence.publishingLocation().repositoryRelativePath(),
+        SourceLocation declaration = evidence.operation().sourceLocation();
+        String declarationLocation = declaration == null
+                ? evidence.ownerClass() + '.' + evidence.ownerMethod()
+                : sourceLocation(declaration.repositoryRelativePath(), declaration.line(), declaration.column());
+        String invocationLocation = sourceLocation(evidence.publishingLocation().repositoryRelativePath(),
                 evidence.publishingLocation().line(), evidence.publishingLocation().column());
         String owner = evidence.ownerClass() + '.' + evidence.ownerMethod();
-        String identity = sha256("MESSAGE_PRODUCER|" + owner + '|' + location);
+        String identity = sha256("MESSAGE_PRODUCER|" + owner + '|' + invocationLocation);
         return new EvidenceGraphProjection.TechnicalImplementationProjection(
                 "TI-MESSAGE-PRODUCER-" + identity,
                 NodeType.TECHNICAL_IMPLEMENTATION,
                 owner,
-                "Direct Kafka publishing action owned by " + owner + ".",
+                "Kafka producer responsibility declared by " + owner + ".",
                 List.of(sourceReference(
                         "SRC-JAVA-" + sha256(evidence.ownerClass()),
                         EvidenceGraphProjection.LocationType.OTHER,
-                        location + "#" + owner,
-                        "KafkaTemplate." + evidence.publishingMethod() + " invocation in " + owner)),
+                        declarationLocation + "#" + owner,
+                        "Producer-owning controller method " + owner)),
                 new EvidenceGraphProjection.TechnicalProjection(
                         EvidenceGraphProjection.ImplementationType.MESSAGE,
                         ImplementationRole.MESSAGE_PRODUCER,
                         packageName(evidence.ownerClass()),
                         Map.of(
                                 "technology", "Kafka",
-                                "producerField", evidence.producerField(),
-                                "publishingMethod", evidence.publishingMethod(),
-                                "injection", evidence.injectionKind().name())));
+                                "ownerClass", evidence.ownerClass(),
+                                "ownerMethod", evidence.ownerMethod())));
     }
 
     private static EvidenceGraphProjection.TechnicalImplementationProjection messageDestinationImplementation(
@@ -489,6 +501,21 @@ public final class OperationEvidenceGraphAssembler {
                         EvidenceGraphProjection.LocationType.OTHER,
                         location + "#" + evidence.listenerClass() + '.' + evidence.listenerMethod(),
                         "KafkaListener subscription to " + evidence.destinationName())));
+    }
+
+    private static EvidenceGraphProjection.RelationshipProjection controllerUsesProducerRelationship(
+            MessageProducerEvidence evidence, String controllerId, String producerId) {
+        String location = sourceLocation(evidence.publishingLocation().repositoryRelativePath(),
+                evidence.publishingLocation().line(), evidence.publishingLocation().column());
+        return new EvidenceGraphProjection.RelationshipProjection(
+                "REL-" + sha256(controllerId + '|' + RelationshipType.USES + '|' + producerId),
+                controllerId, RelationshipType.USES, producerId,
+                List.of(sourceReference(
+                        "SRC-JAVA-" + sha256(evidence.ownerClass()),
+                        EvidenceGraphProjection.LocationType.OTHER,
+                        location + "#" + evidence.ownerClass() + '.' + evidence.ownerMethod(),
+                        "Direct " + evidence.producerField() + '.' + evidence.publishingMethod()
+                                + " invocation via " + evidence.injectionKind().name())));
     }
 
     private static EvidenceGraphProjection.RelationshipProjection consumerUsesServiceRelationship(

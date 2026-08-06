@@ -22,10 +22,13 @@ class KafkaProducerQualificationVerificationTest {
         Assumptions.assumeTrue(Files.isDirectory(repository.resolve("src/main/java")),
                 "Kafka qualification production sources are unavailable");
 
-        var result = new DefaultRepositoryAnalysisService().analyze(
-                new RepositoryAnalysisRequest(repository, "order-events-kafka-tests"));
+        var analysisService = new DefaultRepositoryAnalysisService();
+        var analysisRequest = new RepositoryAnalysisRequest(repository, "order-events-kafka-tests");
+        var result = analysisService.analyze(analysisRequest);
+        var repeated = analysisService.analyze(analysisRequest);
 
         assertEquals(RepositoryAnalysisStatus.COMPLETE, result.status());
+        assertEquals(result.canonicalProjectJson(), repeated.canonicalProjectJson());
         var nodes = result.canonicalProjectJson().path("baseModel").path("nodes");
         long producers = java.util.stream.StreamSupport.stream(nodes.spliterator(), false)
                 .filter(node -> "MESSAGE_PRODUCER".equals(
@@ -41,11 +44,38 @@ class KafkaProducerQualificationVerificationTest {
 
         assertEquals(1, producers);
         assertEquals(1, restNodes);
+        var eventController = java.util.stream.StreamSupport.stream(nodes.spliterator(), false)
+                .filter(node -> "REST_CONTROLLER".equals(
+                        node.path("technicalImplementation").path("implementationRole").asText()))
+                .filter(node -> "com.example.kafkaorders.controller.OrderCommandController.createOrder"
+                        .equals(node.path("name").asText())).findFirst().orElseThrow();
+        var producer = java.util.stream.StreamSupport.stream(nodes.spliterator(), false)
+                .filter(node -> "MESSAGE_PRODUCER".equals(
+                        node.path("technicalImplementation").path("implementationRole").asText()))
+                .filter(node -> "com.example.kafkaorders.controller.OrderCommandController.createOrder"
+                        .equals(node.path("name").asText())).findFirst().orElseThrow();
+        assertEquals(3, producer.path("technicalImplementation").path("details").size());
+        assertTrue(producer.path("technicalImplementation").path("details").has("ownerClass"));
+        assertTrue(producer.path("technicalImplementation").path("details").has("ownerMethod"));
+        assertTrue(producer.path("technicalImplementation").path("details").has("technology"));
         assertTrue(java.util.stream.StreamSupport.stream(nodes.spliterator(), false)
                 .filter(node -> "MESSAGE_PRODUCER".equals(
                         node.path("technicalImplementation").path("implementationRole").asText()))
                 .allMatch(node -> "Kafka".equals(
                         node.path("technicalImplementation").path("details").path("technology").asText())));
+
+        var controllerUsesProducer = java.util.stream.StreamSupport.stream(
+                        result.canonicalProjectJson().at("/baseModel/relationships").spliterator(), false)
+                .filter(relationship -> "USES".equals(relationship.path("type").asText()))
+                .filter(relationship -> eventController.path("id").asText()
+                        .equals(relationship.path("from").asText()))
+                .filter(relationship -> producer.path("id").asText()
+                        .equals(relationship.path("to").asText())).toList();
+        assertEquals(1, controllerUsesProducer.size());
+        assertEquals(1, controllerUsesProducer.getFirst().path("sourceReferences").size());
+        assertTrue(controllerUsesProducer.getFirst().at("/sourceReferences/0/text").asText()
+                .contains("kafkaTemplate.send"));
+        assertTrue(!producer.at("/sourceReferences/0/text").asText().contains("send"));
 
         var destinations = java.util.stream.StreamSupport.stream(nodes.spliterator(), false)
                 .filter(node -> "MESSAGE_DESTINATION".equals(
