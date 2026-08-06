@@ -8,6 +8,7 @@ import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
+import com.github.javaparser.ast.expr.BinaryExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
@@ -57,13 +58,64 @@ final class StaticTestEndpointResolver {
     }
 
     Optional<String> resolve(CompilationUnit unit, Expression expression) {
+        if (expression.isEnclosedExpr()) {
+            return resolve(unit, expression.asEnclosedExpr().getInner());
+        }
         if (expression.isStringLiteralExpr()) {
             return Optional.of(expression.asStringLiteralExpr().asString());
         }
         if (expression.isNameExpr()) return resolveName(unit, expression.asNameExpr());
         if (expression.isFieldAccessExpr()) return resolveFieldAccess(unit, expression.asFieldAccessExpr());
         if (expression.isMethodCallExpr()) return resolveEnumAccessor(unit, expression.asMethodCallExpr());
+        if (expression.isBinaryExpr()) return resolveLocalRuntimePortUrl(unit, expression.asBinaryExpr());
         return Optional.empty();
+    }
+
+    private Optional<String> resolveLocalRuntimePortUrl(CompilationUnit unit, BinaryExpr expression) {
+        if (expression.getOperator() != BinaryExpr.Operator.PLUS) return Optional.empty();
+        List<Expression> parts = new ArrayList<>();
+        flattenConcatenation(expression, parts);
+        StringBuilder candidate = new StringBuilder();
+        int unresolved = 0;
+        for (Expression part : parts) {
+            Optional<String> resolved = resolve(unit, part);
+            if (resolved.isPresent()) {
+                candidate.append(resolved.orElseThrow());
+            } else {
+                unresolved++;
+                candidate.append('\u0000');
+            }
+        }
+        if (unresolved != 1) return Optional.empty();
+        String value = candidate.toString();
+        String localhost = "http://localhost:\u0000";
+        String loopback = "http://127.0.0.1:\u0000";
+        String path;
+        if (value.startsWith(localhost)) {
+            path = value.substring(localhost.length());
+        } else if (value.startsWith(loopback)) {
+            path = value.substring(loopback.length());
+        } else {
+            return Optional.empty();
+        }
+        if (!path.startsWith("/") || path.indexOf('?') >= 0 || path.indexOf('#') >= 0) {
+            return Optional.empty();
+        }
+        return Optional.of(path);
+    }
+
+    private static void flattenConcatenation(Expression expression, List<Expression> parts) {
+        if (expression.isEnclosedExpr()) {
+            flattenConcatenation(expression.asEnclosedExpr().getInner(), parts);
+            return;
+        }
+        if (expression.isBinaryExpr()
+                && expression.asBinaryExpr().getOperator() == BinaryExpr.Operator.PLUS) {
+            flattenConcatenation(expression.asBinaryExpr().getLeft(), parts);
+            flattenConcatenation(expression.asBinaryExpr().getRight(), parts);
+            return;
+        }
+        parts.add(expression);
     }
 
     private Optional<String> resolveName(CompilationUnit unit, NameExpr expression) {

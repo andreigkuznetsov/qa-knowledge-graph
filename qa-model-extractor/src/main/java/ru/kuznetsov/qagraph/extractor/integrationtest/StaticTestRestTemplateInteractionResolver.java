@@ -85,6 +85,12 @@ final class StaticTestRestTemplateInteractionResolver {
             String relativePath,
             MethodCallExpr invocation
     ) {
+        HelperMethod directOwner = new HelperMethod(testClass, testUnit, testMethod);
+        Optional<ResolvedCall> direct = resolveTestRestTemplateCall(directOwner, invocation);
+        if (direct.isPresent()) {
+            return interaction(direct.orElseThrow(), invocation, testClass, testMethod, relativePath,
+                    testClass + '.' + testMethod.getNameAsString());
+        }
         List<HelperMethod> helpers = helperCandidates(testUnit, testMethod, testClass, invocation);
         if (helpers.size() != 1) return Optional.empty();
         HelperMethod helper = helpers.getFirst();
@@ -95,13 +101,24 @@ final class StaticTestRestTemplateInteractionResolver {
                 .toList();
         if (calls.size() != 1) return Optional.empty();
 
-        ResolvedCall call = calls.getFirst();
+        return interaction(calls.getFirst(), invocation, testClass, testMethod, relativePath,
+                helper.owner() + '.' + helper.method().getNameAsString());
+    }
+
+    private static Optional<HttpInteractionEvidence> interaction(
+            ResolvedCall call,
+            MethodCallExpr invocation,
+            String testClass,
+            MethodDeclaration testMethod,
+            String relativePath,
+            String owner
+    ) {
         var position = invocation.getName().getBegin().orElseThrow(() ->
                 new IllegalStateException("Parsed helper invocation has no source location"));
         return Optional.of(new HttpInteractionEvidence(
                 call.method(), normalizePath(call.endpoint()), invocation.toString(), testClass,
                 testMethod.getNameAsString(), relativePath, position.line, position.column,
-                helper.owner() + '.' + helper.method().getNameAsString() + " -> " + call.expression()));
+                owner + " -> " + call.expression()));
     }
 
     private Optional<ResolvedCall> resolveTestRestTemplateCall(HelperMethod helper, MethodCallExpr call) {
