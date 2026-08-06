@@ -11,6 +11,7 @@ import ru.kuznetsov.qagraph.extractor.implementationflow.MessageProducerEvidence
 import ru.kuznetsov.qagraph.extractor.implementationflow.MessageDestinationEvidence;
 import ru.kuznetsov.qagraph.extractor.implementationflow.MessageConsumerEvidence;
 import ru.kuznetsov.qagraph.extractor.implementationflow.ConsumerApplicationServiceEvidence;
+import ru.kuznetsov.qagraph.extractor.implementationflow.ApplicationServiceRepositoryEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.RestOperationEvidence;
 import ru.kuznetsov.qagraph.extractor.rest.SourceLocation;
 import ru.kuznetsov.qagraph.extractor.rest.mapping.BusinessOperationProjection;
@@ -47,6 +48,7 @@ public final class OperationEvidenceGraphAssembler {
         implementations = withMessageDestinations(request, implementations);
         implementations = withMessageConsumers(request, implementations);
         implementations = withConsumerApplicationServices(request, implementations);
+        implementations = withApplicationServiceRepositories(request, implementations);
 
         Map<String, EvidenceGraphProjection.BusinessRuleProjection> rules = new TreeMap<>();
         Set<String> boundRequestModelTypes = request.requestModelBindings().stream()
@@ -86,6 +88,16 @@ public final class OperationEvidenceGraphAssembler {
             var serviceNode = applicationServiceImplementation(
                     service.serviceClass(), service.serviceMethod(), service.serviceMethodLocation());
             relationships.add(consumerUsesServiceRelationship(service, consumerNode.id(), serviceNode.id()));
+        }
+        for (ApplicationServiceRepositoryEvidence repository : request.applicationServiceRepositories()) {
+            var serviceNode = applicationServiceImplementation(
+                    repository.applicationService().serviceClass(),
+                    repository.applicationService().serviceMethod(),
+                    repository.applicationService().serviceMethodLocation());
+            var repositoryNode = repositoryImplementation(
+                    repository.repositoryClass(), repository.repositoryDeclarationLocation());
+            relationships.add(serviceUsesRepositoryRelationship(
+                    repository, serviceNode.id(), repositoryNode.id()));
         }
         for (var rule : rules.values()) {
             relationships.add(relationship(operation.id(), RelationshipType.GOVERNED_BY, rule.id()));
@@ -181,6 +193,22 @@ public final class OperationEvidenceGraphAssembler {
         request.consumerApplicationServices().stream()
                 .map(value -> applicationServiceImplementation(
                         value.serviceClass(), value.serviceMethod(), value.serviceMethodLocation()))
+                .forEach(value -> additions.putIfAbsent(value.id(), value));
+        List<EvidenceGraphProjection.TechnicalImplementationProjection> result = new ArrayList<>(implementations);
+        Set<String> existing = implementations.stream()
+                .map(EvidenceGraphProjection.TechnicalImplementationProjection::id)
+                .collect(java.util.stream.Collectors.toSet());
+        additions.values().stream().filter(value -> !existing.contains(value.id())).forEach(result::add);
+        return List.copyOf(result);
+    }
+
+    private static List<EvidenceGraphProjection.TechnicalImplementationProjection> withApplicationServiceRepositories(
+            OperationEvidenceAssemblyRequest request,
+            List<EvidenceGraphProjection.TechnicalImplementationProjection> implementations) {
+        Map<String, EvidenceGraphProjection.TechnicalImplementationProjection> additions = new TreeMap<>();
+        request.applicationServiceRepositories().stream()
+                .map(value -> repositoryImplementation(
+                        value.repositoryClass(), value.repositoryDeclarationLocation()))
                 .forEach(value -> additions.putIfAbsent(value.id(), value));
         List<EvidenceGraphProjection.TechnicalImplementationProjection> result = new ArrayList<>(implementations);
         Set<String> existing = implementations.stream()
@@ -309,25 +337,29 @@ public final class OperationEvidenceGraphAssembler {
 
     private static EvidenceGraphProjection.TechnicalImplementationProjection repositoryImplementation(
             ImplementationFlowEvidence flow) {
-        String location = sourceLocation(flow.repositoryDeclarationLocation().repositoryRelativePath(),
-                flow.repositoryDeclarationLocation().line(), flow.repositoryDeclarationLocation().column());
-        String identity = sha256("REPOSITORY|" + flow.repositoryClass() + '|' + location);
+        return repositoryImplementation(flow.repositoryClass(), flow.repositoryDeclarationLocation());
+    }
+
+    private static EvidenceGraphProjection.TechnicalImplementationProjection repositoryImplementation(
+            String repositoryClass, SourceLocation declarationLocation) {
+        String location = sourceLocation(declarationLocation.repositoryRelativePath(),
+                declarationLocation.line(), declarationLocation.column());
+        String identity = sha256("REPOSITORY|" + repositoryClass + '|' + location);
         return new EvidenceGraphProjection.TechnicalImplementationProjection(
                 "TI-REPOSITORY-" + identity,
                 NodeType.TECHNICAL_IMPLEMENTATION,
-                flow.repositoryClass(),
+                repositoryClass,
                 "Directly invoked repository in the implementation flow.",
                 List.of(sourceReference(
-                        "SRC-JAVA-" + sha256(flow.repositoryClass()),
+                        "SRC-JAVA-" + sha256(repositoryClass),
                         EvidenceGraphProjection.LocationType.OTHER,
-                        location + "#" + flow.repositoryClass(),
-                        "Repository " + flow.repositoryClass())),
+                        location + "#" + repositoryClass,
+                        "Repository " + repositoryClass)),
                 new EvidenceGraphProjection.TechnicalProjection(
                         EvidenceGraphProjection.ImplementationType.DATABASE,
-                        packageName(flow.repositoryClass()),
-                        Map.of(
-                                "flowStage", "REPOSITORY",
-                                "injection", flow.repositoryInjection().name())));
+                        ImplementationRole.REPOSITORY,
+                        packageName(repositoryClass),
+                        Map.of("flowStage", "REPOSITORY", "repositoryClass", repositoryClass)));
     }
 
     private static EvidenceGraphProjection.TechnicalImplementationProjection messageProducerImplementation(
@@ -472,6 +504,25 @@ public final class OperationEvidenceGraphAssembler {
                         location + "#" + evidence.consumer().listenerClass() + '.'
                                 + evidence.consumer().listenerMethod(),
                         "Direct " + evidence.serviceClass() + '.' + evidence.serviceMethod() + " invocation")));
+    }
+
+    private static EvidenceGraphProjection.RelationshipProjection serviceUsesRepositoryRelationship(
+            ApplicationServiceRepositoryEvidence evidence, String serviceId, String repositoryId) {
+        List<EvidenceGraphProjection.SourceReferenceProjection> references = evidence.invocations().stream()
+                .map(invocation -> {
+                    String location = sourceLocation(invocation.invocationLocation().repositoryRelativePath(),
+                            invocation.invocationLocation().line(), invocation.invocationLocation().column());
+                    return sourceReference(
+                            "SRC-JAVA-" + sha256(evidence.applicationService().serviceClass()),
+                            EvidenceGraphProjection.LocationType.OTHER,
+                            location + "#" + evidence.applicationService().serviceClass() + '.'
+                                    + evidence.applicationService().serviceMethod(),
+                            "Direct " + evidence.repositoryClass() + '.' + invocation.repositoryMethod()
+                                    + " invocation");
+                }).toList();
+        return new EvidenceGraphProjection.RelationshipProjection(
+                "REL-" + sha256(serviceId + '|' + RelationshipType.USES + '|' + repositoryId),
+                serviceId, RelationshipType.USES, repositoryId, references);
     }
 
     private static EvidenceGraphProjection.RelationshipProjection publishingRelationship(

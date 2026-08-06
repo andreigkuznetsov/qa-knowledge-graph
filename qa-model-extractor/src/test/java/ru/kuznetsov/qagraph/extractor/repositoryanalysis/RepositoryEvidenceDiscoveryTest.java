@@ -136,7 +136,7 @@ class RepositoryEvidenceDiscoveryTest {
 
         assertEquals(firstDiscovery, secondDiscovery);
         assertEquals(firstRepository, secondRepository);
-        assertEquals(Map.of("flowStage", "REPOSITORY", "injection", "AUTOWIRED_FIELD"),
+        assertEquals(Map.of("flowStage", "REPOSITORY", "repositoryClass", "example.OrderRepository"),
                 firstRepository.technicalImplementation().details());
         assertEquals("src/main/java/example/SharedRepositoryController.java:21:7#example.OrderRepository",
                 firstRepository.sourceReferences().getFirst().location().value());

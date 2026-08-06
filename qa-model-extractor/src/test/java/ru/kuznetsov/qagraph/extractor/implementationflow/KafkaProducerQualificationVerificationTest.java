@@ -93,5 +93,21 @@ class KafkaProducerQualificationVerificationTest {
                         .equals(relationship.path("to").asText())).toList();
         assertEquals(1, consumerUsesService.size());
         assertEquals(1, consumerUsesService.getFirst().path("sourceReferences").size());
+
+        var repositories = java.util.stream.StreamSupport.stream(nodes.spliterator(), false)
+                .filter(node -> "REPOSITORY".equals(
+                        node.path("technicalImplementation").path("implementationRole").asText()))
+                .filter(node -> "com.example.kafkaorders.repository.ProcessedOrderRepository"
+                        .equals(node.path("name").asText())).toList();
+        assertEquals(1, repositories.size());
+        var serviceUsesRepository = java.util.stream.StreamSupport.stream(
+                        result.canonicalProjectJson().at("/baseModel/relationships").spliterator(), false)
+                .filter(relationship -> "USES".equals(relationship.path("type").asText()))
+                .filter(relationship -> services.getFirst().path("id").asText()
+                        .equals(relationship.path("from").asText()))
+                .filter(relationship -> repositories.getFirst().path("id").asText()
+                        .equals(relationship.path("to").asText())).toList();
+        assertEquals(1, serviceUsesRepository.size());
+        assertEquals(5, serviceUsesRepository.getFirst().path("sourceReferences").size());
     }
 }
