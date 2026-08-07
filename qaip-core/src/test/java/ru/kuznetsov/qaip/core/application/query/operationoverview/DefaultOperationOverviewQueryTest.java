@@ -4,10 +4,14 @@ import org.junit.jupiter.api.Test;
 import ru.kuznetsov.qaip.core.application.query.operationlist.DefaultOperationListQuery;
 import ru.kuznetsov.qaip.core.application.query.operationlist.OperationListFound;
 import ru.kuznetsov.qaip.core.application.query.operationlist.OperationListProjector;
+import ru.kuznetsov.qaip.core.application.query.operationdetails.DefaultOperationDetailsQuery;
+import ru.kuznetsov.qaip.core.application.query.operationdetails.OperationDetailsFound;
+import ru.kuznetsov.qaip.core.application.query.operationdetails.OperationDetailsUnavailable;
 import ru.kuznetsov.qaip.core.domain.EvidenceManifest;
 import ru.kuznetsov.qaip.core.domain.Metadata;
 import ru.kuznetsov.qaip.core.domain.Node;
 import ru.kuznetsov.qaip.core.domain.Project;
+import ru.kuznetsov.qaip.core.domain.Relationship;
 import ru.kuznetsov.qaip.core.domain.Subject;
 import ru.kuznetsov.qaip.core.persistence.read.ProjectReader;
 
@@ -86,11 +90,127 @@ class DefaultOperationOverviewQueryTest {
         assertEquals(existing.displayName(), overview.identity().displayName());
     }
 
+    @Test
+    void resolves_available_conventional_path_in_controller_service_repository_order() {
+        Project snapshot = synchronousProject();
+        CountingProjectReader reader = new CountingProjectReader(Optional.of(snapshot));
+
+        OperationOverviewFound found = assertInstanceOf(OperationOverviewFound.class,
+                new DefaultOperationOverviewQuery(reader).execute("P-1", "OP-1"));
+        OperationOverviewImplementationAvailable available = assertInstanceOf(
+                OperationOverviewImplementationAvailable.class, found.implementation());
+
+        assertEquals(new OperationOverviewImplementation(
+                "OrdersController.create", "OrderService.create", "OrderRepository"),
+                available.implementation());
+        assertEquals(1, reader.readCount());
+        assertInstanceOf(OperationOverviewEventPathNotApplicable.class, found.eventPath());
+        assertEquals(0, ((OperationOverviewVerificationAvailable) found.verification()).testCount());
+    }
+
+    @Test
+    void maps_incomplete_and_ambiguous_conventional_paths_without_affecting_other_sections() {
+        OperationOverviewFound incomplete = overview(project(operation("OP-1")));
+        Project ambiguousProject = project(
+                List.of(operation("OP-1"), technical("C-1", "ControllerOne", null),
+                        technical("C-2", "ControllerTwo", null)),
+                List.of(relationship("OP-C-1", "OP-1", "IMPLEMENTED_BY", "C-1"),
+                        relationship("OP-C-2", "OP-1", "IMPLEMENTED_BY", "C-2")));
+        OperationOverviewFound ambiguous = overview(ambiguousProject);
+
+        assertInstanceOf(OperationOverviewImplementationIncomplete.class, incomplete.implementation());
+        assertInstanceOf(OperationOverviewImplementationAmbiguous.class, ambiguous.implementation());
+        for (OperationOverviewFound found : List.of(incomplete, ambiguous)) {
+            assertInstanceOf(OperationOverviewEventPathNotApplicable.class, found.eventPath());
+            assertEquals(0, ((OperationOverviewVerificationAvailable) found.verification()).testCount());
+        }
+    }
+
+    @Test
+    void available_and_unavailable_values_match_existing_operation_details_semantics() {
+        Project availableProject = synchronousProject();
+        assertSameImplementation(availableProject);
+        assertSameImplementation(project(operation("OP-1")));
+        Project ambiguousProject = project(
+                List.of(operation("OP-1"), technical("C-1", "ControllerOne", null),
+                        technical("C-2", "ControllerTwo", null)),
+                List.of(relationship("OP-C-1", "OP-1", "IMPLEMENTED_BY", "C-1"),
+                        relationship("OP-C-2", "OP-1", "IMPLEMENTED_BY", "C-2")));
+        assertSameImplementation(ambiguousProject);
+    }
+
+    @Test
+    void event_driven_post_orders_qualifies_as_incomplete_conventional_implementation() {
+        Project eventDriven = project(
+                List.of(new Node("OP-1", "BUSINESS_OPERATION", "POST /api/orders", null, "CONFIRMED",
+                                List.of(), List.of(), Map.of(), Map.of()),
+                        technical("CONTROLLER", "OrdersController.create", null),
+                        technical("PRODUCER", "OrdersController.create", null)),
+                List.of(relationship("OP-C", "OP-1", "IMPLEMENTED_BY", "CONTROLLER"),
+                        relationship("C-P", "CONTROLLER", "USES", "PRODUCER")));
+
+        OperationOverviewFound found = overview(eventDriven);
+
+        assertEquals("POST /api/orders", found.identity().displayName());
+        assertInstanceOf(OperationOverviewImplementationIncomplete.class, found.implementation());
+        assertInstanceOf(OperationOverviewEventPathNotApplicable.class, found.eventPath());
+        assertEquals(0, ((OperationOverviewVerificationAvailable) found.verification()).testCount());
+    }
+
     private static Project project(Node operation) {
+        return project(List.of(operation), List.of());
+    }
+
+    private static Project project(List<Node> nodes, List<Relationship> relationships) {
         return new Project("contract", "schema", new Metadata("P-1", "Project", null, null, Map.of()),
-                List.of(), new Subject(operation.id()), List.of(operation), List.of(),
+                List.of(), new Subject("OP-1"), nodes, relationships,
                 new EvidenceManifest("evidence", "source", Map.of(), "normalization", "canonicalization",
                         "fingerprint", List.of(), List.of(), List.of()), List.of(), Map.of());
+    }
+
+    private static Project synchronousProject() {
+        return project(
+                List.of(operation("OP-1"),
+                        technical("CONTROLLER", "OrdersController.create", null),
+                        technical("SERVICE", "OrderService.create", "SERVICE"),
+                        technical("REPOSITORY", "OrderRepository", "REPOSITORY")),
+                List.of(relationship("OP-C", "OP-1", "IMPLEMENTED_BY", "CONTROLLER"),
+                        relationship("C-S", "CONTROLLER", "USES", "SERVICE"),
+                        relationship("S-R", "SERVICE", "USES", "REPOSITORY")));
+    }
+
+    private static Node technical(String id, String name, String stage) {
+        Map<String, Object> details = stage == null ? Map.of() : Map.of("flowStage", stage);
+        return new Node(id, "TECHNICAL_IMPLEMENTATION", name, null, "CONFIRMED",
+                List.of(), List.of(), Map.of(), Map.of("technicalImplementation", Map.of(
+                "implementationType", "OTHER", "system", "orders", "details", details)));
+    }
+
+    private static Relationship relationship(String id, String from, String type, String to) {
+        return new Relationship(id, from, type, to, Map.of(), List.of());
+    }
+
+    private static OperationOverviewFound overview(Project project) {
+        return assertInstanceOf(OperationOverviewFound.class,
+                new DefaultOperationOverviewQuery(id -> Optional.of(project)).execute("P-1", "OP-1"));
+    }
+
+    private static void assertSameImplementation(Project project) {
+        ProjectReader reader = id -> Optional.of(project);
+        var overview = overview(project).implementation();
+        var details = new DefaultOperationDetailsQuery(reader, new OperationListProjector())
+                .execute("P-1", "OP-1");
+        if (details instanceof OperationDetailsFound found) {
+            var available = assertInstanceOf(OperationOverviewImplementationAvailable.class, overview);
+            assertEquals(List.of(found.details().controllerName(), found.details().serviceName(),
+                            found.details().repositoryName()),
+                    List.of(available.implementation().controllerName(),
+                            available.implementation().serviceName(),
+                            available.implementation().repositoryName()));
+        } else {
+            var unavailable = assertInstanceOf(OperationDetailsUnavailable.class, details);
+            assertEquals(unavailable.reason().name().replace("_PATH", ""), overview.state().name());
+        }
     }
 
     private static Node operation(String id) {

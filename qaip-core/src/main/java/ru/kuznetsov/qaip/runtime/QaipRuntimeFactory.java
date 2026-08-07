@@ -9,6 +9,7 @@ import ru.kuznetsov.qaip.core.application.query.eventpath.DefaultEventPathQuery;
 import ru.kuznetsov.qaip.core.application.query.nodedetails.DefaultNodeDetailsUseCase;
 import ru.kuznetsov.qaip.core.application.query.nodedetails.NodeDetailsMapper;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.DefaultOperationDetailsQuery;
+import ru.kuznetsov.qaip.core.application.query.operationdetails.ConventionalImplementationPathResolver;
 import ru.kuznetsov.qaip.core.application.query.operationlist.DefaultOperationListQuery;
 import ru.kuznetsov.qaip.core.application.query.operationlist.OperationListProjector;
 import ru.kuznetsov.qaip.core.application.query.operationoverview.DefaultOperationOverviewQuery;
@@ -53,14 +54,16 @@ public final class QaipRuntimeFactory {
         ValidationEngine validationEngine = new ValidationEngine(List.of(
                 new IsolatedNodeValidationRule(), new ScenarioWithoutTestValidationRule()));
         OperationListProjector operationProjector = new OperationListProjector();
+        ConventionalImplementationPathResolver implementationResolver =
+                new ConventionalImplementationPathResolver();
 
         return new QaipRuntime(
                 importUseCase,
                 reader,
                 new DefaultEventPathQuery(reader),
-                new DefaultOperationDetailsQuery(reader, operationProjector),
+                new DefaultOperationDetailsQuery(reader, operationProjector, implementationResolver),
                 new DefaultOperationListQuery(reader, operationProjector),
-                new DefaultOperationOverviewQuery(reader),
+                new DefaultOperationOverviewQuery(reader, implementationResolver),
                 new DefaultOperationTestsQuery(reader, operationProjector),
                 new DefaultProjectSummaryUseCase(reader, new ProjectSummaryMapper()),
                 new DefaultNodeDetailsUseCase(reader, nodeLookup, new NodeDetailsMapper()),

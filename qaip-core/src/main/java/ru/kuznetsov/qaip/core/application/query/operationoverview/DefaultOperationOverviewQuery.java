@@ -1,6 +1,8 @@
 package ru.kuznetsov.qaip.core.application.query.operationoverview;
 
 import ru.kuznetsov.qaip.core.application.query.operationtests.OperationVerificationStatus;
+import ru.kuznetsov.qaip.core.application.query.operationdetails.ConventionalImplementationPathResolver;
+import ru.kuznetsov.qaip.core.application.query.operationdetails.OperationDetailsUnavailableReason;
 import ru.kuznetsov.qaip.core.domain.Node;
 import ru.kuznetsov.qaip.core.domain.Project;
 import ru.kuznetsov.qaip.core.persistence.read.ProjectReader;
@@ -12,9 +14,18 @@ public final class DefaultOperationOverviewQuery implements OperationOverviewQue
     private static final String BUSINESS_OPERATION = "BUSINESS_OPERATION";
 
     private final ProjectReader projectReader;
+    private final ConventionalImplementationPathResolver implementationResolver;
 
     public DefaultOperationOverviewQuery(ProjectReader projectReader) {
+        this(projectReader, new ConventionalImplementationPathResolver());
+    }
+
+    public DefaultOperationOverviewQuery(
+            ProjectReader projectReader,
+            ConventionalImplementationPathResolver implementationResolver
+    ) {
         this.projectReader = Objects.requireNonNull(projectReader, "projectReader");
+        this.implementationResolver = Objects.requireNonNull(implementationResolver, "implementationResolver");
     }
 
     @Override
@@ -37,13 +48,28 @@ public final class DefaultOperationOverviewQuery implements OperationOverviewQue
         }
 
         Endpoint endpoint = Endpoint.from(operation);
+        OperationOverviewImplementationSection implementation = implementation(
+                implementationResolver.resolve(snapshot, requestedOperationId));
         return new OperationOverviewFound(
                 new OperationOverviewIdentity(requestedProjectId, requestedOperationId,
                         endpoint.method(), endpoint.path(), operation.name()),
-                new OperationOverviewImplementationIncomplete(),
+                implementation,
                 new OperationOverviewEventPathNotApplicable(),
                 new OperationOverviewVerificationAvailable(
                         OperationVerificationStatus.UNVERIFIED, 0, 0, List.of()));
+    }
+
+    private static OperationOverviewImplementationSection implementation(
+            ConventionalImplementationPathResolver.Resolution resolution
+    ) {
+        if (resolution instanceof ConventionalImplementationPathResolver.Available available) {
+            return new OperationOverviewImplementationAvailable(new OperationOverviewImplementation(
+                    available.controller().name(), available.service().name(), available.repository().name()));
+        }
+        var unavailable = (ConventionalImplementationPathResolver.Unavailable) resolution;
+        return unavailable.reason() == OperationDetailsUnavailableReason.INCOMPLETE_PATH
+                ? new OperationOverviewImplementationIncomplete()
+                : new OperationOverviewImplementationAmbiguous();
     }
 
     private record Endpoint(String method, String path) {
