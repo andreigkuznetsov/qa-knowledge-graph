@@ -7,6 +7,13 @@ import ru.kuznetsov.qaip.core.application.query.operationlist.OperationListProje
 import ru.kuznetsov.qaip.core.application.query.operationdetails.DefaultOperationDetailsQuery;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.OperationDetailsFound;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.OperationDetailsUnavailable;
+import ru.kuznetsov.qaip.core.application.query.eventpath.DefaultEventPathQuery;
+import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathAmbiguous;
+import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathFound;
+import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathImplementationRole;
+import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathImplementationType;
+import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathIncomplete;
+import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathNotEventDriven;
 import ru.kuznetsov.qaip.core.domain.EvidenceManifest;
 import ru.kuznetsov.qaip.core.domain.Metadata;
 import ru.kuznetsov.qaip.core.domain.Node;
@@ -53,7 +60,7 @@ class DefaultOperationOverviewQueryTest {
         assertEquals(new OperationOverviewIdentity(
                 "P-1", "OP-1", "POST", "/orders", "POST /orders"), found.identity());
         assertInstanceOf(OperationOverviewImplementationIncomplete.class, found.implementation());
-        assertInstanceOf(OperationOverviewEventPathNotApplicable.class, found.eventPath());
+        assertInstanceOf(OperationOverviewEventPathIncomplete.class, found.eventPath());
         OperationOverviewVerificationAvailable verification = assertInstanceOf(
                 OperationOverviewVerificationAvailable.class, found.verification());
         assertEquals(0, verification.testCount());
@@ -121,9 +128,10 @@ class DefaultOperationOverviewQueryTest {
         assertInstanceOf(OperationOverviewImplementationIncomplete.class, incomplete.implementation());
         assertInstanceOf(OperationOverviewImplementationAmbiguous.class, ambiguous.implementation());
         for (OperationOverviewFound found : List.of(incomplete, ambiguous)) {
-            assertInstanceOf(OperationOverviewEventPathNotApplicable.class, found.eventPath());
             assertEquals(0, ((OperationOverviewVerificationAvailable) found.verification()).testCount());
         }
+        assertInstanceOf(OperationOverviewEventPathIncomplete.class, incomplete.eventPath());
+        assertInstanceOf(OperationOverviewEventPathIncomplete.class, ambiguous.eventPath());
     }
 
     @Test
@@ -140,21 +148,57 @@ class DefaultOperationOverviewQueryTest {
     }
 
     @Test
-    void event_driven_post_orders_qualifies_as_incomplete_conventional_implementation() {
-        Project eventDriven = project(
-                List.of(new Node("OP-1", "BUSINESS_OPERATION", "POST /api/orders", null, "CONFIRMED",
-                                List.of(), List.of(), Map.of(), Map.of()),
-                        technical("CONTROLLER", "OrdersController.create", null),
-                        technical("PRODUCER", "OrdersController.create", null)),
-                List.of(relationship("OP-C", "OP-1", "IMPLEMENTED_BY", "CONTROLLER"),
-                        relationship("C-P", "CONTROLLER", "USES", "PRODUCER")));
+    void event_driven_post_orders_preserves_available_six_stage_path_and_partial_implementation() {
+        Project eventDriven = eventDrivenProject();
+        CountingProjectReader reader = new CountingProjectReader(Optional.of(eventDriven));
 
-        OperationOverviewFound found = overview(eventDriven);
+        OperationOverviewFound found = assertInstanceOf(OperationOverviewFound.class,
+                new DefaultOperationOverviewQuery(reader).execute("P-1", "OP-1"));
 
         assertEquals("POST /api/orders", found.identity().displayName());
         assertInstanceOf(OperationOverviewImplementationIncomplete.class, found.implementation());
-        assertInstanceOf(OperationOverviewEventPathNotApplicable.class, found.eventPath());
+        OperationOverviewEventPathAvailable available = assertInstanceOf(
+                OperationOverviewEventPathAvailable.class, found.eventPath());
+        assertEquals(List.of("CONTROLLER", "PRODUCER", "DESTINATION", "CONSUMER", "EVENT-SERVICE",
+                        "EVENT-REPOSITORY"),
+                available.path().steps().stream().map(step -> step.nodeId()).toList());
         assertEquals(0, ((OperationOverviewVerificationAvailable) found.verification()).testCount());
+        assertEquals(1, reader.readCount());
+    }
+
+    @Test
+    void maps_incomplete_and_ambiguous_event_paths() {
+        OperationOverviewFound incomplete = overview(project(
+                List.of(operation("OP-1"), eventTechnical("CONTROLLER", "Controller",
+                        EventPathImplementationRole.REST_CONTROLLER, EventPathImplementationType.API)),
+                List.of(relationship("OP-C", "OP-1", "IMPLEMENTED_BY", "CONTROLLER"))));
+        Project ambiguousProject = project(
+                List.of(operation("OP-1"),
+                        eventTechnical("C-1", "ControllerOne", EventPathImplementationRole.REST_CONTROLLER,
+                                EventPathImplementationType.API),
+                        eventTechnical("C-2", "ControllerTwo", EventPathImplementationRole.REST_CONTROLLER,
+                                EventPathImplementationType.API)),
+                List.of(relationship("OP-C-1", "OP-1", "IMPLEMENTED_BY", "C-1"),
+                        relationship("OP-C-2", "OP-1", "IMPLEMENTED_BY", "C-2")));
+        OperationOverviewFound ambiguous = overview(ambiguousProject);
+
+        assertInstanceOf(OperationOverviewEventPathNotApplicable.class, incomplete.eventPath());
+        assertInstanceOf(OperationOverviewEventPathAmbiguous.class, ambiguous.eventPath());
+    }
+
+    @Test
+    void event_path_values_and_states_match_existing_query_semantics() {
+        assertSameEventPath(eventDrivenProject());
+        assertSameEventPath(synchronousProject());
+        Project incomplete = project(
+                List.of(operation("OP-1"),
+                        eventTechnical("CONTROLLER", "Controller", EventPathImplementationRole.REST_CONTROLLER,
+                                EventPathImplementationType.API),
+                        eventTechnical("PRODUCER", "Producer", EventPathImplementationRole.MESSAGE_PRODUCER,
+                                EventPathImplementationType.MESSAGE)),
+                List.of(relationship("OP-C", "OP-1", "IMPLEMENTED_BY", "CONTROLLER"),
+                        relationship("C-P", "CONTROLLER", "USES", "PRODUCER")));
+        assertSameEventPath(incomplete);
     }
 
     private static Project project(Node operation) {
@@ -171,7 +215,8 @@ class DefaultOperationOverviewQueryTest {
     private static Project synchronousProject() {
         return project(
                 List.of(operation("OP-1"),
-                        technical("CONTROLLER", "OrdersController.create", null),
+                        eventTechnical("CONTROLLER", "OrdersController.create",
+                                EventPathImplementationRole.REST_CONTROLLER, EventPathImplementationType.API),
                         technical("SERVICE", "OrderService.create", "SERVICE"),
                         technical("REPOSITORY", "OrderRepository", "REPOSITORY")),
                 List.of(relationship("OP-C", "OP-1", "IMPLEMENTED_BY", "CONTROLLER"),
@@ -184,6 +229,46 @@ class DefaultOperationOverviewQueryTest {
         return new Node(id, "TECHNICAL_IMPLEMENTATION", name, null, "CONFIRMED",
                 List.of(), List.of(), Map.of(), Map.of("technicalImplementation", Map.of(
                 "implementationType", "OTHER", "system", "orders", "details", details)));
+    }
+
+    private static Node eventTechnical(
+            String id,
+            String name,
+            EventPathImplementationRole role,
+            EventPathImplementationType type
+    ) {
+        return new Node(id, "TECHNICAL_IMPLEMENTATION", name, null, "CONFIRMED",
+                List.of(), List.of(), Map.of(), Map.of("technicalImplementation", Map.of(
+                "implementationRole", role.name(), "implementationType", type.name(),
+                "system", "orders", "details", Map.of("technology", "Kafka"))));
+    }
+
+    private static Project eventDrivenProject() {
+        return project(
+                List.of(new Node("OP-1", "BUSINESS_OPERATION", "POST /api/orders", null, "CONFIRMED",
+                                List.of(), List.of(), Map.of(), Map.of()),
+                        eventTechnical("CONTROLLER", "OrdersController.create",
+                                EventPathImplementationRole.REST_CONTROLLER, EventPathImplementationType.API),
+                        eventTechnical("PRODUCER", "OrdersController.create",
+                                EventPathImplementationRole.MESSAGE_PRODUCER, EventPathImplementationType.MESSAGE),
+                        eventTechnical("DESTINATION", "orders.created",
+                                EventPathImplementationRole.MESSAGE_DESTINATION,
+                                EventPathImplementationType.MESSAGE),
+                        eventTechnical("CONSUMER", "OrderCreatedListener.listen",
+                                EventPathImplementationRole.MESSAGE_CONSUMER,
+                                EventPathImplementationType.MESSAGE),
+                        eventTechnical("EVENT-SERVICE", "OrderService.process",
+                                EventPathImplementationRole.APPLICATION_SERVICE,
+                                EventPathImplementationType.OTHER),
+                        eventTechnical("EVENT-REPOSITORY", "OrderRepository",
+                                EventPathImplementationRole.REPOSITORY,
+                                EventPathImplementationType.DATABASE)),
+                List.of(relationship("OP-C", "OP-1", "IMPLEMENTED_BY", "CONTROLLER"),
+                        relationship("C-P", "CONTROLLER", "USES", "PRODUCER"),
+                        relationship("P-D", "PRODUCER", "PUBLISHES_TO", "DESTINATION"),
+                        relationship("M-D", "CONSUMER", "CONSUMES_FROM", "DESTINATION"),
+                        relationship("M-S", "CONSUMER", "USES", "EVENT-SERVICE"),
+                        relationship("S-R", "EVENT-SERVICE", "USES", "EVENT-REPOSITORY")));
     }
 
     private static Relationship relationship(String id, String from, String type, String to) {
@@ -210,6 +295,23 @@ class DefaultOperationOverviewQueryTest {
         } else {
             var unavailable = assertInstanceOf(OperationDetailsUnavailable.class, details);
             assertEquals(unavailable.reason().name().replace("_PATH", ""), overview.state().name());
+        }
+    }
+
+    private static void assertSameEventPath(Project project) {
+        ProjectReader reader = id -> Optional.of(project);
+        var overview = overview(project).eventPath();
+        var specialized = new DefaultEventPathQuery(reader).execute("P-1", "OP-1");
+        if (specialized instanceof EventPathFound found) {
+            assertEquals(found.path(),
+                    assertInstanceOf(OperationOverviewEventPathAvailable.class, overview).path());
+        } else if (specialized instanceof EventPathNotEventDriven) {
+            assertInstanceOf(OperationOverviewEventPathNotApplicable.class, overview);
+        } else if (specialized instanceof EventPathIncomplete) {
+            assertInstanceOf(OperationOverviewEventPathIncomplete.class, overview);
+        } else {
+            assertInstanceOf(EventPathAmbiguous.class, specialized);
+            assertInstanceOf(OperationOverviewEventPathAmbiguous.class, overview);
         }
     }
 

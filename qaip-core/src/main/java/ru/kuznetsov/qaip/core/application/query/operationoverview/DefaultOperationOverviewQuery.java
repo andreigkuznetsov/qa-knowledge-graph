@@ -3,6 +3,12 @@ package ru.kuznetsov.qaip.core.application.query.operationoverview;
 import ru.kuznetsov.qaip.core.application.query.operationtests.OperationVerificationStatus;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.ConventionalImplementationPathResolver;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.OperationDetailsUnavailableReason;
+import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathAmbiguous;
+import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathFound;
+import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathIncomplete;
+import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathNotEventDriven;
+import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathQueryResult;
+import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathResolver;
 import ru.kuznetsov.qaip.core.domain.Node;
 import ru.kuznetsov.qaip.core.domain.Project;
 import ru.kuznetsov.qaip.core.persistence.read.ProjectReader;
@@ -15,17 +21,20 @@ public final class DefaultOperationOverviewQuery implements OperationOverviewQue
 
     private final ProjectReader projectReader;
     private final ConventionalImplementationPathResolver implementationResolver;
+    private final EventPathResolver eventPathResolver;
 
     public DefaultOperationOverviewQuery(ProjectReader projectReader) {
-        this(projectReader, new ConventionalImplementationPathResolver());
+        this(projectReader, new ConventionalImplementationPathResolver(), new EventPathResolver());
     }
 
     public DefaultOperationOverviewQuery(
             ProjectReader projectReader,
-            ConventionalImplementationPathResolver implementationResolver
+            ConventionalImplementationPathResolver implementationResolver,
+            EventPathResolver eventPathResolver
     ) {
         this.projectReader = Objects.requireNonNull(projectReader, "projectReader");
         this.implementationResolver = Objects.requireNonNull(implementationResolver, "implementationResolver");
+        this.eventPathResolver = Objects.requireNonNull(eventPathResolver, "eventPathResolver");
     }
 
     @Override
@@ -50,13 +59,31 @@ public final class DefaultOperationOverviewQuery implements OperationOverviewQue
         Endpoint endpoint = Endpoint.from(operation);
         OperationOverviewImplementationSection implementation = implementation(
                 implementationResolver.resolve(snapshot, requestedOperationId));
+        OperationOverviewEventPathSection eventPath = eventPath(
+                eventPathResolver.resolve(snapshot, requestedProjectId, requestedOperationId));
         return new OperationOverviewFound(
                 new OperationOverviewIdentity(requestedProjectId, requestedOperationId,
                         endpoint.method(), endpoint.path(), operation.name()),
                 implementation,
-                new OperationOverviewEventPathNotApplicable(),
+                eventPath,
                 new OperationOverviewVerificationAvailable(
                         OperationVerificationStatus.UNVERIFIED, 0, 0, List.of()));
+    }
+
+    private static OperationOverviewEventPathSection eventPath(EventPathQueryResult result) {
+        if (result instanceof EventPathFound found) {
+            return new OperationOverviewEventPathAvailable(found.path());
+        }
+        if (result instanceof EventPathNotEventDriven) {
+            return new OperationOverviewEventPathNotApplicable();
+        }
+        if (result instanceof EventPathIncomplete) {
+            return new OperationOverviewEventPathIncomplete();
+        }
+        if (result instanceof EventPathAmbiguous) {
+            return new OperationOverviewEventPathAmbiguous();
+        }
+        throw new IllegalStateException("event path resolver returned an identity outcome for an existing operation");
     }
 
     private static OperationOverviewImplementationSection implementation(
