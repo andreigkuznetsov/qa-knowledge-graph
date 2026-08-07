@@ -6,8 +6,6 @@ public enum OperationVerificationStatus {
     UNVERIFIED;
 
     static OperationVerificationStatus fromCounts(int testCount, int checkCount) {
-        if (testCount > 0 && checkCount > 0) return VERIFIED;
-        if (testCount > 0 || checkCount > 0) return PARTIALLY_VERIFIED;
-        return UNVERIFIED;
+        return OperationVerificationSemantics.status(testCount, checkCount);
     }
 }

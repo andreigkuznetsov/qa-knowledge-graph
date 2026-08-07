@@ -34,9 +34,10 @@ public final class DefaultOperationTestsResolver implements OperationTestsResolv
                 .filter(node -> qualifiedIds.contains(node.id()))
                 .map(node -> test(snapshot, node))
                 .toList();
-        int checkCount = tests.stream().mapToInt(QualifiedOperationTest::qualifiedCheckCount).sum();
+        OperationVerificationSemantics.Summary verification =
+                OperationVerificationSemantics.summarize(tests);
         return new OperationTestsFound(requestedProjectId, requestedOperationId,
-                OperationVerificationStatus.fromCounts(tests.size(), checkCount), tests);
+                verification.verificationStatus(), verification.tests());
     }
 
     private QualifiedOperationTest test(Project project, Node node) {

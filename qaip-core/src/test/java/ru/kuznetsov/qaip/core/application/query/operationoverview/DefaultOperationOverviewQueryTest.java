@@ -266,7 +266,13 @@ class DefaultOperationOverviewQueryTest {
     void verification_values_match_existing_operation_tests_semantics() {
         Project qualified = qualifiedEventDrivenProject();
         assertSameVerification(qualified);
+        Project partial = partiallyVerifiedProject();
+        assertSameVerification(partial);
         assertSameVerification(project(operation("OP-1")));
+
+        assertEquals(OperationVerificationStatus.PARTIALLY_VERIFIED,
+                assertInstanceOf(OperationOverviewVerificationAvailable.class,
+                        overview(partial).verification()).verificationStatus());
     }
 
     private static Project project(Node operation) {
@@ -354,6 +360,14 @@ class DefaultOperationOverviewQueryTest {
                     index <= 8 ? "TEST-1" : "TEST-2", "HAS_CHECK", checkId));
         }
         return project(nodes, relationships);
+    }
+
+    private static Project partiallyVerifiedProject() {
+        return project(
+                List.of(operation("OP-1"), technical("IMPL", "OrdersController.create", null),
+                        test("TEST-1", "example.OrderApiIT.createsOrder")),
+                List.of(relationship("OP-I", "OP-1", "IMPLEMENTED_BY", "IMPL"),
+                        relationship("T-I", "TEST-1", "USES", "IMPL")));
     }
 
     private static Node test(String id, String name) {

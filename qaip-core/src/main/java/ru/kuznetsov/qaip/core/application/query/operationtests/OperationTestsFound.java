@@ -2,7 +2,6 @@ package ru.kuznetsov.qaip.core.application.query.operationtests;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Comparator;
 
 public record OperationTestsFound(
         String projectId,
@@ -14,14 +13,13 @@ public record OperationTestsFound(
         projectId = OperationTestsProjectNotFound.requireId(projectId, "projectId");
         operationId = OperationTestsProjectNotFound.requireId(operationId, "operationId");
         Objects.requireNonNull(verificationStatus, "verificationStatus");
-        tests = Objects.requireNonNull(tests, "tests").stream()
-                .sorted(Comparator.comparing(QualifiedOperationTest::testId))
-                .toList();
-        if (tests.isEmpty()) throw new IllegalArgumentException("tests must not be empty");
-        int checkCount = tests.stream().mapToInt(QualifiedOperationTest::qualifiedCheckCount).sum();
-        if (verificationStatus != OperationVerificationStatus.fromCounts(tests.size(), checkCount)) {
+        OperationVerificationSemantics.Summary verification =
+                OperationVerificationSemantics.summarize(tests);
+        if (verification.tests().isEmpty()) throw new IllegalArgumentException("tests must not be empty");
+        if (verificationStatus != verification.verificationStatus()) {
             throw new IllegalArgumentException("verificationStatus must derive from returned tests and checks");
         }
+        tests = verification.tests();
     }
 
     public int testCount() {
@@ -29,6 +27,6 @@ public record OperationTestsFound(
     }
 
     public int checkCount() {
-        return tests.stream().mapToInt(QualifiedOperationTest::qualifiedCheckCount).sum();
+        return OperationVerificationSemantics.summarize(tests).checkCount();
     }
 }
