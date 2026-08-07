@@ -13,6 +13,7 @@ import ru.kuznetsov.qaip.core.application.query.operationdetails.DefaultOperatio
 import ru.kuznetsov.qaip.core.application.query.operationdetails.ConventionalImplementationPathResolver;
 import ru.kuznetsov.qaip.core.application.query.operationlist.DefaultOperationListQuery;
 import ru.kuznetsov.qaip.core.application.query.operationlist.OperationListProjector;
+import ru.kuznetsov.qaip.core.application.query.operationlist.OperationIdentityResolver;
 import ru.kuznetsov.qaip.core.application.query.operationoverview.DefaultOperationOverviewQuery;
 import ru.kuznetsov.qaip.core.application.query.operationtests.DefaultOperationTestsQuery;
 import ru.kuznetsov.qaip.core.application.query.operationtests.DefaultOperationTestsResolver;
@@ -55,7 +56,8 @@ public final class QaipRuntimeFactory {
         ProjectNodeLookup nodeLookup = new ProjectNodeLookup();
         ValidationEngine validationEngine = new ValidationEngine(List.of(
                 new IsolatedNodeValidationRule(), new ScenarioWithoutTestValidationRule()));
-        OperationListProjector operationProjector = new OperationListProjector();
+        OperationIdentityResolver operationIdentityResolver = new OperationIdentityResolver();
+        OperationListProjector operationProjector = new OperationListProjector(operationIdentityResolver);
         ConventionalImplementationPathResolver implementationResolver =
                 new ConventionalImplementationPathResolver();
         EventPathResolver eventPathResolver = new EventPathResolver();
@@ -69,7 +71,8 @@ public final class QaipRuntimeFactory {
                 new DefaultOperationDetailsQuery(reader, operationProjector, implementationResolver),
                 new DefaultOperationListQuery(reader, operationProjector),
                 new DefaultOperationOverviewQuery(
-                        reader, implementationResolver, eventPathResolver, operationTestsResolver),
+                        reader, implementationResolver, eventPathResolver,
+                        operationTestsResolver, operationIdentityResolver),
                 new DefaultOperationTestsQuery(reader, operationTestsResolver),
                 new DefaultProjectSummaryUseCase(reader, new ProjectSummaryMapper()),
                 new DefaultNodeDetailsUseCase(reader, nodeLookup, new NodeDetailsMapper()),

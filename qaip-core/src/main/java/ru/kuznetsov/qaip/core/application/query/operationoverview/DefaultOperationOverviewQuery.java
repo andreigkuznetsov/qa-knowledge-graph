@@ -8,6 +8,7 @@ import ru.kuznetsov.qaip.core.application.query.operationtests.OperationTestsNon
 import ru.kuznetsov.qaip.core.application.query.operationtests.OperationTestsQueryResult;
 import ru.kuznetsov.qaip.core.application.query.operationtests.OperationTestsResolver;
 import ru.kuznetsov.qaip.core.application.query.operationlist.OperationListProjector;
+import ru.kuznetsov.qaip.core.application.query.operationlist.OperationIdentityResolver;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.ConventionalImplementationPathResolver;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.OperationDetailsUnavailableReason;
 import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathAmbiguous;
@@ -30,10 +31,11 @@ public final class DefaultOperationOverviewQuery implements OperationOverviewQue
     private final ConventionalImplementationPathResolver implementationResolver;
     private final EventPathResolver eventPathResolver;
     private final OperationTestsResolver operationTestsResolver;
+    private final OperationIdentityResolver identityResolver;
 
     public DefaultOperationOverviewQuery(ProjectReader projectReader) {
         this(projectReader, new ConventionalImplementationPathResolver(), new EventPathResolver(),
-                new DefaultOperationTestsResolver(new OperationListProjector()));
+                new DefaultOperationTestsResolver(new OperationListProjector()), new OperationIdentityResolver());
     }
 
     public DefaultOperationOverviewQuery(
@@ -42,10 +44,22 @@ public final class DefaultOperationOverviewQuery implements OperationOverviewQue
             EventPathResolver eventPathResolver,
             OperationTestsResolver operationTestsResolver
     ) {
+        this(projectReader, implementationResolver, eventPathResolver,
+                operationTestsResolver, new OperationIdentityResolver());
+    }
+
+    public DefaultOperationOverviewQuery(
+            ProjectReader projectReader,
+            ConventionalImplementationPathResolver implementationResolver,
+            EventPathResolver eventPathResolver,
+            OperationTestsResolver operationTestsResolver,
+            OperationIdentityResolver identityResolver
+    ) {
         this.projectReader = Objects.requireNonNull(projectReader, "projectReader");
         this.implementationResolver = Objects.requireNonNull(implementationResolver, "implementationResolver");
         this.eventPathResolver = Objects.requireNonNull(eventPathResolver, "eventPathResolver");
         this.operationTestsResolver = Objects.requireNonNull(operationTestsResolver, "operationTestsResolver");
+        this.identityResolver = Objects.requireNonNull(identityResolver, "identityResolver");
     }
 
     @Override
@@ -67,7 +81,7 @@ public final class DefaultOperationOverviewQuery implements OperationOverviewQue
             return new OperationOverviewOperationNotFound(requestedProjectId, requestedOperationId);
         }
 
-        Endpoint endpoint = Endpoint.from(operation);
+        OperationIdentityResolver.ResolvedOperationIdentity identity = identityResolver.resolve(operation);
         OperationOverviewImplementationSection implementation = implementation(
                 implementationResolver.resolve(snapshot, requestedOperationId));
         OperationOverviewEventPathSection eventPath = eventPath(
@@ -76,7 +90,7 @@ public final class DefaultOperationOverviewQuery implements OperationOverviewQue
                 operationTestsResolver.resolve(snapshot, requestedProjectId, requestedOperationId));
         return new OperationOverviewFound(
                 new OperationOverviewIdentity(requestedProjectId, requestedOperationId,
-                        endpoint.method(), endpoint.path(), operation.name()),
+                        identity.method(), identity.path(), identity.displayName()),
                 implementation,
                 eventPath,
                 verification);
@@ -127,15 +141,4 @@ public final class DefaultOperationOverviewQuery implements OperationOverviewQue
                 : new OperationOverviewImplementationAmbiguous();
     }
 
-    private record Endpoint(String method, String path) {
-        private static Endpoint from(Node node) {
-            String[] parts = Objects.requireNonNull(
-                    node.name(), "business operation name").trim().split("\\s+", 2);
-            if (parts.length != 2 || parts[0].isBlank() || parts[1].isBlank()) {
-                throw new IllegalArgumentException(
-                        "business operation name must contain HTTP method and path: " + node.id());
-            }
-            return new Endpoint(parts[0], parts[1]);
-        }
-    }
 }

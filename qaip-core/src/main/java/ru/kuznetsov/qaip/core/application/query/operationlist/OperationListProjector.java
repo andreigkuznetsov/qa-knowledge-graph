@@ -23,18 +23,28 @@ public final class OperationListProjector {
     private static final String USES = "USES";
     private static final String VALIDATES = "VALIDATES";
     private static final String HAS_CHECK = "HAS_CHECK";
+    private final OperationIdentityResolver identityResolver;
+
+    public OperationListProjector() {
+        this(new OperationIdentityResolver());
+    }
+
+    public OperationListProjector(OperationIdentityResolver identityResolver) {
+        this.identityResolver = Objects.requireNonNull(identityResolver, "identityResolver");
+    }
 
     public List<OperationQueryResult> project(Project project) {
         Objects.requireNonNull(project, "project");
         List<OperationQueryResult> operations = new ArrayList<>();
         for (Node node : project.nodes()) {
             if (!BUSINESS_OPERATION.equals(node.type())) continue;
-            Endpoint endpoint = Endpoint.from(node);
+            OperationIdentityResolver.ResolvedOperationIdentity identity = identityResolver.resolve(node);
             Set<String> tests = qualifiedTestIds(project, node.id());
             Set<String> checks = new HashSet<>();
             tests.forEach(testId -> checks.addAll(qualifiedCheckIds(project, testId)));
             operations.add(new OperationQueryResult(
-                    node.id(), endpoint.method(), endpoint.path(), node.name(), tests.size(), checks.size()));
+                    identity.operationId(), identity.method(), identity.path(), identity.displayName(),
+                    tests.size(), checks.size()));
         }
         operations.sort(Comparator.comparing(OperationQueryResult::method)
                 .thenComparing(OperationQueryResult::path)
@@ -81,17 +91,6 @@ public final class OperationListProjector {
             tests.addAll(relationships.sources(scenarioId, VALIDATES));
         }
         return tests;
-    }
-
-    private record Endpoint(String method, String path) {
-        private static Endpoint from(Node node) {
-            String[] parts = Objects.requireNonNull(node.name(), "business operation name").trim().split("\\s+", 2);
-            if (parts.length != 2 || parts[0].isBlank() || parts[1].isBlank()) {
-                throw new IllegalArgumentException(
-                        "business operation name must contain HTTP method and path: " + node.id());
-            }
-            return new Endpoint(parts[0], parts[1]);
-        }
     }
 
     private static final class RelationshipIndex {
