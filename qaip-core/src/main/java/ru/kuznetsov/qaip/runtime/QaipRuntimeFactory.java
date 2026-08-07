@@ -6,11 +6,17 @@ import ru.kuznetsov.qaip.core.application.importproject.DefaultImportProjectUseC
 import ru.kuznetsov.qaip.core.application.persistence.DefaultPersistProject;
 import ru.kuznetsov.qaip.core.application.query.node.ProjectNodeLookup;
 import ru.kuznetsov.qaip.core.application.query.eventpath.DefaultEventPathQuery;
+import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathResolver;
 import ru.kuznetsov.qaip.core.application.query.nodedetails.DefaultNodeDetailsUseCase;
 import ru.kuznetsov.qaip.core.application.query.nodedetails.NodeDetailsMapper;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.DefaultOperationDetailsQuery;
+import ru.kuznetsov.qaip.core.application.query.operationdetails.ConventionalImplementationPathResolver;
 import ru.kuznetsov.qaip.core.application.query.operationlist.DefaultOperationListQuery;
 import ru.kuznetsov.qaip.core.application.query.operationlist.OperationListProjector;
+import ru.kuznetsov.qaip.core.application.query.operationlist.OperationIdentityResolver;
+import ru.kuznetsov.qaip.core.application.query.operationoverview.DefaultOperationOverviewQuery;
+import ru.kuznetsov.qaip.core.application.query.operationtests.DefaultOperationTestsQuery;
+import ru.kuznetsov.qaip.core.application.query.operationtests.DefaultOperationTestsResolver;
 import ru.kuznetsov.qaip.core.application.query.projectsummary.DefaultProjectSummaryUseCase;
 import ru.kuznetsov.qaip.core.application.query.projectsummary.ProjectSummaryMapper;
 import ru.kuznetsov.qaip.core.application.query.relationship.DefaultRelationshipsUseCase;
@@ -50,14 +56,24 @@ public final class QaipRuntimeFactory {
         ProjectNodeLookup nodeLookup = new ProjectNodeLookup();
         ValidationEngine validationEngine = new ValidationEngine(List.of(
                 new IsolatedNodeValidationRule(), new ScenarioWithoutTestValidationRule()));
-        OperationListProjector operationProjector = new OperationListProjector();
+        OperationIdentityResolver operationIdentityResolver = new OperationIdentityResolver();
+        OperationListProjector operationProjector = new OperationListProjector(operationIdentityResolver);
+        ConventionalImplementationPathResolver implementationResolver =
+                new ConventionalImplementationPathResolver();
+        EventPathResolver eventPathResolver = new EventPathResolver();
+        DefaultOperationTestsResolver operationTestsResolver =
+                new DefaultOperationTestsResolver(operationProjector);
 
         return new QaipRuntime(
                 importUseCase,
                 reader,
-                new DefaultEventPathQuery(reader),
-                new DefaultOperationDetailsQuery(reader, operationProjector),
+                new DefaultEventPathQuery(reader, eventPathResolver),
+                new DefaultOperationDetailsQuery(reader, operationProjector, implementationResolver),
                 new DefaultOperationListQuery(reader, operationProjector),
+                new DefaultOperationOverviewQuery(
+                        reader, implementationResolver, eventPathResolver,
+                        operationTestsResolver, operationIdentityResolver),
+                new DefaultOperationTestsQuery(reader, operationTestsResolver),
                 new DefaultProjectSummaryUseCase(reader, new ProjectSummaryMapper()),
                 new DefaultNodeDetailsUseCase(reader, nodeLookup, new NodeDetailsMapper()),
                 new DefaultRelationshipsUseCase(

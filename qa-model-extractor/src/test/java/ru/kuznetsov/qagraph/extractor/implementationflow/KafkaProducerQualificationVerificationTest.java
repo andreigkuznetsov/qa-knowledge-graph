@@ -139,5 +139,46 @@ class KafkaProducerQualificationVerificationTest {
                         .equals(relationship.path("to").asText())).toList();
         assertEquals(1, serviceUsesRepository.size());
         assertEquals(5, serviceUsesRepository.getFirst().path("sourceReferences").size());
+
+        var createOrder = java.util.stream.StreamSupport.stream(nodes.spliterator(), false)
+                .filter(node -> "BUSINESS_OPERATION".equals(node.path("type").asText()))
+                .filter(node -> "POST /api/orders".equals(node.path("name").asText()))
+                .findFirst().orElseThrow();
+        var controllerImplementation = java.util.stream.StreamSupport.stream(
+                        result.canonicalProjectJson().at("/baseModel/relationships").spliterator(), false)
+                .filter(relationship -> "IMPLEMENTED_BY".equals(relationship.path("type").asText()))
+                .filter(relationship -> createOrder.path("id").asText()
+                        .equals(relationship.path("from").asText()))
+                .map(relationship -> relationship.path("to").asText())
+                .findFirst().orElseThrow();
+        var qualifiedTestIds = java.util.stream.StreamSupport.stream(
+                        result.canonicalProjectJson().at("/baseModel/relationships").spliterator(), false)
+                .filter(relationship -> "USES".equals(relationship.path("type").asText()))
+                .filter(relationship -> controllerImplementation.equals(relationship.path("to").asText()))
+                .map(relationship -> relationship.path("from").asText())
+                .collect(java.util.stream.Collectors.toSet());
+        long qualifiedChecks = java.util.stream.StreamSupport.stream(
+                        result.canonicalProjectJson().at("/baseModel/relationships").spliterator(), false)
+                .filter(relationship -> "HAS_CHECK".equals(relationship.path("type").asText()))
+                .filter(relationship -> qualifiedTestIds.contains(relationship.path("from").asText()))
+                .count();
+
+        assertEquals(2, qualifiedTestIds.size());
+        assertEquals(16, qualifiedChecks);
+        var homeOperation = java.util.stream.StreamSupport.stream(nodes.spliterator(), false)
+                .filter(node -> "BUSINESS_OPERATION".equals(node.path("type").asText()))
+                .filter(node -> "GET /".equals(node.path("name").asText()))
+                .findFirst().orElseThrow();
+        var homeImplementation = java.util.stream.StreamSupport.stream(
+                        result.canonicalProjectJson().at("/baseModel/relationships").spliterator(), false)
+                .filter(relationship -> "IMPLEMENTED_BY".equals(relationship.path("type").asText()))
+                .filter(relationship -> homeOperation.path("id").asText()
+                        .equals(relationship.path("from").asText()))
+                .map(relationship -> relationship.path("to").asText())
+                .findFirst().orElseThrow();
+        assertTrue(java.util.stream.StreamSupport.stream(
+                        result.canonicalProjectJson().at("/baseModel/relationships").spliterator(), false)
+                .filter(relationship -> "USES".equals(relationship.path("type").asText()))
+                .noneMatch(relationship -> homeImplementation.equals(relationship.path("to").asText())));
     }
 }
