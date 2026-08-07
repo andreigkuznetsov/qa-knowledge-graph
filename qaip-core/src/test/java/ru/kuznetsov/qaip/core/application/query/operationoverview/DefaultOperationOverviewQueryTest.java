@@ -7,6 +7,7 @@ import ru.kuznetsov.qaip.core.application.query.operationlist.OperationListProje
 import ru.kuznetsov.qaip.core.application.query.operationdetails.DefaultOperationDetailsQuery;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.OperationDetailsFound;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.OperationDetailsUnavailable;
+import ru.kuznetsov.qaip.core.application.query.operationdetails.ConventionalImplementationPathResolver;
 import ru.kuznetsov.qaip.core.application.query.eventpath.DefaultEventPathQuery;
 import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathAmbiguous;
 import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathFound;
@@ -14,6 +15,13 @@ import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathImplementatio
 import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathImplementationType;
 import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathIncomplete;
 import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathNotEventDriven;
+import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathResolver;
+import ru.kuznetsov.qaip.core.application.query.operationtests.DefaultOperationTestsQuery;
+import ru.kuznetsov.qaip.core.application.query.operationtests.OperationCheckType;
+import ru.kuznetsov.qaip.core.application.query.operationtests.OperationTestsAmbiguous;
+import ru.kuznetsov.qaip.core.application.query.operationtests.OperationTestsFound;
+import ru.kuznetsov.qaip.core.application.query.operationtests.OperationTestsNoneQualified;
+import ru.kuznetsov.qaip.core.application.query.operationtests.OperationVerificationStatus;
 import ru.kuznetsov.qaip.core.domain.EvidenceManifest;
 import ru.kuznetsov.qaip.core.domain.Metadata;
 import ru.kuznetsov.qaip.core.domain.Node;
@@ -201,6 +209,66 @@ class DefaultOperationOverviewQueryTest {
         assertSameEventPath(incomplete);
     }
 
+    @Test
+    void resolves_verified_tests_and_checks_from_the_same_snapshot() {
+        Project qualified = qualifiedEventDrivenProject();
+        CountingProjectReader reader = new CountingProjectReader(Optional.of(qualified));
+
+        OperationOverviewFound found = assertInstanceOf(OperationOverviewFound.class,
+                new DefaultOperationOverviewQuery(reader).execute("P-1", "OP-1"));
+        OperationOverviewVerificationAvailable verification = assertInstanceOf(
+                OperationOverviewVerificationAvailable.class, found.verification());
+
+        assertEquals(OperationVerificationStatus.VERIFIED, verification.verificationStatus());
+        assertEquals(2, verification.testCount());
+        assertEquals(16, verification.checkCount());
+        assertEquals(List.of("TEST-1", "TEST-2"),
+                verification.tests().stream().map(test -> test.testId()).toList());
+        assertEquals(8, verification.tests().getFirst().checks().size());
+        assertEquals(8, verification.tests().get(1).checks().size());
+        assertInstanceOf(OperationOverviewImplementationIncomplete.class, found.implementation());
+        assertInstanceOf(OperationOverviewEventPathAvailable.class, found.eventPath());
+        assertEquals(1, reader.readCount());
+    }
+
+    @Test
+    void no_qualified_tests_is_available_unverified_empty_knowledge() {
+        Project getProject = project(new Node("OP-1", "BUSINESS_OPERATION", "GET /", null, "CONFIRMED",
+                List.of(), List.of(), Map.of(), Map.of()));
+
+        OperationOverviewVerificationAvailable verification = assertInstanceOf(
+                OperationOverviewVerificationAvailable.class, overview(getProject).verification());
+
+        assertEquals(OperationVerificationStatus.UNVERIFIED, verification.verificationStatus());
+        assertEquals(0, verification.testCount());
+        assertEquals(0, verification.checkCount());
+        assertEquals(List.of(), verification.tests());
+    }
+
+    @Test
+    void maps_ambiguous_verification_without_failing_other_sections() {
+        Project snapshot = synchronousProject();
+        CountingProjectReader reader = new CountingProjectReader(Optional.of(snapshot));
+        DefaultOperationOverviewQuery query = new DefaultOperationOverviewQuery(
+                reader, new ConventionalImplementationPathResolver(), new EventPathResolver(),
+                (project, projectId, operationId) -> new OperationTestsAmbiguous(projectId, operationId));
+
+        OperationOverviewFound found = assertInstanceOf(OperationOverviewFound.class,
+                query.execute("P-1", "OP-1"));
+
+        assertInstanceOf(OperationOverviewVerificationAmbiguous.class, found.verification());
+        assertInstanceOf(OperationOverviewImplementationAvailable.class, found.implementation());
+        assertInstanceOf(OperationOverviewEventPathNotApplicable.class, found.eventPath());
+        assertEquals(1, reader.readCount());
+    }
+
+    @Test
+    void verification_values_match_existing_operation_tests_semantics() {
+        Project qualified = qualifiedEventDrivenProject();
+        assertSameVerification(qualified);
+        assertSameVerification(project(operation("OP-1")));
+    }
+
     private static Project project(Node operation) {
         return project(List.of(operation), List.of());
     }
@@ -271,6 +339,34 @@ class DefaultOperationOverviewQueryTest {
                         relationship("S-R", "EVENT-SERVICE", "USES", "EVENT-REPOSITORY")));
     }
 
+    private static Project qualifiedEventDrivenProject() {
+        Project eventDriven = eventDrivenProject();
+        List<Node> nodes = new java.util.ArrayList<>(eventDriven.nodes());
+        nodes.add(test("TEST-1", "example.OrderApiIT.createsOrder"));
+        nodes.add(test("TEST-2", "example.OrderFlowIT.persistsOrder"));
+        List<Relationship> relationships = new java.util.ArrayList<>(eventDriven.relationships());
+        relationships.add(relationship("T1-USES", "TEST-1", "USES", "CONTROLLER"));
+        relationships.add(relationship("T2-USES", "TEST-2", "USES", "CONTROLLER"));
+        for (int index = 1; index <= 16; index++) {
+            String checkId = "CHECK-" + String.format("%02d", index);
+            nodes.add(check(checkId));
+            relationships.add(relationship("HAS-" + checkId,
+                    index <= 8 ? "TEST-1" : "TEST-2", "HAS_CHECK", checkId));
+        }
+        return project(nodes, relationships);
+    }
+
+    private static Node test(String id, String name) {
+        return new Node(id, "TEST_IMPLEMENTATION", name, null, "CONFIRMED",
+                List.of(), List.of(), Map.of(), Map.of());
+    }
+
+    private static Node check(String id) {
+        return new Node(id, "CHECK", id, null, "CONFIRMED", List.of(), List.of(), Map.of(),
+                Map.of("check", Map.of("checkType", OperationCheckType.API.name(),
+                        "assertion", "assertThat(value)")));
+    }
+
     private static Relationship relationship(String id, String from, String type, String to) {
         return new Relationship(id, from, type, to, Map.of(), List.of());
     }
@@ -312,6 +408,25 @@ class DefaultOperationOverviewQueryTest {
         } else {
             assertInstanceOf(EventPathAmbiguous.class, specialized);
             assertInstanceOf(OperationOverviewEventPathAmbiguous.class, overview);
+        }
+    }
+
+    private static void assertSameVerification(Project project) {
+        ProjectReader reader = id -> Optional.of(project);
+        var overview = overview(project).verification();
+        var specialized = new DefaultOperationTestsQuery(reader, new OperationListProjector())
+                .execute("P-1", "OP-1");
+        if (specialized instanceof OperationTestsFound found) {
+            var available = assertInstanceOf(OperationOverviewVerificationAvailable.class, overview);
+            assertEquals(found.verificationStatus(), available.verificationStatus());
+            assertEquals(found.testCount(), available.testCount());
+            assertEquals(found.checkCount(), available.checkCount());
+            assertEquals(found.tests(), available.tests());
+        } else {
+            assertInstanceOf(OperationTestsNoneQualified.class, specialized);
+            var available = assertInstanceOf(OperationOverviewVerificationAvailable.class, overview);
+            assertEquals(OperationVerificationStatus.UNVERIFIED, available.verificationStatus());
+            assertEquals(List.of(), available.tests());
         }
     }
 

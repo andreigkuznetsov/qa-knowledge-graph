@@ -1,6 +1,13 @@
 package ru.kuznetsov.qaip.core.application.query.operationoverview;
 
 import ru.kuznetsov.qaip.core.application.query.operationtests.OperationVerificationStatus;
+import ru.kuznetsov.qaip.core.application.query.operationtests.DefaultOperationTestsResolver;
+import ru.kuznetsov.qaip.core.application.query.operationtests.OperationTestsAmbiguous;
+import ru.kuznetsov.qaip.core.application.query.operationtests.OperationTestsFound;
+import ru.kuznetsov.qaip.core.application.query.operationtests.OperationTestsNoneQualified;
+import ru.kuznetsov.qaip.core.application.query.operationtests.OperationTestsQueryResult;
+import ru.kuznetsov.qaip.core.application.query.operationtests.OperationTestsResolver;
+import ru.kuznetsov.qaip.core.application.query.operationlist.OperationListProjector;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.ConventionalImplementationPathResolver;
 import ru.kuznetsov.qaip.core.application.query.operationdetails.OperationDetailsUnavailableReason;
 import ru.kuznetsov.qaip.core.application.query.eventpath.EventPathAmbiguous;
@@ -22,19 +29,23 @@ public final class DefaultOperationOverviewQuery implements OperationOverviewQue
     private final ProjectReader projectReader;
     private final ConventionalImplementationPathResolver implementationResolver;
     private final EventPathResolver eventPathResolver;
+    private final OperationTestsResolver operationTestsResolver;
 
     public DefaultOperationOverviewQuery(ProjectReader projectReader) {
-        this(projectReader, new ConventionalImplementationPathResolver(), new EventPathResolver());
+        this(projectReader, new ConventionalImplementationPathResolver(), new EventPathResolver(),
+                new DefaultOperationTestsResolver(new OperationListProjector()));
     }
 
     public DefaultOperationOverviewQuery(
             ProjectReader projectReader,
             ConventionalImplementationPathResolver implementationResolver,
-            EventPathResolver eventPathResolver
+            EventPathResolver eventPathResolver,
+            OperationTestsResolver operationTestsResolver
     ) {
         this.projectReader = Objects.requireNonNull(projectReader, "projectReader");
         this.implementationResolver = Objects.requireNonNull(implementationResolver, "implementationResolver");
         this.eventPathResolver = Objects.requireNonNull(eventPathResolver, "eventPathResolver");
+        this.operationTestsResolver = Objects.requireNonNull(operationTestsResolver, "operationTestsResolver");
     }
 
     @Override
@@ -61,13 +72,14 @@ public final class DefaultOperationOverviewQuery implements OperationOverviewQue
                 implementationResolver.resolve(snapshot, requestedOperationId));
         OperationOverviewEventPathSection eventPath = eventPath(
                 eventPathResolver.resolve(snapshot, requestedProjectId, requestedOperationId));
+        OperationOverviewVerificationSection verification = verification(
+                operationTestsResolver.resolve(snapshot, requestedProjectId, requestedOperationId));
         return new OperationOverviewFound(
                 new OperationOverviewIdentity(requestedProjectId, requestedOperationId,
                         endpoint.method(), endpoint.path(), operation.name()),
                 implementation,
                 eventPath,
-                new OperationOverviewVerificationAvailable(
-                        OperationVerificationStatus.UNVERIFIED, 0, 0, List.of()));
+                verification);
     }
 
     private static OperationOverviewEventPathSection eventPath(EventPathQueryResult result) {
@@ -84,6 +96,22 @@ public final class DefaultOperationOverviewQuery implements OperationOverviewQue
             return new OperationOverviewEventPathAmbiguous();
         }
         throw new IllegalStateException("event path resolver returned an identity outcome for an existing operation");
+    }
+
+    private static OperationOverviewVerificationSection verification(OperationTestsQueryResult result) {
+        if (result instanceof OperationTestsFound found) {
+            return new OperationOverviewVerificationAvailable(found.verificationStatus(),
+                    found.testCount(), found.checkCount(), found.tests());
+        }
+        if (result instanceof OperationTestsNoneQualified) {
+            return new OperationOverviewVerificationAvailable(
+                    OperationVerificationStatus.UNVERIFIED, 0, 0, List.of());
+        }
+        if (result instanceof OperationTestsAmbiguous) {
+            return new OperationOverviewVerificationAmbiguous();
+        }
+        throw new IllegalStateException(
+                "operation tests resolver returned an identity outcome for an existing operation");
     }
 
     private static OperationOverviewImplementationSection implementation(
