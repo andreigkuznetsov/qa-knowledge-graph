@@ -370,20 +370,109 @@ automatically qualified evidence and cannot by itself emit canonical facts.
 Authority capability, snapshot integrity, identity resolution, provenance,
 compatibility, and conflict checks occur after schema validation.
 
+### Repository discovery
+
+The `qaip-scenario-authority-repository-json-v1` profile uses the fixed
+repository-local discovery anchor:
+
+```text
+<repository-root>/.qaip/scenarios
+```
+
+Its recursive membership expression is:
+
+```text
+<repository-root>/.qaip/scenarios/**/*.scenario.json
+```
+
+Here `**` includes zero or more descendant directory levels, so a matching
+regular file directly inside the discovery anchor is also eligible.
+
+Starting at that anchor, discovery traverses recursively without following
+symbolic links. A discovered manifest member is an entry that:
+
+- is a regular file when inspected without following symbolic links;
+- is contained beneath both the normalized repository root and normalized
+  discovery anchor; and
+- has a final file name ending with the exact case-sensitive suffix
+  `.scenario.json`.
+
+Files ending only in `.json`, differently cased suffixes, backup extensions,
+directories, device entries, and other non-regular entries are not members.
+A symbolic link whose own final file name matches `.scenario.json` is not
+followed and produces a deterministic unsupported-entry diagnostic. It is not
+silently ignored and cannot contribute target bytes from outside the discovery
+anchor.
+
+Every member path is normalized relative to the repository root with `/` as
+the separator. A candidate that does not remain contained beneath both the
+repository root and discovery anchor after path normalization is invalid.
+Normalized member paths are unique and ordered by exact Unicode code-point
+lexical order. Duplicate normalized paths are a discovery invariant failure;
+file-system enumeration order never breaks a tie or establishes precedence.
+
+If the discovery anchor does not exist, membership is empty. Empty membership
+means only that this repository capture contains no manifests under this
+profile; it is not a global claim that no scenarios exist. If the anchor exists
+but is not a directory when inspected without following symbolic links,
+discovery fails structurally.
+
+Discovery does not consult `.gitignore`, the Git index, Git attributes, staging
+state, or tracked-file status. Every matching regular file in the captured
+filesystem view is a member whether it is tracked, untracked, ignored,
+modified, or staged. Git metadata may be retained as capture context but does
+not alter membership.
+
+Every discovered member belongs to the repository capture snapshot before its
+bytes are parsed or validated. A malformed JSON document, wrong format or
+schema version, or schema-invalid member remains a rejected captured datum with
+its path, fingerprint, diagnostic, and provenance. It is never silently
+reclassified as a non-member because parsing or validation failed.
+
+Discovery paths and file names are membership and provenance facts only. They
+do not participate in authority, scenario, or step identity. Moving a scenario
+between member files changes repository capture membership and provenance but
+does not change `authority + scenarioKey` when that authored identity is
+retained.
+
 ### Snapshot and fingerprint
 
-One logical-source snapshot deterministically binds:
+The repository capture snapshot deterministically binds, at minimum:
+
+- the repository source identity and discovery-profile version;
+- repository revision or other stable capture context when available;
+- the normalized repository root and fixed discovery anchor interpretation;
+- the complete, unique, code-point-lexically ordered set of normalized member
+  paths;
+- the exact captured bytes and byte fingerprint of every member, including
+  members later rejected by parsing or validation;
+- every matching unsupported entry and its deterministic diagnostic;
+- the discovery, path-normalization, format, schema, byte-fingerprint, and
+  canonicalization algorithm versions; and
+- a versioned fingerprint binding membership, ordering, member bytes,
+  unsupported matching entries, and applicable contract versions.
+
+After parsing and validation, each logical-authority source snapshot
+deterministically binds:
 
 - the authority and source-profile declaration;
-- repository revision or other stable capture context;
-- the lexically ordered set of normalized repository-relative manifest paths;
-- the exact bytes or canonical semantic content of every manifest;
+- its parent repository capture snapshot;
+- the ordered subset of accepted and rejected manifest data attributed to that
+  authority;
+- the exact captured bytes of every attributed manifest;
 - format, schema, normalization, identity, and canonicalization versions;
 - deterministic scenario and relationship datum membership; and
 - a versioned snapshot content fingerprint.
 
-Manifest path is membership and provenance, not scenario identity. Adding,
-removing, or changing a member manifest creates a new snapshot. Reusing one
+The repository capture fingerprint changes when any matching member is added,
+removed, renamed, or has different bytes; when any matching unsupported entry
+appears, disappears, or changes; or when a membership-relevant discovery,
+normalization, fingerprint, schema, or format-contract version changes. A Git
+revision change alone need not change the fingerprint when it does not change
+the bound semantic capture inputs, while matching ignored or untracked file
+changes do change it.
+
+Manifest path is membership and provenance, not scenario identity. Reusing one
 source/snapshot identity with a different fingerprint is a hard failure under
 ADR-006.
 
@@ -423,10 +512,21 @@ member files must declare the same exact format, authority, and compatible
 identity-scheme versions. File boundaries and lexical file order have no
 semantic effect on scenario identity or relationship formation.
 
-The captured set is composed by validating each file, sorting normalized
-repository-relative paths lexically, combining scenario declarations, then
-applying authority-wide duplicate and semantic validation. Files are never
-processed with last-wins, first-wins, or directory precedence.
+The captured set is composed in this exact phase order:
+
+```text
+discover matching members
+  -> order normalized repository-relative member paths
+  -> capture exact member bytes
+  -> parse and validate every captured member
+  -> group valid and rejected attributable data by exact authority
+  -> apply authority-wide duplicate scenario-key validation
+```
+
+File order controls deterministic processing and serialization only. It never
+establishes semantic precedence, selects a duplicate winner, changes scenario
+identity, or changes relationship meaning. Files are never processed with
+last-wins, first-wins, or directory precedence.
 
 One repository may contain multiple Scenario Authorities. Each is captured as
 a distinct logical source snapshot and may participate in an explicitly bound
@@ -458,6 +558,11 @@ accepted lossless normalization profile; content similarity never merges them.
 
 This ADR does not approve a YAML syntax, Gherkin dialect, tag convention,
 executable-specification binding, parser, or extractor.
+
+Future YAML or Gherkin repository profiles must also define their own explicit,
+non-overlapping filename suffix and discovery-profile contract. Adding such a
+profile does not broaden `.scenario.json` membership or silently reinterpret
+an existing JSON repository capture.
 
 ## Compatibility with existing architecture
 
@@ -570,8 +675,6 @@ semantics require explicit profiles and qualification decisions.
 
 ## Unresolved questions
 
-- What repository-relative discovery convention selects manifest files without
-  making paths part of scenario identity?
 - What exact JSON Schema URI, publication lifecycle, and compatibility policy
   will govern the v1 format?
 - What concrete syntax and registry identify Scenario Authority namespaces?
@@ -594,6 +697,18 @@ An implementation conforms only if:
 
 - it accepts the exact v1 format and source-profile versions or rejects them
   explicitly;
+- it discovers only regular `.scenario.json` files recursively beneath the
+  fixed `.qaip/scenarios` anchor and compares the suffix case-sensitively;
+- it does not follow symbolic links and diagnoses matching symbolic links as
+  unsupported entries;
+- it normalizes contained repository-relative member paths with `/`, rejects
+  duplicate normalized paths, and orders them by exact Unicode code point;
+- it does not consult Git ignore, index, attribute, staging, or tracked status
+  when determining filesystem membership;
+- it captures every discovered member's exact bytes before parsing or schema
+  validation and retains malformed or wrong-version members as rejected data;
+- it treats a missing anchor as empty membership and a non-directory anchor as
+  a structural failure;
 - authority plus scenario key plus identity-scheme version is the durable
   source-local scenario identity;
 - no authored canonical node or relationship ID is accepted;
