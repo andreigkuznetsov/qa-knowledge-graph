@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/qaip-scenario-authority-manifest-v1.schema.json",
+  "title": "QAIP Scenario Authority Manifest v1",
+  "description": "Repository-local authoritative Scenario declarations defined by ADR-011.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "schemaVersion",
+    "authority",
+    "scenarioIdentityScheme",
+    "scenarios"
+  ],
+  "properties": {
+    "format": {
+      "const": "qaip-scenario-authority-manifest-v1"
+    },
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "authority": {
+      "$ref": "#/$defs/authority"
+    },
+    "scenarioIdentityScheme": {
+      "const": "qaip-scenario-identity-v1"
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/scenario"
+      }
+    }
+  },
+  "$defs": {
+    "authority": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "stableKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "identityScheme": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "nonBlankString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": ".*\\S.*"
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/nonBlankString"
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenarioKey",
+        "title",
+        "given",
+        "when",
+        "then",
+        "operationRef",
+        "ruleRefs"
+      ],
+      "properties": {
+        "scenarioKey": {
+          "$ref": "#/$defs/stableKey"
+        },
+        "title": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "given": {
+          "$ref": "#/$defs/steps"
+        },
+        "when": {
+          "$ref": "#/$defs/steps"
+        },
+        "then": {
+          "$ref": "#/$defs/steps"
+        },
+        "operationRef": {
+          "$ref": "#/$defs/httpOperationReference"
+        },
+        "ruleRefs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/businessRuleReference"
+          }
+        }
+      }
+    },
+    "httpOperationReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identityScheme",
+        "method",
+        "path"
+      ],
+      "properties": {
+        "identityScheme": {
+          "const": "qaip-http-operation-reference-v1"
+        },
+        "method": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "path": {
+          "$ref": "#/$defs/nonBlankString"
+        }
+      }
+    },
+    "businessRuleReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "stableRuleKey",
+        "identityScheme"
+      ],
+      "properties": {
+        "authority": {
+          "$ref": "#/$defs/authority"
+        },
+        "stableRuleKey": {
+          "$ref": "#/$defs/stableKey"
+        },
+        "identityScheme": {
+          "$ref": "#/$defs/identityScheme"
+        }
+      }
+    }
+  }
+}
