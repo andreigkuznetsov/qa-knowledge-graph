@@ -29,22 +29,26 @@ class ScenarioAuthorityWideIdentityGrouperTest {
         assertEquals("CREATE", group.claimedScenarioIdentity().scenarioKey());
         assertEquals("qaip-scenario-identity-v1", group.claimedScenarioIdentity().identityScheme());
         assertEquals(1, group.occurrences().size());
+        assertTrue(group.admissibleAsUniqueClaim());
+        assertNotNull(group.occurrences().getFirst().semanticFingerprint());
+        assertNull(group.occurrences().getFirst().unavailableReason());
     }
 
     @Test
-    void duplicatesWithinManifestRetainEveryOccurrenceWithoutContentClassification() {
+    void conflictingDuplicatesWithinManifestRetainEveryOccurrenceWithoutWinner() {
         ScenarioIdentityGroup group = group(member("one", manifest("orders",
                 scenario("SAME", "First", "same") + ','
                         + scenario("SAME", "Second", "same") + ','
                         + scenario("SAME", "Different", "different"))))
                 .identityGroups().getFirst();
 
-        assertEquals(DUPLICATE_UNCLASSIFIED, group.state());
+        assertEquals(DUPLICATE_CONFLICTING, group.state());
         assertEquals(3, group.occurrences().size());
         assertEquals(List.of("/scenarios/0", "/scenarios/1", "/scenarios/2"),
                 group.occurrences().stream().map(ScenarioIdentityGroup.Occurrence::structuralLocation).toList());
         assertEquals(3, group.occurrences().stream().map(ScenarioIdentityGroup.Occurrence::occurrenceIdentity)
                 .distinct().count());
+        assertTrue(group.occurrences().stream().allMatch(ScenarioIdentityGroup.Occurrence::hasComparableSemanticFingerprint));
     }
 
     @Test
@@ -54,7 +58,7 @@ class ScenarioAuthorityWideIdentityGrouperTest {
                 member("b", manifest("orders", scenario("SAME", "Second", "other"))))
                 .identityGroups().getFirst();
 
-        assertEquals(DUPLICATE_UNCLASSIFIED, group.state());
+        assertEquals(DUPLICATE_CONFLICTING, group.state());
         assertEquals(List.of(".qaip/scenarios/a.scenario.json", ".qaip/scenarios/b.scenario.json"),
                 group.occurrences().stream().map(value -> value.parentMemberRef()
                         .normalizedRepositoryRelativePath()).toList());
@@ -90,8 +94,66 @@ class ScenarioAuthorityWideIdentityGrouperTest {
 
         assertEquals(List.of("A", "B"), result.identityGroups().stream()
                 .map(value -> value.claimedScenarioIdentity().scenarioKey()).toList());
-        assertTrue(result.identityGroups().stream().allMatch(value -> value.state() == DUPLICATE_UNCLASSIFIED));
+        assertTrue(result.identityGroups().stream().allMatch(value -> value.state() == DUPLICATE_CONFLICTING));
         assertTrue(result.identityGroups().stream().allMatch(value -> value.occurrences().size() == 2));
+    }
+
+    @Test
+    void identicalDuplicatesAreEquivalentWithoutWinnerOrStrengthIncrease() {
+        String declaration = scenario("SAME", "Same", "same");
+        ScenarioIdentityGroup group = group(
+                member("b", manifest("orders", declaration)),
+                member("a", manifest("orders", declaration))).identityGroups().getFirst();
+
+        assertEquals(DUPLICATE_EQUIVALENT, group.state());
+        assertEquals(2, group.occurrences().size());
+        assertEquals(1, group.occurrences().stream().map(ScenarioIdentityGroup.Occurrence::semanticFingerprint)
+                .distinct().count());
+        assertFalse(group.admissibleAsUniqueClaim());
+        assertEquals(List.of(".qaip/scenarios/a.scenario.json", ".qaip/scenarios/b.scenario.json"),
+                group.occurrences().stream().map(value -> value.parentMemberRef()
+                        .normalizedRepositoryRelativePath()).toList());
+    }
+
+    @Test
+    void titleStepOperationAndRuleMeaningDifferencesAreClassifiedOnlyByFingerprints() {
+        assertConflicting(
+                scenario("SAME", "Title one", "same"),
+                scenario("SAME", "Title two", "same"));
+        assertConflicting(
+                scenario("SAME", "Same", "first"),
+                scenario("SAME", "Same", "second"));
+        assertConflicting(
+                scenarioDetailed("SAME", "Same", "same", "POST", "/api/one", "[]"),
+                scenarioDetailed("SAME", "Same", "same", "PUT", "/api/two", "[]"));
+        assertConflicting(
+                scenarioDetailed("SAME", "Same", "same", "POST", "/api/test",
+                        "[" + rule("policy", "one") + "," + rule("fraud", "two") + "]"),
+                scenarioDetailed("SAME", "Same", "same", "POST", "/api/test",
+                        "[" + rule("fraud", "two") + "," + rule("policy", "one") + "]"));
+        assertConflicting(
+                scenarioDetailed("SAME", "Same", "same", "POST", "/api/test",
+                        "[" + rule("policy", "one") + "]"),
+                scenarioDetailed("SAME", "Same", "same", "POST", "/api/test",
+                        "[" + rule("policy", "changed") + "]"));
+    }
+
+    @Test
+    void unsupportedLeafContractMakesDuplicateUnclassifiedAndRetainsStableReason() {
+        ScenarioIdentityGroup group = group(member("one", manifest("orders",
+                scenarioDetailed("SAME", "Same", "same", "POST", "/api/test",
+                        "[" + rule("policy", "one") + "]") + ','
+                        + scenarioDetailed("SAME", "Same", "same", "POST", "/api/test",
+                        "[" + rule("policy", "one", "future-rule-identity-v2") + "]"))))
+                .identityGroups().getFirst();
+
+        assertEquals(DUPLICATE_UNCLASSIFIED, group.state());
+        assertEquals(2, group.occurrences().size());
+        assertEquals(1, group.occurrences().stream().filter(
+                ScenarioIdentityGroup.Occurrence::hasComparableSemanticFingerprint).count());
+        assertEquals(ScenarioNormalizedSemanticFingerprinter.UnavailableReason.UNSUPPORTED_SEMANTIC_CONTRACT,
+                group.occurrences().stream().filter(value -> !value.hasComparableSemanticFingerprint())
+                        .findFirst().orElseThrow().unavailableReason());
     }
 
     @Test
@@ -155,7 +217,33 @@ class ScenarioAuthorityWideIdentityGrouperTest {
     }
 
     private static String scenario(String key, String title, String given) {
-        return scenarioWithGiven(key, "[\"" + given + "\"]").replace("\"Title\"", "\"" + title + "\"");
+        return scenarioDetailed(key, title, given, "POST", "/api/test", "[]");
+    }
+
+    private void assertConflicting(String first, String second) {
+        ScenarioIdentityGroup group = group(member("one", manifest("orders", first + ',' + second)))
+                .identityGroups().getFirst();
+        assertEquals(DUPLICATE_CONFLICTING, group.state());
+        assertEquals(2, group.occurrences().size());
+        assertEquals(2, group.occurrences().stream().map(ScenarioIdentityGroup.Occurrence::semanticFingerprint)
+                .distinct().count());
+    }
+
+    private static String scenarioDetailed(String key, String title, String given,
+                                           String method, String path, String rules) {
+        return "{\"scenarioKey\":\"" + key + "\",\"title\":\"" + title
+                + "\",\"given\":[\"" + given + "\"],\"when\":[\"act\"],\"then\":[\"done\"],"
+                + "\"operationRef\":{\"identityScheme\":\"qaip-http-operation-reference-v1\","
+                + "\"method\":\"" + method + "\",\"path\":\"" + path + "\"},\"ruleRefs\":" + rules + "}";
+    }
+
+    private static String rule(String authority, String key) {
+        return rule(authority, key, "qaip-business-rule-identity-v1");
+    }
+
+    private static String rule(String authority, String key, String identityScheme) {
+        return "{\"authority\":\"" + authority + "\",\"stableRuleKey\":\"" + key
+                + "\",\"identityScheme\":\"" + identityScheme + "\"}";
     }
 
     private static String scenarioWithGiven(String key, String given) {

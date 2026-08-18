@@ -1,5 +1,7 @@
 package ru.kuznetsov.qagraph.extractor.repositoryanalysis;
 
+import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.ScenarioSemanticFingerprint;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -28,17 +30,30 @@ public record ScenarioIdentityGroup(
 
     public enum State {
         UNIQUE,
+        DUPLICATE_EQUIVALENT,
+        DUPLICATE_CONFLICTING,
         DUPLICATE_UNCLASSIFIED
+    }
+
+    /** Only a genuinely unique identity claim is admissible; every duplicate state rejects. */
+    public boolean admissibleAsUniqueClaim() {
+        return state == State.UNIQUE;
     }
 
     /** Occurrence plus its complete parent-member anti-substitution binding. */
     public record Occurrence(
             ParentCapturedMemberRef parentMemberRef,
-            NormalizedScenarioDeclarationOccurrence declaration
+            NormalizedScenarioDeclarationOccurrence declaration,
+            ScenarioSemanticFingerprint semanticFingerprint,
+            ScenarioNormalizedSemanticFingerprinter.UnavailableReason unavailableReason
     ) {
         public Occurrence {
             Objects.requireNonNull(parentMemberRef, "parentMemberRef");
             Objects.requireNonNull(declaration, "declaration");
+            if ((semanticFingerprint == null) == (unavailableReason == null)) {
+                throw new IllegalArgumentException(
+                        "exactly one of semanticFingerprint or unavailableReason must be present");
+            }
             ManifestOccurrenceIdentity manifest = declaration.occurrenceIdentity().manifestOccurrenceIdentity();
             if (!parentMemberRef.parentSourceId().equals(manifest.parentSourceId())
                     || !parentMemberRef.parentSnapshotId().equals(manifest.parentSnapshotId())
@@ -55,6 +70,10 @@ public record ScenarioIdentityGroup(
 
         public String structuralLocation() {
             return occurrenceIdentity().structuralPath();
+        }
+
+        public boolean hasComparableSemanticFingerprint() {
+            return semanticFingerprint != null;
         }
     }
 }
