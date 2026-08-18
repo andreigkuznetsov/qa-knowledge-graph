@@ -4,6 +4,7 @@ plugins {
 }
 
 dependencies {
+    implementation project(':qa-evidence-governance-core')
     implementation project(':qa-model')
     implementation project(':qa-model-validation-core')
 

@@ -35,16 +35,24 @@ public final class ScenarioManifestByteCapture {
 
     private static byte[] readExactBytesWithoutFollowingLinks(ScenarioManifestDiscoveryResult.Member member)
             throws IOException {
-        try (SeekableByteChannel channel = java.nio.file.Files.newByteChannel(
-                member.path(), Set.of(StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS))) {
-            ByteArrayOutputStream output = new ByteArrayOutputStream();
-            ByteBuffer buffer = ByteBuffer.allocate(8192);
-            while (channel.read(buffer) >= 0) {
-                buffer.flip();
-                output.write(buffer.array(), buffer.position(), buffer.remaining());
-                buffer.clear();
-            }
-            return output.toByteArray();
+        try (SeekableByteChannel channel = openWithoutFollowingLinks(member.path())) {
+            return readExactBytes(channel);
         }
+    }
+
+    static SeekableByteChannel openWithoutFollowingLinks(java.nio.file.Path path) throws IOException {
+        return java.nio.file.Files.newByteChannel(
+                path, Set.of(StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS));
+    }
+
+    static byte[] readExactBytes(SeekableByteChannel channel) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ByteBuffer buffer = ByteBuffer.allocate(8192);
+        while (channel.read(buffer) >= 0) {
+            buffer.flip();
+            output.write(buffer.array(), buffer.position(), buffer.remaining());
+            buffer.clear();
+        }
+        return output.toByteArray();
     }
 }
