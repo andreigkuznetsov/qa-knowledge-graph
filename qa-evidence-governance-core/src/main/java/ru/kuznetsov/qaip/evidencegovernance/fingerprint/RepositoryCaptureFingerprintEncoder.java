@@ -18,6 +18,16 @@ public final class RepositoryCaptureFingerprintEncoder {
     public static final String DIGEST_ALGORITHM = RawSourceMemberFingerprint.ALGORITHM_IDENTIFIER;
     public static final String DOMAIN = "QAIP\u0000SCENARIO_AUTHORITY_REPOSITORY_CAPTURE\u0000V1";
 
+    /** ADR-013 v1 contract for interpreting the fixed repository discovery anchor. */
+    public static final String DISCOVERY_ANCHOR_CONTRACT_VERSION =
+            "scenario-authority-repository-discovery-anchor-v1";
+    /** ADR-011/ADR-013 v1 repository-relative discovery anchor. */
+    public static final String EXACT_RELATIVE_DISCOVERY_ANCHOR = ".qaip/scenarios";
+    /** ADR-013 v1 baseline D1/read/D2 capture-stability contract. */
+    public static final String MUTATION_DETECTION_VERSION = "scenario-authority-capture-stability-v1";
+    /** The only outcome for which ADR-013 v1 permits a repository content fingerprint. */
+    public static final String SUCCESSFUL_STABLE_CAPTURE_OUTCOME = "STABLE_CAPTURE_COMPLETED";
+
     private static final String JCA_DIGEST_ALGORITHM = "SHA-256";
 
     private RepositoryCaptureFingerprintEncoder() {
@@ -31,18 +41,22 @@ public final class RepositoryCaptureFingerprintEncoder {
         writer.text(ENCODING_VERSION);
         writer.text(DIGEST_ALGORITHM);
         writer.text(input.sourceId());
+        writer.text(input.sourceContractVersion());
         writer.text(input.sourceProfile());
         writer.text(input.discoveryProfileVersion());
-        writer.text(input.discoveryAnchorInterpretationVersion());
+        writer.text(DISCOVERY_ANCHOR_CONTRACT_VERSION);
+        writer.text(EXACT_RELATIVE_DISCOVERY_ANCHOR);
         writer.text(input.pathNormalizationVersion());
         writer.text(input.orderingVersion());
         writer.text(input.memberByteFingerprintAlgorithm());
+        writer.text(MUTATION_DETECTION_VERSION);
+        writer.text(SUCCESSFUL_STABLE_CAPTURE_OUTCOME);
 
         writer.unsigned64(BigInteger.valueOf(input.capturedMembers().size()));
         for (RepositoryCaptureFingerprintInput.CapturedMember member : input.capturedMembers()) {
             writer.text(member.normalizedRepositoryRelativePath());
-            writer.text(member.entryKind());
             writer.unsigned64(member.rawByteLength());
+            writer.text(RawSourceMemberFingerprint.ALGORITHM_IDENTIFIER);
             writer.text(member.rawMemberFingerprint().value());
         }
 

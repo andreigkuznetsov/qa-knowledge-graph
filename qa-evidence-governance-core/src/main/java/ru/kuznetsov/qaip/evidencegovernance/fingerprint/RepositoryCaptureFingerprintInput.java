@@ -14,9 +14,9 @@ import java.util.regex.Pattern;
 /** Immutable semantic input to the ADR-013 repository-capture encoder. */
 public record RepositoryCaptureFingerprintInput(
         String sourceId,
+        String sourceContractVersion,
         String sourceProfile,
         String discoveryProfileVersion,
-        String discoveryAnchorInterpretationVersion,
         String pathNormalizationVersion,
         String orderingVersion,
         String memberByteFingerprintAlgorithm,
@@ -29,10 +29,9 @@ public record RepositoryCaptureFingerprintInput(
 
     public RepositoryCaptureFingerprintInput {
         sourceId = requireText(sourceId, "sourceId");
+        sourceContractVersion = requireText(sourceContractVersion, "sourceContractVersion");
         sourceProfile = requireText(sourceProfile, "sourceProfile");
         discoveryProfileVersion = requireText(discoveryProfileVersion, "discoveryProfileVersion");
-        discoveryAnchorInterpretationVersion = requireText(
-                discoveryAnchorInterpretationVersion, "discoveryAnchorInterpretationVersion");
         pathNormalizationVersion = requireText(pathNormalizationVersion, "pathNormalizationVersion");
         orderingVersion = requireText(orderingVersion, "orderingVersion");
         memberByteFingerprintAlgorithm = requireText(
@@ -53,26 +52,22 @@ public record RepositoryCaptureFingerprintInput(
     /** One regular member whose bytes have already been captured and fingerprinted. */
     public record CapturedMember(
             String normalizedRepositoryRelativePath,
-            String entryKind,
             BigInteger rawByteLength,
             RawSourceMemberFingerprint rawMemberFingerprint
     ) {
         public CapturedMember {
             normalizedRepositoryRelativePath = requireCanonicalPath(
                     normalizedRepositoryRelativePath, "normalizedRepositoryRelativePath");
-            entryKind = requireStableIdentifier(entryKind, "entryKind");
             rawByteLength = requireUnsigned64(rawByteLength, "rawByteLength");
             Objects.requireNonNull(rawMemberFingerprint, "rawMemberFingerprint");
         }
 
         public CapturedMember(
                 String normalizedRepositoryRelativePath,
-                String entryKind,
                 long rawByteLength,
                 RawSourceMemberFingerprint rawMemberFingerprint
         ) {
-            this(normalizedRepositoryRelativePath, entryKind,
-                    BigInteger.valueOf(rawByteLength), rawMemberFingerprint);
+            this(normalizedRepositoryRelativePath, BigInteger.valueOf(rawByteLength), rawMemberFingerprint);
         }
     }
 

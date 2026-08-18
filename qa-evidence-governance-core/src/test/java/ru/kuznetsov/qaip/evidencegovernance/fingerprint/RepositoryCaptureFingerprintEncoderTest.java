@@ -14,9 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RepositoryCaptureFingerprintEncoderTest {
     private static final String SOURCE_ID = "repository:orders";
+    private static final String SOURCE_CONTRACT = "qaip-source-snapshot-contract-v1";
     private static final String SOURCE_PROFILE = "qaip-scenario-authority-repository-json-v1";
     private static final String DISCOVERY_PROFILE = "scenario-authority-repository-discovery-v1";
-    private static final String ANCHOR_INTERPRETATION = "scenario-authority-anchor-v1";
     private static final String PATH_NORMALIZATION = "scenario-authority-repository-path-v1";
     private static final String ORDERING = "unicode-code-point-order-v1";
 
@@ -30,7 +30,7 @@ class RepositoryCaptureFingerprintEncoderTest {
 
         assertEquals(
                 "scenario-authority-repository-capture-v1:"
-                        + "07c05089409817dbac683e71a2f073e88be42f4ad61848965072a9dc72b97b17",
+                        + "7ff6c649a37ca756c6a635a005a7e3f74ea1294cc22f83a1fb285d3cf35dc622",
                 result.value());
         assertArrayEquals(firstEncoding, secondEncoding);
         assertArrayEquals(new byte[]{0, 0, 0, 0, 0, 0, 0, 45}, Arrays.copyOf(firstEncoding, 8));
@@ -48,7 +48,7 @@ class RepositoryCaptureFingerprintEncoderTest {
 
         assertEquals(
                 "scenario-authority-repository-capture-v1:"
-                        + "bb3821cdd89d3d62462bf73a6a795bd0f1082c6014018559d8b4d72685dc48e4",
+                        + "f5419ab2f111872ccc152cc72fefc1fd01ef423d8e7bc77ad85d66f6571ae0a9",
                 RepositoryCaptureFingerprintEncoder.fingerprint(input(members, unsupported)).value());
     }
 
@@ -100,9 +100,9 @@ class RepositoryCaptureFingerprintEncoderTest {
 
         assertEquals(List.of(
                 "sourceId",
+                "sourceContractVersion",
                 "sourceProfile",
                 "discoveryProfileVersion",
-                "discoveryAnchorInterpretationVersion",
                 "pathNormalizationVersion",
                 "orderingVersion",
                 "memberByteFingerprintAlgorithm",
@@ -114,13 +114,13 @@ class RepositoryCaptureFingerprintEncoderTest {
     void enforcesUnsigned64BoundsAndEncodesMaximumInBigEndianOrder() {
         RawSourceMemberFingerprint raw = RawSourceMemberFingerprint.calculate(new byte[0]);
         assertThrows(IllegalArgumentException.class, () -> new RepositoryCaptureFingerprintInput.CapturedMember(
-                ".qaip/scenarios/a.scenario.json", "REGULAR_FILE", BigInteger.valueOf(-1), raw));
+                ".qaip/scenarios/a.scenario.json", BigInteger.valueOf(-1), raw));
         assertThrows(IllegalArgumentException.class, () -> new RepositoryCaptureFingerprintInput.CapturedMember(
-                ".qaip/scenarios/a.scenario.json", "REGULAR_FILE",
+                ".qaip/scenarios/a.scenario.json",
                 BigInteger.ONE.shiftLeft(64), raw));
 
         var maximum = new RepositoryCaptureFingerprintInput.CapturedMember(
-                ".qaip/scenarios/a.scenario.json", "REGULAR_FILE",
+                ".qaip/scenarios/a.scenario.json",
                 RepositoryCaptureFingerprintInput.MAX_UNSIGNED_64, raw);
         byte[] encoding = RepositoryCaptureFingerprintEncoder.encode(input(List.of(maximum), List.of()));
 
@@ -133,18 +133,71 @@ class RepositoryCaptureFingerprintEncoderTest {
     void rejectsNoncanonicalPathsIdentifiersAlgorithmsAndInvalidUnicode() {
         RawSourceMemberFingerprint raw = RawSourceMemberFingerprint.calculate(new byte[0]);
         assertThrows(IllegalArgumentException.class, () -> new RepositoryCaptureFingerprintInput.CapturedMember(
-                ".qaip\\scenarios\\a.scenario.json", "REGULAR_FILE", 0, raw));
+                ".qaip\\scenarios\\a.scenario.json", 0, raw));
         assertThrows(IllegalArgumentException.class, () -> new RepositoryCaptureFingerprintInput.CapturedMember(
-                ".qaip/scenarios/../a.scenario.json", "REGULAR_FILE", 0, raw));
-        assertThrows(IllegalArgumentException.class, () -> new RepositoryCaptureFingerprintInput.CapturedMember(
-                ".qaip/scenarios/a.scenario.json", "regular-file", 0, raw));
+                ".qaip/scenarios/../a.scenario.json", 0, raw));
         assertThrows(IllegalArgumentException.class, () -> new RepositoryCaptureFingerprintInput(
-                SOURCE_ID, SOURCE_PROFILE, DISCOVERY_PROFILE, ANCHOR_INTERPRETATION,
+                SOURCE_ID, SOURCE_CONTRACT, SOURCE_PROFILE, DISCOVERY_PROFILE,
                 PATH_NORMALIZATION, ORDERING, "SHA-256", List.of(), List.of()));
         assertThrows(IllegalArgumentException.class, () -> new RepositoryCaptureFingerprintInput(
-                "repository:\uD800", SOURCE_PROFILE, DISCOVERY_PROFILE, ANCHOR_INTERPRETATION,
+                "repository:\uD800", SOURCE_CONTRACT, SOURCE_PROFILE, DISCOVERY_PROFILE,
                 PATH_NORMALIZATION, ORDERING, RawSourceMemberFingerprint.ALGORITHM_IDENTIFIER,
                 List.of(), List.of()));
+    }
+
+    @Test
+    void sourceContractVersionParticipatesInFingerprint() {
+        RepositoryCaptureFingerprintInput first = input(List.of(), List.of());
+        RepositoryCaptureFingerprintInput second = new RepositoryCaptureFingerprintInput(
+                SOURCE_ID,
+                "qaip-source-snapshot-contract-v2",
+                SOURCE_PROFILE,
+                DISCOVERY_PROFILE,
+                PATH_NORMALIZATION,
+                ORDERING,
+                RawSourceMemberFingerprint.ALGORITHM_IDENTIFIER,
+                List.of(),
+                List.of());
+
+        assertNotEquals(RepositoryCaptureFingerprintEncoder.fingerprint(first),
+                RepositoryCaptureFingerprintEncoder.fingerprint(second));
+    }
+
+    @Test
+    void v1FrozenIdentifiersAndPerMemberAlgorithmAreEncodedAsSeparateFields() {
+        assertEquals("scenario-authority-repository-discovery-anchor-v1",
+                RepositoryCaptureFingerprintEncoder.DISCOVERY_ANCHOR_CONTRACT_VERSION);
+        assertEquals(".qaip/scenarios",
+                RepositoryCaptureFingerprintEncoder.EXACT_RELATIVE_DISCOVERY_ANCHOR);
+        assertEquals("scenario-authority-capture-stability-v1",
+                RepositoryCaptureFingerprintEncoder.MUTATION_DETECTION_VERSION);
+        assertEquals("STABLE_CAPTURE_COMPLETED",
+                RepositoryCaptureFingerprintEncoder.SUCCESSFUL_STABLE_CAPTURE_OUTCOME);
+
+        byte[] encoding = RepositoryCaptureFingerprintEncoder.encode(input(List.of(
+                member(".qaip/scenarios/a.scenario.json", new byte[]{1})), List.of()));
+
+        assertTrue(containsLengthPrefixedText(encoding,
+                RepositoryCaptureFingerprintEncoder.DISCOVERY_ANCHOR_CONTRACT_VERSION));
+        assertTrue(containsLengthPrefixedText(encoding,
+                RepositoryCaptureFingerprintEncoder.EXACT_RELATIVE_DISCOVERY_ANCHOR));
+        assertTrue(containsLengthPrefixedText(encoding,
+                RepositoryCaptureFingerprintEncoder.MUTATION_DETECTION_VERSION));
+        assertTrue(containsLengthPrefixedText(encoding,
+                RepositoryCaptureFingerprintEncoder.SUCCESSFUL_STABLE_CAPTURE_OUTCOME));
+        assertEquals(3, countLengthPrefixedText(
+                encoding, RawSourceMemberFingerprint.ALGORITHM_IDENTIFIER));
+    }
+
+    @Test
+    void capturedMemberContractContainsNoEntryKind() {
+        assertEquals(List.of(
+                        "normalizedRepositoryRelativePath",
+                        "rawByteLength",
+                        "rawMemberFingerprint"),
+                Arrays.stream(RepositoryCaptureFingerprintInput.CapturedMember.class.getRecordComponents())
+                        .map(java.lang.reflect.RecordComponent::getName)
+                        .toList());
     }
 
     @Test
@@ -167,9 +220,9 @@ class RepositoryCaptureFingerprintEncoderTest {
     ) {
         return new RepositoryCaptureFingerprintInput(
                 SOURCE_ID,
+                SOURCE_CONTRACT,
                 SOURCE_PROFILE,
                 DISCOVERY_PROFILE,
-                ANCHOR_INTERPRETATION,
                 PATH_NORMALIZATION,
                 ORDERING,
                 RawSourceMemberFingerprint.ALGORITHM_IDENTIFIER,
@@ -180,9 +233,30 @@ class RepositoryCaptureFingerprintEncoderTest {
     private static RepositoryCaptureFingerprintInput.CapturedMember member(String path, byte[] bytes) {
         return new RepositoryCaptureFingerprintInput.CapturedMember(
                 path,
-                "REGULAR_FILE",
                 bytes.length,
                 RawSourceMemberFingerprint.calculate(bytes));
+    }
+
+    private static boolean containsLengthPrefixedText(byte[] source, String value) {
+        return countLengthPrefixedText(source, value) > 0;
+    }
+
+    private static int countLengthPrefixedText(byte[] source, String value) {
+        byte[] text = value.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] encoded = new byte[Long.BYTES + text.length];
+        java.nio.ByteBuffer.wrap(encoded).putLong(text.length).put(text);
+        int count = 0;
+        for (int offset = 0; offset <= source.length - encoded.length; offset++) {
+            boolean equal = true;
+            for (int index = 0; index < encoded.length; index++) {
+                if (source[offset + index] != encoded[index]) {
+                    equal = false;
+                    break;
+                }
+            }
+            if (equal) count++;
+        }
+        return count;
     }
 
     private static boolean containsConsecutiveBytes(byte[] source, byte[] expected) {
