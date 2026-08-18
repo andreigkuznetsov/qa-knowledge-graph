@@ -12,6 +12,10 @@ public final class BusinessRuleReferenceSemanticFingerprintEncoder {
     public static final String DIGEST_IDENTIFIER = CanonicalSha256.ALGORITHM_IDENTIFIER;
     public static final String DOMAIN =
             "QAIP\u0000SCENARIO_AUTHORITY_BUSINESS_RULE_REFERENCE_SEMANTIC\u0000V1";
+    public static final String SCENARIO_IDENTITY_SCHEME_VERSION = "qaip-scenario-identity-v1";
+    public static final String BUSINESS_RULE_IDENTITY_SCHEME = "qaip-business-rule-identity-v1";
+    public static final String BUSINESS_RULE_REFERENCE_DATUM_IDENTITY_VERSION =
+            "qaip-scenario-business-rule-reference-datum-identity-v1";
 
     private BusinessRuleReferenceSemanticFingerprintEncoder() {
     }
@@ -23,6 +27,7 @@ public final class BusinessRuleReferenceSemanticFingerprintEncoder {
                 .writeDomain(DOMAIN)
                 .writeText(ENCODING_IDENTIFIER)
                 .writeText(DIGEST_IDENTIFIER)
+                .writeText(input.semanticCanonicalizationVersion())
                 .writeText(input.claimedScenarioAuthority())
                 .writeText(input.scenarioKey())
                 .writeText(input.scenarioIdentitySchemeVersion())
@@ -30,7 +35,9 @@ public final class BusinessRuleReferenceSemanticFingerprintEncoder {
                 .writeText(input.stableRuleKey())
                 .writeText(input.businessRuleIdentityScheme())
                 .writeText(input.businessRuleReferenceDatumIdentityVersion())
-                .writeText(input.semanticCanonicalizationVersion())
+                .writeText(input.referencedBusinessRuleAuthority())
+                .writeText(input.stableRuleKey())
+                .writeText(input.businessRuleIdentityScheme())
                 .toByteArray();
     }
 

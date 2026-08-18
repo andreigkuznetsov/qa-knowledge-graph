@@ -17,21 +17,30 @@ public record HttpOperationReferenceSemanticFingerprintInput(
     public HttpOperationReferenceSemanticFingerprintInput {
         claimedScenarioAuthority = requireNonEmpty(claimedScenarioAuthority, "claimedScenarioAuthority");
         scenarioKey = requireNonEmpty(scenarioKey, "scenarioKey");
-        scenarioIdentitySchemeVersion = requireNonEmpty(
-                scenarioIdentitySchemeVersion, "scenarioIdentitySchemeVersion");
-        role = requireNonEmpty(role, "role");
-        operationReferenceDatumIdentityVersion = requireNonEmpty(
-                operationReferenceDatumIdentityVersion, "operationReferenceDatumIdentityVersion");
-        targetProfile = requireNonEmpty(targetProfile, "targetProfile");
+        requireExact(scenarioIdentitySchemeVersion,
+                HttpOperationReferenceSemanticFingerprintEncoder.SCENARIO_IDENTITY_SCHEME_VERSION,
+                "scenarioIdentitySchemeVersion");
+        requireExact(role, HttpOperationReferenceSemanticFingerprintEncoder.OPERATION_REFERENCE_ROLE, "role");
+        requireExact(operationReferenceDatumIdentityVersion,
+                HttpOperationReferenceSemanticFingerprintEncoder.OPERATION_REFERENCE_DATUM_IDENTITY_VERSION,
+                "operationReferenceDatumIdentityVersion");
+        requireExact(targetProfile, HttpOperationReferenceSemanticFingerprintEncoder.TARGET_PROFILE,
+                "targetProfile");
         exactAdmittedMethod = requireNonEmpty(exactAdmittedMethod, "exactAdmittedMethod");
         exactAdmittedPath = requireNonEmpty(exactAdmittedPath, "exactAdmittedPath");
-        semanticCanonicalizationVersion = requireNonEmpty(
-                semanticCanonicalizationVersion, "semanticCanonicalizationVersion");
+        requireExact(semanticCanonicalizationVersion,
+                HttpOperationReferenceSemanticFingerprintEncoder.ENCODING_IDENTIFIER,
+                "semanticCanonicalizationVersion");
     }
 
     private static String requireNonEmpty(String value, String field) {
         Objects.requireNonNull(value, field);
         if (value.isEmpty()) throw new IllegalArgumentException(field + " must not be empty");
         return value;
+    }
+
+    private static void requireExact(String actual, String expected, String field) {
+        Objects.requireNonNull(actual, field);
+        if (!expected.equals(actual)) throw new IllegalArgumentException(field + " must be " + expected);
     }
 }

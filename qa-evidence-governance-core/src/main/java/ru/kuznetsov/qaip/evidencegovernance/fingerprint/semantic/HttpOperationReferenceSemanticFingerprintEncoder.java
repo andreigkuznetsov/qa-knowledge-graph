@@ -14,6 +14,9 @@ public final class HttpOperationReferenceSemanticFingerprintEncoder {
             "QAIP\u0000SCENARIO_AUTHORITY_HTTP_OPERATION_REFERENCE_SEMANTIC\u0000V1";
     public static final String OPERATION_REFERENCE_ROLE = "OPERATION_REF";
     public static final String TARGET_PROFILE = "qaip-http-operation-reference-v1";
+    public static final String SCENARIO_IDENTITY_SCHEME_VERSION = "qaip-scenario-identity-v1";
+    public static final String OPERATION_REFERENCE_DATUM_IDENTITY_VERSION =
+            "qaip-scenario-operation-reference-datum-identity-v1";
 
     private HttpOperationReferenceSemanticFingerprintEncoder() {
     }
@@ -25,6 +28,7 @@ public final class HttpOperationReferenceSemanticFingerprintEncoder {
                 .writeDomain(DOMAIN)
                 .writeText(ENCODING_IDENTIFIER)
                 .writeText(DIGEST_IDENTIFIER)
+                .writeText(input.semanticCanonicalizationVersion())
                 .writeText(input.claimedScenarioAuthority())
                 .writeText(input.scenarioKey())
                 .writeText(input.scenarioIdentitySchemeVersion())
@@ -33,7 +37,6 @@ public final class HttpOperationReferenceSemanticFingerprintEncoder {
                 .writeText(input.targetProfile())
                 .writeText(input.exactAdmittedMethod())
                 .writeText(input.exactAdmittedPath())
-                .writeText(input.semanticCanonicalizationVersion())
                 .toByteArray();
     }
 

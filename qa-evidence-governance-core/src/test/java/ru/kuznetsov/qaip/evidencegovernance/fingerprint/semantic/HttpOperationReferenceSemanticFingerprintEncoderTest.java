@@ -17,6 +17,8 @@ class HttpOperationReferenceSemanticFingerprintEncoderTest {
                     + "000000000000003c7363656e6172696f2d617574686f726974792d687474702d6f7065726174696f6e2d7265666572"
                     + "656e63652d73656d616e7469632d6331346e2d7631"
                     + "000000000000000a7368612d3235362d7631"
+                    + "000000000000003c7363656e6172696f2d617574686f726974792d687474702d6f7065726174696f6e2d7265666572"
+                    + "656e63652d73656d616e7469632d6331346e2d7631"
                     + "00000000000000066f7264657273"
                     + "0000000000000006435245415445"
                     + "0000000000000019716169702d7363656e6172696f2d6964656e746974792d7631"
@@ -25,9 +27,7 @@ class HttpOperationReferenceSemanticFingerprintEncoderTest {
                     + "2d6964656e746974792d7631"
                     + "0000000000000020716169702d687474702d6f7065726174696f6e2d7265666572656e63652d7631"
                     + "0000000000000004504f5354"
-                    + "000000000000000b2f6170692f6f7264657273"
-                    + "000000000000003c7363656e6172696f2d617574686f726974792d687474702d6f7065726174696f6e2d7265666572"
-                    + "656e63652d73656d616e7469632d6331346e2d7631";
+                    + "000000000000000b2f6170692f6f7264657273";
 
     @Test
     void freezesDomainEncodingDigestRoleProfileAndValueIdentifiers() {
@@ -36,8 +36,12 @@ class HttpOperationReferenceSemanticFingerprintEncoderTest {
         assertEquals("scenario-authority-http-operation-reference-semantic-c14n-v1",
                 HttpOperationReferenceSemanticFingerprintEncoder.ENCODING_IDENTIFIER);
         assertEquals("sha-256-v1", HttpOperationReferenceSemanticFingerprintEncoder.DIGEST_IDENTIFIER);
+        assertEquals("qaip-scenario-identity-v1",
+                HttpOperationReferenceSemanticFingerprintEncoder.SCENARIO_IDENTITY_SCHEME_VERSION);
         assertEquals("OPERATION_REF",
                 HttpOperationReferenceSemanticFingerprintEncoder.OPERATION_REFERENCE_ROLE);
+        assertEquals("qaip-scenario-operation-reference-datum-identity-v1",
+                HttpOperationReferenceSemanticFingerprintEncoder.OPERATION_REFERENCE_DATUM_IDENTITY_VERSION);
         assertEquals("qaip-http-operation-reference-v1",
                 HttpOperationReferenceSemanticFingerprintEncoder.TARGET_PROFILE);
         assertEquals("scenario-authority-http-operation-reference-semantic-v1",
@@ -54,7 +58,7 @@ class HttpOperationReferenceSemanticFingerprintEncoderTest {
                         + "5245464552454e43455f53454d414e544943005631",
                 BASE_BYTES.substring(0, 136));
         assertEquals("scenario-authority-http-operation-reference-semantic-v1:"
-                        + "f38d5149fa82a8386151c6ddef3b8cbcf64150f74549d3a45aa651ba778530bd",
+                        + "320be195a2af272dc84eb6d9b5aceddaf8dd8005c05af34c65419deee77e03c9",
                 HttpOperationReferenceSemanticFingerprintEncoder.fingerprint(input).value());
     }
 
@@ -69,7 +73,7 @@ class HttpOperationReferenceSemanticFingerprintEncoderTest {
         assertEquals(expectedBytes,
                 HEX.formatHex(HttpOperationReferenceSemanticFingerprintEncoder.encode(input)));
         assertEquals("scenario-authority-http-operation-reference-semantic-v1:"
-                        + "e19d3c3263acb8f8b842cae377e38a8c01f1c06b3337407cee57c38e5b42c423",
+                        + "efd17185b91d4d8afb966dd75e00f0702a686926c076da2ef831637d34d32fb5",
                 HttpOperationReferenceSemanticFingerprintEncoder.fingerprint(input).value());
     }
 
@@ -83,24 +87,28 @@ class HttpOperationReferenceSemanticFingerprintEncoderTest {
         assertDifferent(base, input("orders", "UPDATE", "qaip-scenario-identity-v1",
                 "OPERATION_REF", "qaip-scenario-operation-reference-datum-identity-v1",
                 "qaip-http-operation-reference-v1", "POST", "/api/orders", currentVersion()));
-        assertDifferent(base, input("orders", "CREATE", "qaip-scenario-identity-v2",
-                "OPERATION_REF", "qaip-scenario-operation-reference-datum-identity-v1",
-                "qaip-http-operation-reference-v1", "POST", "/api/orders", currentVersion()));
-        assertDifferent(base, input("orders", "CREATE", "qaip-scenario-identity-v1",
-                "OPERATION_REF_V2", "qaip-scenario-operation-reference-datum-identity-v1",
-                "qaip-http-operation-reference-v1", "POST", "/api/orders", currentVersion()));
-        assertDifferent(base, input("orders", "CREATE", "qaip-scenario-identity-v1",
-                "OPERATION_REF", "qaip-scenario-operation-reference-datum-identity-v2",
-                "qaip-http-operation-reference-v1", "POST", "/api/orders", currentVersion()));
-        assertDifferent(base, input("orders", "CREATE", "qaip-scenario-identity-v1",
-                "OPERATION_REF", "qaip-scenario-operation-reference-datum-identity-v1",
-                "qaip-http-operation-reference-v2", "POST", "/api/orders", currentVersion()));
         assertDifferent(base, base("PUT", "/api/orders"));
         assertDifferent(base, base("POST", "/api/orders/1"));
-        assertDifferent(base, input("orders", "CREATE", "qaip-scenario-identity-v1",
-                "OPERATION_REF", "qaip-scenario-operation-reference-datum-identity-v1",
-                "qaip-http-operation-reference-v1", "POST", "/api/orders",
-                "scenario-authority-http-operation-reference-semantic-c14n-v2"));
+    }
+
+    @Test
+    void v1EncoderRejectsUnsupportedFixedAndVersionValues() {
+        assertUnsupported("qaip-scenario-identity-v2", "OPERATION_REF",
+                "qaip-scenario-operation-reference-datum-identity-v1",
+                "qaip-http-operation-reference-v1", currentVersion());
+        assertUnsupported("qaip-scenario-identity-v1", "OPERATION_REF_V2",
+                "qaip-scenario-operation-reference-datum-identity-v1",
+                "qaip-http-operation-reference-v1", currentVersion());
+        assertUnsupported("qaip-scenario-identity-v1", "OPERATION_REF",
+                "qaip-scenario-operation-reference-datum-identity-v2",
+                "qaip-http-operation-reference-v1", currentVersion());
+        assertUnsupported("qaip-scenario-identity-v1", "OPERATION_REF",
+                "qaip-scenario-operation-reference-datum-identity-v1",
+                "qaip-http-operation-reference-v2", currentVersion());
+        assertUnsupported("qaip-scenario-identity-v1", "OPERATION_REF",
+                "qaip-scenario-operation-reference-datum-identity-v1",
+                "qaip-http-operation-reference-v1",
+                "scenario-authority-http-operation-reference-semantic-c14n-v2");
     }
 
     @Test
@@ -158,6 +166,14 @@ class HttpOperationReferenceSemanticFingerprintEncoderTest {
 
     private static String currentVersion() {
         return HttpOperationReferenceSemanticFingerprintEncoder.ENCODING_IDENTIFIER;
+    }
+
+    private static void assertUnsupported(String scenarioVersion, String role,
+                                          String datumVersion, String targetProfile,
+                                          String semanticVersion) {
+        assertThrows(IllegalArgumentException.class, () -> input("orders", "CREATE",
+                scenarioVersion, role, datumVersion, targetProfile,
+                "POST", "/api/orders", semanticVersion));
     }
 
     private static void assertDifferent(

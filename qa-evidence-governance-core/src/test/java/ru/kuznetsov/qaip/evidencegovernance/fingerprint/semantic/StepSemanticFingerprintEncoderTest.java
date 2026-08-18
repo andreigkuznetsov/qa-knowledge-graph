@@ -17,14 +17,14 @@ class StepSemanticFingerprintEncoderTest {
             "000000000000002851414950005343454e4152494f5f415554484f524954595f535445505f53454d414e544943005631"
                     + "00000000000000287363656e6172696f2d617574686f726974792d737465702d73656d616e7469632d6331346e2d7631"
                     + "000000000000000a7368612d3235362d7631"
+                    + "00000000000000287363656e6172696f2d617574686f726974792d737465702d73656d616e7469632d6331346e2d7631"
                     + "00000000000000066f7264657273"
                     + "0000000000000006435245415445"
                     + "0000000000000019716169702d7363656e6172696f2d6964656e746974792d7631"
                     + "0000000000000005474956454e"
                     + "0000000000000000"
                     + "000000000000001e716169702d7363656e6172696f2d737465702d6964656e746974792d7631"
-                    + "00000000000000114120637573746f6d657220657869737473"
-                    + "00000000000000287363656e6172696f2d617574686f726974792d737465702d73656d616e7469632d6331346e2d7631";
+                    + "00000000000000114120637573746f6d657220657869737473";
 
     @Test
     void freezesDomainEncodingDigestAndValueIdentifiers() {
@@ -33,6 +33,10 @@ class StepSemanticFingerprintEncoderTest {
         assertEquals("scenario-authority-step-semantic-c14n-v1",
                 StepSemanticFingerprintEncoder.ENCODING_IDENTIFIER);
         assertEquals("sha-256-v1", StepSemanticFingerprintEncoder.DIGEST_IDENTIFIER);
+        assertEquals("qaip-scenario-identity-v1",
+                StepSemanticFingerprintEncoder.SCENARIO_IDENTITY_SCHEME_VERSION);
+        assertEquals("qaip-scenario-step-identity-v1",
+                StepSemanticFingerprintEncoder.STEP_IDENTITY_SCHEME_VERSION);
         assertEquals("scenario-authority-step-semantic-v1",
                 StepSemanticFingerprint.VALUE_IDENTIFIER);
     }
@@ -43,7 +47,7 @@ class StepSemanticFingerprintEncoderTest {
 
         assertEquals(SIMPLE_GIVEN_BYTES, HEX.formatHex(StepSemanticFingerprintEncoder.encode(input)));
         assertEquals("scenario-authority-step-semantic-v1:"
-                        + "d080b536816f99ff337f951f6591f81335ea387ff0bf5598e656a48b240ebb6c",
+                        + "e124c1eb9794c9765a845bdcad66b45418c864dc80c336503992a82065775244",
                 StepSemanticFingerprintEncoder.fingerprint(input).value());
         assertEquals("000000000000002851414950005343454e4152494f5f415554484f524954595f"
                         + "535445505f53454d414e544943005631",
@@ -59,7 +63,7 @@ class StepSemanticFingerprintEncoderTest {
 
         assertEquals(expectedBytes, HEX.formatHex(StepSemanticFingerprintEncoder.encode(input)));
         assertEquals("scenario-authority-step-semantic-v1:"
-                        + "c95bfb17b154058af1b615818ba66d6582e408feb3531bb8795751f267b89b7d",
+                        + "94e7c6cf7cf3eb9dab76b614240cd2d0b00b9014f1a51de9cda1f225c8688f3d",
                 StepSemanticFingerprintEncoder.fingerprint(input).value());
     }
 
@@ -72,7 +76,7 @@ class StepSemanticFingerprintEncoderTest {
 
         assertEquals(expectedBytes, HEX.formatHex(StepSemanticFingerprintEncoder.encode(input)));
         assertEquals("scenario-authority-step-semantic-v1:"
-                        + "40a052501a9ac0b7f4ccd78c4a6558ffb697a56be30e9bdf58f094ca4d7b142a",
+                        + "d7174664c1638b0d63bb902ea34354a1b5308a09b3adf6ab1db12222d3085723",
                 StepSemanticFingerprintEncoder.fingerprint(input).value());
     }
 
@@ -86,9 +90,6 @@ class StepSemanticFingerprintEncoderTest {
         assertDifferent(base, input("orders", "UPDATE", "qaip-scenario-identity-v1",
                 StepSemanticFingerprintInput.Phase.GIVEN, 0, "qaip-scenario-step-identity-v1",
                 "text", StepSemanticFingerprintEncoder.ENCODING_IDENTIFIER));
-        assertDifferent(base, input("orders", "CREATE", "qaip-scenario-identity-v2",
-                StepSemanticFingerprintInput.Phase.GIVEN, 0, "qaip-scenario-step-identity-v1",
-                "text", StepSemanticFingerprintEncoder.ENCODING_IDENTIFIER));
         assertDifferent(base, input("orders", "CREATE", "qaip-scenario-identity-v1",
                 StepSemanticFingerprintInput.Phase.WHEN, 0, "qaip-scenario-step-identity-v1",
                 "text", StepSemanticFingerprintEncoder.ENCODING_IDENTIFIER));
@@ -96,14 +97,22 @@ class StepSemanticFingerprintEncoderTest {
                 StepSemanticFingerprintInput.Phase.GIVEN, 1, "qaip-scenario-step-identity-v1",
                 "text", StepSemanticFingerprintEncoder.ENCODING_IDENTIFIER));
         assertDifferent(base, input("orders", "CREATE", "qaip-scenario-identity-v1",
-                StepSemanticFingerprintInput.Phase.GIVEN, 0, "qaip-scenario-step-identity-v2",
-                "text", StepSemanticFingerprintEncoder.ENCODING_IDENTIFIER));
-        assertDifferent(base, input("orders", "CREATE", "qaip-scenario-identity-v1",
                 StepSemanticFingerprintInput.Phase.GIVEN, 0, "qaip-scenario-step-identity-v1",
                 "different", StepSemanticFingerprintEncoder.ENCODING_IDENTIFIER));
-        assertDifferent(base, input("orders", "CREATE", "qaip-scenario-identity-v1",
-                StepSemanticFingerprintInput.Phase.GIVEN, 0, "qaip-scenario-step-identity-v1",
-                "text", "scenario-authority-step-semantic-c14n-v2"));
+    }
+
+    @Test
+    void v1EncoderRejectsUnsupportedIdentityAndSemanticVersions() {
+        assertThrows(IllegalArgumentException.class, () -> input("orders", "CREATE",
+                "qaip-scenario-identity-v2", StepSemanticFingerprintInput.Phase.GIVEN, 0,
+                "qaip-scenario-step-identity-v1", "text", currentVersion()));
+        assertThrows(IllegalArgumentException.class, () -> input("orders", "CREATE",
+                "qaip-scenario-identity-v1", StepSemanticFingerprintInput.Phase.GIVEN, 0,
+                "qaip-scenario-step-identity-v2", "text", currentVersion()));
+        assertThrows(IllegalArgumentException.class, () -> input("orders", "CREATE",
+                "qaip-scenario-identity-v1", StepSemanticFingerprintInput.Phase.GIVEN, 0,
+                "qaip-scenario-step-identity-v1", "text",
+                "scenario-authority-step-semantic-c14n-v2"));
     }
 
     @Test
@@ -152,6 +161,10 @@ class StepSemanticFingerprintEncoderTest {
                 StepSemanticFingerprintInput.Phase.GIVEN, 0,
                 "qaip-scenario-step-identity-v1", text,
                 StepSemanticFingerprintEncoder.ENCODING_IDENTIFIER);
+    }
+
+    private static String currentVersion() {
+        return StepSemanticFingerprintEncoder.ENCODING_IDENTIFIER;
     }
 
     private static StepSemanticFingerprintInput input(

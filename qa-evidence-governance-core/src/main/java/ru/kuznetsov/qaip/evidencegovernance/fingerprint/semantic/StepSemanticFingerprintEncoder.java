@@ -10,6 +10,8 @@ public final class StepSemanticFingerprintEncoder {
     public static final String ENCODING_IDENTIFIER = "scenario-authority-step-semantic-c14n-v1";
     public static final String DIGEST_IDENTIFIER = CanonicalSha256.ALGORITHM_IDENTIFIER;
     public static final String DOMAIN = "QAIP\u0000SCENARIO_AUTHORITY_STEP_SEMANTIC\u0000V1";
+    public static final String SCENARIO_IDENTITY_SCHEME_VERSION = "qaip-scenario-identity-v1";
+    public static final String STEP_IDENTITY_SCHEME_VERSION = "qaip-scenario-step-identity-v1";
 
     private StepSemanticFingerprintEncoder() {
     }
@@ -21,6 +23,7 @@ public final class StepSemanticFingerprintEncoder {
                 .writeDomain(DOMAIN)
                 .writeText(ENCODING_IDENTIFIER)
                 .writeText(DIGEST_IDENTIFIER)
+                .writeText(input.semanticCanonicalizationVersion())
                 .writeText(input.claimedScenarioAuthority())
                 .writeText(input.scenarioKey())
                 .writeText(input.scenarioIdentitySchemeVersion())
@@ -28,7 +31,6 @@ public final class StepSemanticFingerprintEncoder {
                 .writeUnsigned64(input.ordinalWithinPhase())
                 .writeText(input.stepIdentitySchemeVersion())
                 .writeText(input.exactDecodedAuthoredText())
-                .writeText(input.semanticCanonicalizationVersion())
                 .toByteArray();
     }
 
