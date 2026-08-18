@@ -11,7 +11,8 @@ public record UnattributableMemberProcessingOutcome(
         ScenarioMemberProcessingOutcome.ParseOutcome parseOutcome,
         ScenarioMemberProcessingOutcome.AttributionOutcome attributionOutcome,
         Optional<String> structuralLocation
-) implements ScenarioMemberProcessingOutcome, ScenarioSchemaAdmissionOutcome {
+) implements ScenarioMemberProcessingOutcome, ScenarioSchemaAdmissionOutcome,
+        ScenarioSourceNormalizationMemberOutcome {
     public UnattributableMemberProcessingOutcome {
         Objects.requireNonNull(parentMemberRef, "parentMemberRef");
         requireContract(parserContractIdentifier, PARSER_CONTRACT_IDENTIFIER, "parserContractIdentifier");

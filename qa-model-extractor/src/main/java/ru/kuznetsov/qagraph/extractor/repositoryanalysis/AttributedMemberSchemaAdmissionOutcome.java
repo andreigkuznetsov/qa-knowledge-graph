@@ -19,7 +19,7 @@ public record AttributedMemberSchemaAdmissionOutcome(
         StructuralAdmissionState structuralAdmissionState,
         List<ScenarioSchemaDiagnostic> schemaDiagnostics,
         JsonNode parsedSource
-) implements ScenarioSchemaAdmissionOutcome {
+) implements ScenarioSchemaAdmissionOutcome, ScenarioSourceNormalizationMemberOutcome {
     public AttributedMemberSchemaAdmissionOutcome {
         Objects.requireNonNull(parentMemberRef, "parentMemberRef");
         claimedAuthority = requireNonBlank(claimedAuthority, "claimedAuthority");
