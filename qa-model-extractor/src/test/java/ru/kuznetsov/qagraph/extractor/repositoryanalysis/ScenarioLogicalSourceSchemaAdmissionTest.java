@@ -57,7 +57,8 @@ class ScenarioLogicalSourceSchemaAdmissionTest {
         assertEquals(AttributedMemberSchemaAdmissionOutcome.StructuralAdmissionState.STRUCTURALLY_REJECTED,
                 outcome.structuralAdmissionState());
         assertEquals("orders", outcome.claimedAuthority());
-        assertTrue(outcome.schemaDiagnostics().stream().anyMatch(value -> value.keyword().equals("minItems")));
+        assertTrue(outcome.schemaDiagnostics().stream()
+                .anyMatch(value -> value.normativeSchemaKeyword().equals("minItems")));
         assertEquals(".qaip/scenarios/invalid.scenario.json",
                 outcome.parentMemberRef().normalizedRepositoryRelativePath());
     }
@@ -114,16 +115,16 @@ class ScenarioLogicalSourceSchemaAdmissionTest {
         assertEquals(2, first.schemaDiagnostics().size());
         assertEquals(first.schemaDiagnostics(), second.schemaDiagnostics());
         assertEquals(first.schemaDiagnostics().stream()
-                        .map(value -> value.instanceLocation() + '|' + value.keyword()
-                                + '|' + value.machineStableDetail())
+                        .map(value -> value.instanceLocation() + '|' + value.normativeSchemaKeyword()
+                                + '|' + value.schemaRuleIdentifier() + '|' + value.typedParameters())
                         .sorted()
                         .toList(),
                 first.schemaDiagnostics().stream()
-                        .map(value -> value.instanceLocation() + '|' + value.keyword()
-                                + '|' + value.machineStableDetail())
+                        .map(value -> value.instanceLocation() + '|' + value.normativeSchemaKeyword()
+                                + '|' + value.schemaRuleIdentifier() + '|' + value.typedParameters())
                         .toList());
         assertTrue(first.schemaDiagnostics().stream()
-                .allMatch(value -> value.code() == ScenarioSchemaDiagnostic.Code.SCHEMA_VIOLATION));
+                .allMatch(value -> value.stableCode() == ScenarioSchemaDiagnostic.Code.SCHEMA_VIOLATION));
         assertTrue(first.schemaDiagnostics().stream()
                 .allMatch(value -> value.instanceLocation().isEmpty()
                         || value.instanceLocation().startsWith("/")));
@@ -141,6 +142,33 @@ class ScenarioLogicalSourceSchemaAdmissionTest {
                 ((AttributedMemberSchemaAdmissionOutcome) result.memberOutcomes().get(0)).structuralAdmissionState());
         assertEquals(AttributedMemberSchemaAdmissionOutcome.StructuralAdmissionState.STRUCTURALLY_ADMITTED,
                 ((AttributedMemberSchemaAdmissionOutcome) result.memberOutcomes().get(1)).structuralAdmissionState());
+    }
+
+    @Test
+    void unsupportedDiagnosticMappingFailsOneMemberWithoutSuppressingLaterMembers() {
+        AtomicInteger validations = new AtomicInteger();
+        ScenarioLogicalSourceSchemaAdmission failFirst = new ScenarioLogicalSourceSchemaAdmission(document -> {
+            if (validations.getAndIncrement() == 0) {
+                throw new ScenarioSchemaDiagnosticMappingException("unknown validator rule");
+            }
+            return List.of();
+        });
+        ScenarioLogicalSourceProcessingResult processing = process(
+                member("a-failure", validManifest("orders", "ONE")),
+                member("b-valid", validManifest("orders", "TWO")));
+
+        ScenarioSchemaAdmissionResult result = failFirst.admit(processing);
+
+        AttributedMemberSchemaAdmissionFailure failure = assertInstanceOf(
+                AttributedMemberSchemaAdmissionFailure.class, result.memberOutcomes().get(0));
+        assertEquals("UNSUPPORTED_SCHEMA_DIAGNOSTIC_MAPPING", failure.failureCode());
+        assertEquals(ScenarioSchemaDiagnosticAdapterV1.CONTRACT_IDENTIFIER,
+                failure.mappingContractIdentifier());
+        assertEquals(processing.memberOutcomes().get(0).parentMemberRef(), failure.parentMemberRef());
+        assertInstanceOf(AttributedMemberSchemaAdmissionOutcome.class, result.memberOutcomes().get(1));
+
+        ScenarioSourceNormalizationResult normalized = new ScenarioSourceDeclarationNormalizer().normalize(result);
+        assertSame(failure, normalized.memberOutcomes().get(0));
     }
 
     @Test
@@ -191,11 +219,13 @@ class ScenarioLogicalSourceSchemaAdmissionTest {
                 ScenarioLogicalSourceSchemaAdmission.SCHEMA_CONTRACT_IDENTIFIER,
                 AttributedMemberSchemaAdmissionOutcome.StructuralAdmissionState.STRUCTURALLY_ADMITTED,
                 List.of(new ScenarioSchemaDiagnostic(
+                        ScenarioSchemaDiagnostic.DIAGNOSTIC_CONTRACT_VERSION,
                         ScenarioSchemaDiagnostic.Code.SCHEMA_VIOLATION,
                         "",
                         "required",
-                        "schema|required",
-                        "human text")),
+                        "qaip-scenario-authority-manifest-schema-v1#/required",
+                        List.of(new ScenarioSchemaDiagnostic.TextParameter(
+                                "missingProperty", "authority")))),
                 before.parsedSource()));
     }
 

@@ -48,20 +48,13 @@ public final class ScenarioManifestSchemaValidator {
         return new ScenarioManifestSchemaValidationResult(members);
     }
 
-    List<SchemaDiagnosticData> validateDocument(JsonNode document) {
-        Objects.requireNonNull(document, "document");
-        return validateMessages(document).stream()
-                .map(ScenarioManifestSchemaValidator::admissionDiagnostic)
-                .sorted(Comparator
-                        .comparing(SchemaDiagnosticData::instanceLocation)
-                        .thenComparing(SchemaDiagnosticData::keyword)
-                        .thenComparing(SchemaDiagnosticData::machineStableDetail)
-                        .thenComparing(SchemaDiagnosticData::stableCode))
-                .toList();
-    }
-
     private List<ValidationMessage> validateMessages(JsonNode document) {
         return schema.validate(document).stream().toList();
+    }
+
+    List<ValidationMessage> validationMessages(JsonNode document) {
+        Objects.requireNonNull(document, "document");
+        return validateMessages(document);
     }
 
     private static ScenarioManifestSchemaValidationResult.Diagnostic legacyDiagnostic(
@@ -76,26 +69,6 @@ public final class ScenarioManifestSchemaValidator {
                 message.getMessage());
     }
 
-    private static SchemaDiagnosticData admissionDiagnostic(ValidationMessage message) {
-        String detail = message.getSchemaLocation() + "|" + message.getCode();
-        return new SchemaDiagnosticData(
-                "SCHEMA_VIOLATION",
-                jsonPointer(message),
-                message.getType(),
-                detail,
-                message.getMessage());
-    }
-
-    private static String jsonPointer(ValidationMessage message) {
-        var path = message.getInstanceLocation();
-        StringBuilder pointer = new StringBuilder();
-        for (int index = 0; index < path.getNameCount(); index++) {
-            String token = String.valueOf(path.getElement(index));
-            pointer.append('/').append(token.replace("~", "~0").replace("/", "~1"));
-        }
-        return pointer.toString();
-    }
-
     private static JsonSchema loadSchema() {
         try (InputStream input = ScenarioManifestSchemaValidator.class.getResourceAsStream(SCHEMA_RESOURCE)) {
             if (input == null) throw new IllegalStateException("Scenario Authority schema is unavailable");
@@ -106,25 +79,4 @@ public final class ScenarioManifestSchemaValidator {
         }
     }
 
-    record SchemaDiagnosticData(
-            String stableCode,
-            String instanceLocation,
-            String keyword,
-            String machineStableDetail,
-            String humanMessage
-    ) {
-        SchemaDiagnosticData {
-            stableCode = requireNonBlank(stableCode, "stableCode");
-            Objects.requireNonNull(instanceLocation, "instanceLocation");
-            keyword = requireNonBlank(keyword, "keyword");
-            machineStableDetail = requireNonBlank(machineStableDetail, "machineStableDetail");
-            humanMessage = requireNonBlank(humanMessage, "humanMessage");
-        }
-
-        private static String requireNonBlank(String value, String field) {
-            Objects.requireNonNull(value, field);
-            if (value.isBlank()) throw new IllegalArgumentException(field + " must not be blank");
-            return value;
-        }
-    }
 }

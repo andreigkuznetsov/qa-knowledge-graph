@@ -10,12 +10,14 @@ import java.util.Objects;
 public final class ScenarioLogicalSourceSchemaAdmission {
     public static final String SCHEMA_CONTRACT_IDENTIFIER =
             ScenarioManifestSchemaValidator.SCHEMA_CONTRACT_IDENTIFIER;
+    public static final String DIAGNOSTIC_MAPPING_CONTRACT_IDENTIFIER =
+            ScenarioSchemaDiagnosticAdapterV1.CONTRACT_IDENTIFIER;
 
     private final SchemaValidationStep schemaValidation;
 
     public ScenarioLogicalSourceSchemaAdmission() {
-        ScenarioManifestSchemaValidator validator = new ScenarioManifestSchemaValidator();
-        this.schemaValidation = validator::validateDocument;
+        ScenarioSchemaDiagnosticAdapterV1 adapter = new ScenarioSchemaDiagnosticAdapterV1();
+        this.schemaValidation = adapter::validate;
     }
 
     ScenarioLogicalSourceSchemaAdmission(SchemaValidationStep schemaValidation) {
@@ -35,17 +37,25 @@ public final class ScenarioLogicalSourceSchemaAdmission {
         return new ScenarioSchemaAdmissionResult(processingResult, admitted);
     }
 
-    private AttributedMemberSchemaAdmissionOutcome admitAttributed(
+    private ScenarioSchemaAdmissionOutcome admitAttributed(
             AttributedMemberProcessingOutcome attributed
     ) {
-        List<ScenarioSchemaDiagnostic> diagnostics = schemaValidation.validate(attributed.parsedSource()).stream()
-                .map(value -> new ScenarioSchemaDiagnostic(
-                        ScenarioSchemaDiagnostic.Code.SCHEMA_VIOLATION,
-                        value.instanceLocation(),
-                        value.keyword(),
-                        value.machineStableDetail(),
-                        value.humanMessage()))
-                .toList();
+        List<ScenarioSchemaDiagnostic> diagnostics;
+        try {
+            diagnostics = schemaValidation.validate(attributed.parsedSource());
+        } catch (ScenarioSchemaDiagnosticMappingException failure) {
+            return new AttributedMemberSchemaAdmissionFailure(
+                    attributed.parentMemberRef(),
+                    attributed.claimedAuthority(),
+                    attributed.parserContractIdentifier(),
+                    attributed.attributionContractIdentifier(),
+                    attributed.parseOutcome(),
+                    attributed.attributionOutcome(),
+                    attributed.structuralLocation(),
+                    SCHEMA_CONTRACT_IDENTIFIER,
+                    DIAGNOSTIC_MAPPING_CONTRACT_IDENTIFIER,
+                    failure.failureCode());
+        }
         AttributedMemberSchemaAdmissionOutcome.StructuralAdmissionState state = diagnostics.isEmpty()
                 ? AttributedMemberSchemaAdmissionOutcome.StructuralAdmissionState.STRUCTURALLY_ADMITTED
                 : AttributedMemberSchemaAdmissionOutcome.StructuralAdmissionState.STRUCTURALLY_REJECTED;
@@ -65,6 +75,6 @@ public final class ScenarioLogicalSourceSchemaAdmission {
 
     @FunctionalInterface
     interface SchemaValidationStep {
-        List<ScenarioManifestSchemaValidator.SchemaDiagnosticData> validate(JsonNode document);
+        List<ScenarioSchemaDiagnostic> validate(JsonNode document);
     }
 }
