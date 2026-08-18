@@ -48,7 +48,7 @@ class ScenarioManifestDiscoveryTest {
         write(".qaip/scenarios/plain.json");
         write(".qaip/scenarios/wrong.SCENARIO.JSON");
         write(".qaip/scenarios/backup.scenario.json.bak");
-        Files.createDirectories(repository.resolve(".qaip/scenarios/directory.scenario.json"));
+        Files.createDirectories(repository.resolve(".qaip/scenarios/ordinary-directory"));
         write("outside.scenario.json");
 
         ScenarioManifestDiscoveryResult result = discovery.discover(repository);
@@ -60,6 +60,69 @@ class ScenarioManifestDiscoveryTest {
                         .map(ScenarioManifestDiscoveryResult.Member::repositoryRelativePath)
                         .toList());
         assertTrue(result.diagnostics().isEmpty());
+    }
+
+    @Test
+    void matchingDirectoryIsUnsupportedWhileOrdinaryDirectoryIsTraversalOnly() throws Exception {
+        Files.createDirectories(repository.resolve(".qaip/scenarios/matching.scenario.json"));
+        Files.createDirectories(repository.resolve(".qaip/scenarios/ordinary-directory"));
+        write(".qaip/scenarios/ordinary-directory/member.scenario.json");
+
+        ScenarioManifestDiscoveryResult result = discovery.discover(repository);
+
+        assertEquals(List.of(".qaip/scenarios/ordinary-directory/member.scenario.json"),
+                result.members().stream()
+                        .map(ScenarioManifestDiscoveryResult.Member::repositoryRelativePath)
+                        .toList());
+        assertUnsupported(result.diagnostics().getFirst(),
+                ScenarioManifestDiscoveryResult.Code.UNSUPPORTED_DIRECTORY,
+                "DIRECTORY",
+                ".qaip/scenarios/matching.scenario.json");
+    }
+
+    @Test
+    void matchingDirectoryRemainsUnsupportedAndTraversalContinuesBelowIt() throws Exception {
+        Files.createDirectories(repository.resolve(".qaip/scenarios/nested/container.scenario.json"));
+        write(".qaip/scenarios/nested/container.scenario.json/member.scenario.json");
+
+        ScenarioManifestDiscoveryResult result = discovery.discover(repository);
+
+        assertEquals(List.of(
+                        ".qaip/scenarios/nested/container.scenario.json/member.scenario.json"),
+                result.members().stream()
+                        .map(ScenarioManifestDiscoveryResult.Member::repositoryRelativePath)
+                        .toList());
+        assertUnsupported(result.diagnostics().getFirst(),
+                ScenarioManifestDiscoveryResult.Code.UNSUPPORTED_DIRECTORY,
+                "DIRECTORY",
+                ".qaip/scenarios/nested/container.scenario.json");
+    }
+
+    @Test
+    void unsupportedEntriesUseDeterministicCodePointPathOrdering() throws Exception {
+        Files.createDirectories(repository.resolve(".qaip/scenarios/z.scenario.json"));
+        Files.createDirectories(repository.resolve(".qaip/scenarios/a.scenario.json"));
+        Files.createDirectories(repository.resolve(".qaip/scenarios/nested/m.scenario.json"));
+
+        ScenarioManifestDiscoveryResult result = discovery.discover(repository);
+
+        assertEquals(List.of(
+                        ".qaip/scenarios/a.scenario.json",
+                        ".qaip/scenarios/nested/m.scenario.json",
+                        ".qaip/scenarios/z.scenario.json"),
+                result.diagnostics().stream()
+                        .map(ScenarioManifestDiscoveryResult.Diagnostic::repositoryRelativePath)
+                        .toList());
+    }
+
+    @Test
+    void unsupportedEntryKindIdentifiersAreFrozen() {
+        assertEquals("SYMBOLIC_LINK",
+                ScenarioManifestDiscoveryResult.Code.UNSUPPORTED_SYMBOLIC_LINK.unsupportedEntryKind());
+        assertEquals("DIRECTORY",
+                ScenarioManifestDiscoveryResult.Code.UNSUPPORTED_DIRECTORY.unsupportedEntryKind());
+        assertEquals("OTHER_NON_REGULAR",
+                ScenarioManifestDiscoveryResult.Code.UNSUPPORTED_OTHER_NON_REGULAR_ENTRY.unsupportedEntryKind());
     }
 
     @Test
@@ -96,6 +159,8 @@ class ScenarioManifestDiscoveryTest {
                 result.diagnostics().stream().map(ScenarioManifestDiscoveryResult.Diagnostic::code).toList());
         assertEquals(".qaip/scenarios/linked.scenario.json",
                 result.diagnostics().getFirst().repositoryRelativePath());
+        assertEquals("SYMBOLIC_LINK",
+                result.diagnostics().getFirst().code().unsupportedEntryKind());
     }
 
     @Test
@@ -133,5 +198,16 @@ class ScenarioManifestDiscoveryTest {
         Path path = repository.resolve(relativePath);
         Files.createDirectories(path.getParent());
         Files.writeString(path, content);
+    }
+
+    private static void assertUnsupported(
+            ScenarioManifestDiscoveryResult.Diagnostic diagnostic,
+            ScenarioManifestDiscoveryResult.Code code,
+            String entryKind,
+            String path
+    ) {
+        assertEquals(code, diagnostic.code());
+        assertEquals(entryKind, diagnostic.code().unsupportedEntryKind());
+        assertEquals(path, diagnostic.repositoryRelativePath());
     }
 }

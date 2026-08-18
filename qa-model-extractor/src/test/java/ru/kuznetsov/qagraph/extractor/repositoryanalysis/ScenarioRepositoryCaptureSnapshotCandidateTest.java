@@ -110,6 +110,22 @@ class ScenarioRepositoryCaptureSnapshotCandidateTest {
     }
 
     @Test
+    void discoveredMatchingDirectoryAppearanceChangesCandidateFingerprint() throws Exception {
+        ScenarioRepositoryCaptureSnapshotCandidate withoutDirectory =
+                candidate(stableCapture(), "before");
+        Files.createDirectories(repository.resolve(".qaip/scenarios/directory.scenario.json"));
+        ScenarioRepositoryCaptureSnapshotCandidate withDirectory =
+                candidate(stableCapture(), "after");
+
+        assertNotEquals(withoutDirectory.contentFingerprint(), withDirectory.contentFingerprint());
+        assertEquals(List.of(new ScenarioManifestStableCaptureResult.UnsupportedMatchingEntry(
+                        ".qaip/scenarios/directory.scenario.json",
+                        "DIRECTORY",
+                        "UNSUPPORTED_DIRECTORY")),
+                withDirectory.unsupportedMatchingEntries());
+    }
+
+    @Test
     void provenanceOnlyMetadataCannotChangeContentFingerprint() {
         ScenarioManifestStableCaptureResult.Completed capture = stableCapture();
         var firstProvenance = new ScenarioRepositoryCaptureSnapshotCandidate.CaptureProvenance(

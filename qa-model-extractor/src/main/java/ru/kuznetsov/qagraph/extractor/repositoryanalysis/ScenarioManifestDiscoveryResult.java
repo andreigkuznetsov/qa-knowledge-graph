@@ -29,8 +29,27 @@ public record ScenarioManifestDiscoveryResult(
     }
 
     public enum Code {
-        NON_DIRECTORY_DISCOVERY_ANCHOR,
-        UNSUPPORTED_SYMBOLIC_LINK
+        NON_DIRECTORY_DISCOVERY_ANCHOR(null),
+        UNSUPPORTED_SYMBOLIC_LINK("SYMBOLIC_LINK"),
+        UNSUPPORTED_DIRECTORY("DIRECTORY"),
+        UNSUPPORTED_OTHER_NON_REGULAR_ENTRY("OTHER_NON_REGULAR");
+
+        private final String unsupportedEntryKind;
+
+        Code(String unsupportedEntryKind) {
+            this.unsupportedEntryKind = unsupportedEntryKind;
+        }
+
+        public boolean isUnsupportedEntry() {
+            return unsupportedEntryKind != null;
+        }
+
+        public String unsupportedEntryKind() {
+            if (unsupportedEntryKind == null) {
+                throw new IllegalStateException(name() + " is not an unsupported-entry diagnostic");
+            }
+            return unsupportedEntryKind;
+        }
     }
 
     private static String requireNonBlank(String value, String field) {

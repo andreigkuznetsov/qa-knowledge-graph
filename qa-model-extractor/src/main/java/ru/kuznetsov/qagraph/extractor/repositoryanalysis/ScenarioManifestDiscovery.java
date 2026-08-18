@@ -44,13 +44,23 @@ public final class ScenarioManifestDiscovery {
                 if (normalized.equals(anchor) || !matchesSuffix(normalized)) continue;
 
                 String relativePath = repositoryRelativePath(root, normalized);
-                if (Files.isSymbolicLink(normalized)) {
-                    diagnostics.add(new ScenarioManifestDiscoveryResult.Diagnostic(
+                if (Files.isRegularFile(normalized, NO_FOLLOW_LINKS)) {
+                    members.add(new ScenarioManifestDiscoveryResult.Member(normalized, relativePath));
+                } else if (Files.isSymbolicLink(normalized)) {
+                    diagnostics.add(unsupported(
                             ScenarioManifestDiscoveryResult.Code.UNSUPPORTED_SYMBOLIC_LINK,
                             relativePath,
-                            "Matching scenario manifest symbolic link is unsupported: " + relativePath));
-                } else if (Files.isRegularFile(normalized, NO_FOLLOW_LINKS)) {
-                    members.add(new ScenarioManifestDiscoveryResult.Member(normalized, relativePath));
+                            "Matching scenario manifest symbolic link is unsupported: "));
+                } else if (Files.isDirectory(normalized, NO_FOLLOW_LINKS)) {
+                    diagnostics.add(unsupported(
+                            ScenarioManifestDiscoveryResult.Code.UNSUPPORTED_DIRECTORY,
+                            relativePath,
+                            "Matching scenario manifest directory is unsupported: "));
+                } else {
+                    diagnostics.add(unsupported(
+                            ScenarioManifestDiscoveryResult.Code.UNSUPPORTED_OTHER_NON_REGULAR_ENTRY,
+                            relativePath,
+                            "Matching scenario manifest non-regular entry is unsupported: "));
                 }
             }
         }
@@ -62,6 +72,15 @@ public final class ScenarioManifestDiscovery {
                 .thenComparing(value -> value.code().name()));
         rejectDuplicatePaths(members);
         return new ScenarioManifestDiscoveryResult(members, diagnostics);
+    }
+
+    private static ScenarioManifestDiscoveryResult.Diagnostic unsupported(
+            ScenarioManifestDiscoveryResult.Code code,
+            String relativePath,
+            String messagePrefix
+    ) {
+        return new ScenarioManifestDiscoveryResult.Diagnostic(
+                code, relativePath, messagePrefix + relativePath);
     }
 
     private static boolean matchesSuffix(Path path) {

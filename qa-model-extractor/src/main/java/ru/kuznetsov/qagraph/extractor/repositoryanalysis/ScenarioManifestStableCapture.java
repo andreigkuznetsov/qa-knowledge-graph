@@ -160,11 +160,10 @@ public final class ScenarioManifestStableCapture {
             ScenarioManifestDiscoveryResult result
     ) {
         return result.diagnostics().stream()
-                .filter(diagnostic -> diagnostic.code()
-                        == ScenarioManifestDiscoveryResult.Code.UNSUPPORTED_SYMBOLIC_LINK)
+                .filter(diagnostic -> diagnostic.code().isUnsupportedEntry())
                 .map(diagnostic -> new ScenarioManifestStableCaptureResult.UnsupportedMatchingEntry(
                         diagnostic.repositoryRelativePath(),
-                        "SYMBOLIC_LINK",
+                        diagnostic.code().unsupportedEntryKind(),
                         diagnostic.code().name()))
                 .toList();
     }

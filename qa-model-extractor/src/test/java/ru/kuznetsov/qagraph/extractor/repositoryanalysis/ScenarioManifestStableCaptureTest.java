@@ -132,6 +132,33 @@ class ScenarioManifestStableCaptureTest {
     }
 
     @Test
+    void matchingUnsupportedDirectoryAdditionBetweenDiscoveriesIsConcurrentMutation() throws Exception {
+        Files.createDirectories(repository.resolve(".qaip/scenarios"));
+        ScenarioManifestStableCapture capture = withObserver(new ScenarioManifestStableCapture.CaptureObserver() {
+            @Override
+            public void beforeDiscoveryD2() throws IOException {
+                Files.createDirectory(repository.resolve(".qaip/scenarios/added.scenario.json"));
+            }
+        });
+
+        assertFailure(capture, ScenarioManifestStableCaptureResult.Code.CONCURRENT_SOURCE_MUTATION);
+    }
+
+    @Test
+    void matchingUnsupportedDirectoryFlowsWithStableKindAndCode() throws Exception {
+        Files.createDirectories(repository.resolve(".qaip/scenarios/nested/directory.scenario.json"));
+
+        ScenarioManifestStableCaptureResult.Completed result = completed(
+                new ScenarioManifestStableCapture());
+
+        assertEquals(List.of(new ScenarioManifestStableCaptureResult.UnsupportedMatchingEntry(
+                        ".qaip/scenarios/nested/directory.scenario.json",
+                        "DIRECTORY",
+                        "UNSUPPORTED_DIRECTORY")),
+                result.unsupportedMatchingEntries());
+    }
+
+    @Test
     void stableUnsupportedEntriesAreRetainedWithStableStructuralFields() {
         ScenarioManifestStableCapture capture = new ScenarioManifestStableCapture(
                 ignored -> discoveryWithUnsupported(true),
@@ -142,6 +169,26 @@ class ScenarioManifestStableCaptureTest {
                         ".qaip/scenarios/link.scenario.json",
                         "SYMBOLIC_LINK",
                         "UNSUPPORTED_SYMBOLIC_LINK")),
+                result.unsupportedMatchingEntries());
+    }
+
+    @Test
+    void humanDiagnosticMessageChangeDoesNotChangeUnsupportedIdentity() {
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        ScenarioManifestStableCapture capture = new ScenarioManifestStableCapture(
+                ignored -> new ScenarioManifestDiscoveryResult(List.of(), List.of(
+                        new ScenarioManifestDiscoveryResult.Diagnostic(
+                                ScenarioManifestDiscoveryResult.Code.UNSUPPORTED_DIRECTORY,
+                                ".qaip/scenarios/directory.scenario.json",
+                                "human message " + calls.getAndIncrement()))),
+                ScenarioManifestStableCapture.CaptureObserver.NONE);
+
+        ScenarioManifestStableCaptureResult.Completed result = completed(capture);
+
+        assertEquals(List.of(new ScenarioManifestStableCaptureResult.UnsupportedMatchingEntry(
+                        ".qaip/scenarios/directory.scenario.json",
+                        "DIRECTORY",
+                        "UNSUPPORTED_DIRECTORY")),
                 result.unsupportedMatchingEntries());
     }
 
