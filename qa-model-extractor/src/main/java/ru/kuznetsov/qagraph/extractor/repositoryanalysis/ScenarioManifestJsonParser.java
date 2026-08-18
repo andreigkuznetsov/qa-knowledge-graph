@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Objects;
 
 public final class ScenarioManifestJsonParser {
+    public static final String PARSER_CONTRACT_IDENTIFIER = "scenario-authority-json-parser-v1";
+
     private static final String STRICT_DUPLICATE_MESSAGE_PREFIX = "Duplicate field '";
 
     private final ObjectMapper mapper;
@@ -47,48 +49,61 @@ public final class ScenarioManifestJsonParser {
     }
 
     private MemberParse parseMember(ScenarioManifestCaptureResult.CapturedMember member) {
+        ExactParseResult result = parseExactBytes(member.bytes());
+        if (result.failureCode() != null) {
+            return failed(member, result.failureCode(), messagePrefix(result.failureCode()));
+        }
+        return new MemberParse(result.document(), null);
+    }
+
+    ExactParseResult parseExactBytes(byte[] exactBytes) {
+        Objects.requireNonNull(exactBytes, "exactBytes");
         String json;
         try {
             json = StandardCharsets.UTF_8.newDecoder()
                     .onMalformedInput(CodingErrorAction.REPORT)
                     .onUnmappableCharacter(CodingErrorAction.REPORT)
-                    .decode(ByteBuffer.wrap(member.bytes()))
+                    .decode(ByteBuffer.wrap(exactBytes))
                     .toString();
         } catch (CharacterCodingException exception) {
-            return failed(member, ScenarioManifestJsonParseResult.Code.INVALID_UTF8,
-                    "Scenario manifest member is not valid UTF-8: ");
+            return new ExactParseResult(null, ScenarioManifestJsonParseResult.Code.INVALID_UTF8);
         }
 
         boolean completeValueRead = false;
         try (JsonParser parser = mapper.getFactory().createParser(json)) {
             JsonToken first = parser.nextToken();
             if (first == null) {
-                return failed(member, ScenarioManifestJsonParseResult.Code.MALFORMED_JSON,
-                        "Scenario manifest member is not a syntactically valid JSON value: ");
+                return new ExactParseResult(null, ScenarioManifestJsonParseResult.Code.MALFORMED_JSON);
             }
             JsonNode document = mapper.readTree(parser);
             completeValueRead = true;
             if (parser.nextToken() != null) {
-                return failed(member, ScenarioManifestJsonParseResult.Code.TRAILING_JSON_CONTENT,
-                        "Scenario manifest member contains content after the first JSON value: ");
+                return new ExactParseResult(null, ScenarioManifestJsonParseResult.Code.TRAILING_JSON_CONTENT);
             }
-            return new MemberParse(document, null);
+            return new ExactParseResult(document, null);
         } catch (JsonParseException exception) {
             if (completeValueRead) {
-                return failed(member, ScenarioManifestJsonParseResult.Code.TRAILING_JSON_CONTENT,
-                        "Scenario manifest member contains content after the first JSON value: ");
+                return new ExactParseResult(null, ScenarioManifestJsonParseResult.Code.TRAILING_JSON_CONTENT);
             }
             if (exception.getOriginalMessage() != null
                     && exception.getOriginalMessage().startsWith(STRICT_DUPLICATE_MESSAGE_PREFIX)) {
-                return failed(member, ScenarioManifestJsonParseResult.Code.DUPLICATE_JSON_MEMBER,
-                        "Scenario manifest member contains a duplicate JSON object member: ");
+                return new ExactParseResult(null, ScenarioManifestJsonParseResult.Code.DUPLICATE_JSON_MEMBER);
             }
-            return failed(member, ScenarioManifestJsonParseResult.Code.MALFORMED_JSON,
-                    "Scenario manifest member is not a syntactically valid JSON value: ");
+            return new ExactParseResult(null, ScenarioManifestJsonParseResult.Code.MALFORMED_JSON);
         } catch (IOException exception) {
-            return failed(member, ScenarioManifestJsonParseResult.Code.MALFORMED_JSON,
-                    "Scenario manifest member could not be parsed as JSON: ");
+            return new ExactParseResult(null, ScenarioManifestJsonParseResult.Code.MALFORMED_JSON);
         }
+    }
+
+    private static String messagePrefix(ScenarioManifestJsonParseResult.Code code) {
+        return switch (code) {
+            case INVALID_UTF8 -> "Scenario manifest member is not valid UTF-8: ";
+            case MALFORMED_JSON -> "Scenario manifest member is not a syntactically valid JSON value: ";
+            case DUPLICATE_JSON_MEMBER ->
+                    "Scenario manifest member contains a duplicate JSON object member: ";
+            case TRAILING_JSON_CONTENT ->
+                    "Scenario manifest member contains content after the first JSON value: ";
+        };
     }
 
     private static MemberParse failed(
@@ -102,5 +117,19 @@ public final class ScenarioManifestJsonParser {
     }
 
     private record MemberParse(JsonNode document, ScenarioManifestJsonParseResult.Failure failure) {
+    }
+
+    record ExactParseResult(JsonNode document, ScenarioManifestJsonParseResult.Code failureCode) {
+        ExactParseResult {
+            if ((document == null) == (failureCode == null)) {
+                throw new IllegalArgumentException("exact parse result must contain document or failure");
+            }
+            if (document != null) document = document.deepCopy();
+        }
+
+        @Override
+        public JsonNode document() {
+            return document == null ? null : document.deepCopy();
+        }
     }
 }
