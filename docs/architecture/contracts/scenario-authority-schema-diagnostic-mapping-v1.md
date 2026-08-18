@@ -99,7 +99,7 @@ are unsigned, zero-based array indexes.
 | 19 | `qaip-scenario-authority-manifest-schema-v1#/$defs/identityScheme/pattern` | `pattern` | `requiredPattern: TEXT = "^[A-Za-z0-9][A-Za-z0-9._:-]*$"` |
 | 20 | `qaip-scenario-authority-manifest-schema-v1#/$defs/nonBlankString/type` | `type` | `expectedType: TEXT = "string"` |
 | 21 | `qaip-scenario-authority-manifest-schema-v1#/$defs/nonBlankString/minLength` | `minLength` | `minimumCodePointLength: UINT64 = 1` |
-| 22 | `qaip-scenario-authority-manifest-schema-v1#/$defs/nonBlankString/pattern` | `pattern` | `requiredPattern: TEXT = ".*\\S.*"` |
+| 22 | `qaip-scenario-authority-manifest-schema-v1#/$defs/nonBlankString/pattern` | `pattern` | `requiredPattern: TEXT = .*\S.*` |
 | 23 | `qaip-scenario-authority-manifest-schema-v1#/$defs/steps/type` | `type` | `expectedType: TEXT = "array"` |
 | 24 | `qaip-scenario-authority-manifest-schema-v1#/$defs/steps/minItems` | `minItems` | `minimumItemCount: UINT64 = 1` |
 | 25 | `qaip-scenario-authority-manifest-schema-v1#/$defs/scenario/type` | `type` | `expectedType: TEXT = "object"` |
@@ -144,6 +144,12 @@ mapping-contract version explicitly defines it.
 String lengths are JSON Schema Unicode code-point lengths, not UTF-16 code-unit
 counts or encoded byte lengths. `UINT64` values have the ADR-015 unsigned range
 and overflow rules.
+
+For Rule 22, the canonical logical `requiredPattern` `TEXT` value is `.*\S.*`.
+It contains exactly one U+005C REVERSE SOLIDUS (backslash), and its complete
+code-point sequence is U+002E, U+002A, U+005C, U+0053, U+002E, U+002A. The JSON
+Schema source representation may be shown separately as `".*\\S.*"`; that JSON
+source escaping is not the canonical `TEXT` value.
 
 ## RFC 6901 instance-location semantics
 
@@ -290,9 +296,13 @@ adapter must demonstrate that:
    behavior.
 
 An adapter implementation may change while this contract remains V1 only when
-the resulting canonical diagnostics remain identical. A schema rule, pointer,
-constraint, parameter, or mapping-semantics change requires a new schema or
-mapping-contract version as applicable; it must not silently redefine V1.
+the resulting canonical diagnostics remain identical. Every new Scenario
+Authority manifest schema version requires a new corresponding schema-diagnostic
+mapping contract version. This requirement applies even when the rule
+inventory, keywords, parameters, and mapping behavior happen to be identical.
+A previous mapping-contract identifier must never be reused for a new manifest
+schema version. A schema rule, pointer, constraint, parameter, or mapping-
+semantics change must not silently redefine V1.
 
 ## Normative golden-vector requirements
 
@@ -307,6 +317,8 @@ for:
 - every `const` rule;
 - all authority, stable-key, identity-scheme, and non-blank-string length and
   pattern boundaries;
+- Rule 22's exact logical `requiredPattern` value with one U+005C backslash and
+  its complete canonical `TEXT` bytes, independently of JSON source escaping;
 - Unicode code-point length boundaries, including BMP, supplementary, and
   combining-code-point inputs;
 - empty Step arrays for `minItems`;
