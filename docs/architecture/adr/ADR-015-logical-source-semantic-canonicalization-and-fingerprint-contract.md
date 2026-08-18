@@ -90,21 +90,29 @@ and 64 lowercase hexadecimal SHA-256 digits.
 
 | Semantic object | Encoding identifier | Value identifier | Domain string |
 | --- | --- | --- | --- |
-| Attributed member outcome | `scenario-authority-attributed-member-outcome-c14n-v1` | `scenario-authority-attributed-member-outcome-v1` | `QAIP\0SCENARIO_AUTHORITY_ATTRIBUTED_MEMBER_OUTCOME\0V1` |
-| Repository derivation report | `scenario-authority-repository-derivation-c14n-v1` | `scenario-authority-repository-derivation-v1` | `QAIP\0SCENARIO_AUTHORITY_REPOSITORY_DERIVATION\0V1` |
-| Manifest semantic content | `scenario-authority-manifest-semantic-c14n-v1` | `scenario-authority-manifest-semantic-v1` | `QAIP\0SCENARIO_AUTHORITY_MANIFEST_SEMANTIC\0V1` |
-| Scenario semantic content | `scenario-authority-scenario-semantic-c14n-v1` | `scenario-authority-scenario-semantic-v1` | `QAIP\0SCENARIO_AUTHORITY_SCENARIO_SEMANTIC\0V1` |
-| Step semantic content | `scenario-authority-step-semantic-c14n-v1` | `scenario-authority-step-semantic-v1` | `QAIP\0SCENARIO_AUTHORITY_STEP_SEMANTIC\0V1` |
-| HTTP Operation-reference content | `scenario-authority-http-operation-reference-semantic-c14n-v1` | `scenario-authority-http-operation-reference-semantic-v1` | `QAIP\0SCENARIO_AUTHORITY_HTTP_OPERATION_REFERENCE_SEMANTIC\0V1` |
-| Business Rule-reference content | `scenario-authority-business-rule-reference-semantic-c14n-v1` | `scenario-authority-business-rule-reference-semantic-v1` | `QAIP\0SCENARIO_AUTHORITY_BUSINESS_RULE_REFERENCE_SEMANTIC\0V1` |
-| Scenario identity group | `scenario-authority-scenario-identity-group-c14n-v1` | `scenario-authority-scenario-identity-group-v1` | `QAIP\0SCENARIO_AUTHORITY_SCENARIO_IDENTITY_GROUP\0V1` |
-| Semantic provenance record | `scenario-authority-semantic-provenance-c14n-v1` | `scenario-authority-semantic-provenance-v1` | `QAIP\0SCENARIO_AUTHORITY_SEMANTIC_PROVENANCE\0V1` |
-| Logical Source Authority Snapshot | `scenario-authority-logical-source-c14n-v2` | `scenario-authority-logical-source-v2` | `QAIP\0SCENARIO_AUTHORITY_LOGICAL_SOURCE\0V2` |
+| Attributed member outcome | `scenario-authority-attributed-member-outcome-c14n-v1` | `scenario-authority-attributed-member-outcome-v1` | `QAIP\u0000SCENARIO_AUTHORITY_ATTRIBUTED_MEMBER_OUTCOME\u0000V1` |
+| Repository derivation report | `scenario-authority-repository-derivation-c14n-v1` | `scenario-authority-repository-derivation-v1` | `QAIP\u0000SCENARIO_AUTHORITY_REPOSITORY_DERIVATION\u0000V1` |
+| Manifest semantic content | `scenario-authority-manifest-semantic-c14n-v1` | `scenario-authority-manifest-semantic-v1` | `QAIP\u0000SCENARIO_AUTHORITY_MANIFEST_SEMANTIC\u0000V1` |
+| Scenario semantic content | `scenario-authority-scenario-semantic-c14n-v1` | `scenario-authority-scenario-semantic-v1` | `QAIP\u0000SCENARIO_AUTHORITY_SCENARIO_SEMANTIC\u0000V1` |
+| Step semantic content | `scenario-authority-step-semantic-c14n-v1` | `scenario-authority-step-semantic-v1` | `QAIP\u0000SCENARIO_AUTHORITY_STEP_SEMANTIC\u0000V1` |
+| HTTP Operation-reference content | `scenario-authority-http-operation-reference-semantic-c14n-v1` | `scenario-authority-http-operation-reference-semantic-v1` | `QAIP\u0000SCENARIO_AUTHORITY_HTTP_OPERATION_REFERENCE_SEMANTIC\u0000V1` |
+| Business Rule-reference content | `scenario-authority-business-rule-reference-semantic-c14n-v1` | `scenario-authority-business-rule-reference-semantic-v1` | `QAIP\u0000SCENARIO_AUTHORITY_BUSINESS_RULE_REFERENCE_SEMANTIC\u0000V1` |
+| Scenario identity group | `scenario-authority-scenario-identity-group-c14n-v1` | `scenario-authority-scenario-identity-group-v1` | `QAIP\u0000SCENARIO_AUTHORITY_SCENARIO_IDENTITY_GROUP\u0000V1` |
+| Semantic provenance record | `scenario-authority-semantic-provenance-c14n-v1` | `scenario-authority-semantic-provenance-v1` | `QAIP\u0000SCENARIO_AUTHORITY_SEMANTIC_PROVENANCE\u0000V1` |
+| Logical Source Authority Snapshot | `scenario-authority-logical-source-c14n-v2` | `scenario-authority-logical-source-v2` | `QAIP\u0000SCENARIO_AUTHORITY_LOGICAL_SOURCE\u0000V2` |
 
 All domains use digest identifier `sha-256-v1`. Unsupported domain, encoding,
 digest, normalization, identity, outcome, or provenance versions are
 processing/compatibility failures. An implementation never substitutes a
 version.
+
+In every domain string above, each written `\u0000` separator denotes exactly
+one Unicode code point U+0000. Under the required strict UTF-8 encoding, that
+code point is exactly one byte `0x00`. The written escape-notation characters
+backslash, `u`, `0`, `0`, `0`, `0` are not canonical domain bytes. The two
+characters backslash plus zero are likewise never a canonical representation.
+Normative golden vectors include the complete length-prefixed domain bytes and
+lock each U+0000 separator as one `00` byte.
 
 ## Common canonical binary encoding
 
@@ -511,8 +519,44 @@ operational metadata. After the common prefix, encode:
 Parent order is canonical identity order unless the named activity contract
 explicitly declares sequence semantic. Parent references are encoded as opaque
 integrity-bound references; the complete referred provenance document is not
-recursively serialized. Cycles, unresolved references, duplicate parent
-identities, output-fingerprint mismatch, or incompatible versions are
+recursively serialized.
+
+Semantic provenance follows a strict acyclic dependency rule:
+
+- a semantic provenance record may reference as parents and name as its output
+  only already-identified and already-fingerprinted child data or outcomes;
+- provenance embedded by fingerprint reference in an aggregate must not name
+  that containing aggregate's fingerprint as its output;
+- no fingerprint dependency may directly or transitively depend on itself;
+- provenance edges follow the fingerprint dependency graph from completed
+  child fingerprints toward later aggregate fingerprints; and
+- an encoder rejects any forward reference, self-reference, back edge, or
+  dependency cycle as an integrity/processing failure.
+
+The allowed output kinds for provenance used in each context are:
+
+| Embedding or association context | Allowed output kinds | Prohibited output kind |
+| --- | --- | --- |
+| Repository Derivation Report | `ATTRIBUTED_MEMBER_OUTCOME`; an independently fingerprinted captured-member or child processing datum defined by its supported contract | the containing `REPOSITORY_DERIVATION_REPORT` |
+| Manifest semantic content context | `STEP_SEMANTIC_CONTENT`, `HTTP_OPERATION_REFERENCE_SEMANTIC_CONTENT`, `BUSINESS_RULE_REFERENCE_SEMANTIC_CONTENT`, `SCENARIO_SEMANTIC_CONTENT`, or `MANIFEST_SEMANTIC_CONTENT` after that output fingerprint exists | no provenance is embedded in the Manifest semantic fingerprint itself |
+| Scenario semantic content context | `STEP_SEMANTIC_CONTENT`, `HTTP_OPERATION_REFERENCE_SEMANTIC_CONTENT`, `BUSINESS_RULE_REFERENCE_SEMANTIC_CONTENT`, or `SCENARIO_SEMANTIC_CONTENT` after that output fingerprint exists | no provenance is embedded in the Scenario semantic fingerprint itself |
+| Logical Source Authority Snapshot V2 | `ATTRIBUTED_MEMBER_OUTCOME`, `MANIFEST_SEMANTIC_CONTENT`, `STEP_SEMANTIC_CONTENT`, `HTTP_OPERATION_REFERENCE_SEMANTIC_CONTENT`, `BUSINESS_RULE_REFERENCE_SEMANTIC_CONTENT`, `SCENARIO_SEMANTIC_CONTENT`, or `SCENARIO_IDENTITY_GROUP` | the containing `LOGICAL_SOURCE_AUTHORITY_SNAPSHOT_V2` |
+
+Manifest and Scenario semantic encodings contain child fingerprint references,
+not semantic provenance references. “Context” in the table means provenance
+associated with those completed semantic outputs and included only by a later
+aggregate. Repository-level unattributable outcomes remain embedded and bound
+by the Repository Derivation Report; because they have no independent V1
+fingerprint, they cannot be named as the output of a semantic provenance record.
+
+If aggregate-level provenance is later required for a Repository Derivation
+Report or Logical Source Authority Snapshot, it must exist outside the content
+fingerprint of the aggregate it describes, or inside a separately versioned
+non-cyclic envelope constructed after that aggregate fingerprint exists. It
+cannot be inserted back into that aggregate's canonical content.
+
+Unresolved references, duplicate parent identities, output-fingerprint
+mismatch, incompatible versions, and all dependency cycles are
 integrity/processing failures.
 
 Capture or processing timestamps, Git revision/branch/tag/remote, absolute
@@ -529,7 +573,7 @@ The aggregate uses:
 encoding identifier: scenario-authority-logical-source-c14n-v2
 digest identifier:   sha-256-v1
 value format:        scenario-authority-logical-source-v2:<64 lowercase hex>
-domain string:       QAIP\0SCENARIO_AUTHORITY_LOGICAL_SOURCE\0V2
+domain string:       QAIP\u0000SCENARIO_AUTHORITY_LOGICAL_SOURCE\u0000V2
 ```
 
 After the common prefix, encode in this exact order:
@@ -637,24 +681,32 @@ Business Rule-reference fps -+             |
                                             |
 Parent member ref + stable outcomes --------+--> Attributed-member outcome fp
 
+Completed child datum/outcome fingerprint
+  + activity and already-completed parent refs --> Semantic provenance fp
+
 Parent capture + attributed outcome refs
   + embedded unattributable outcomes
-  + unsupported entries ------------------------> Repository derivation report fp
+  + unsupported entries
+  + provenance for allowed completed children ---> Repository derivation report fp
 
 Scenario occurrence identities
   + parent-member refs
   + Scenario semantic fps ----------------------> Scenario identity-group fp
 
-Datum identities/fingerprints
-  + activity and parent refs --------------------> Semantic provenance fp
-
 Attributed outcomes + manifest occurrences
   + Scenario groups + normalized data
-  + semantic provenance ------------------------> Logical Source Snapshot V2 fp
+  + provenance for allowed completed children ---> Logical Source Snapshot V2 fp
+
+Repository Derivation Report fp ----------------> optional later external envelope
+Logical Source Snapshot V2 fp ------------------> optional later external envelope
 ```
 
-The graph is acyclic. An aggregate embeds fingerprint references rather than
-reimplementing a child's canonical field serialization.
+Every arrow points from an already-completed fingerprint toward a later
+fingerprint. No provenance arrow points backward from a child to an aggregate
+that contains it. An aggregate embeds fingerprint references rather than
+reimplementing a child's canonical field serialization. Aggregate-level
+provenance, when present, is downstream in an external non-cyclic envelope and
+cannot alter the completed aggregate fingerprint.
 
 ## Golden vectors
 
@@ -689,7 +741,10 @@ vectors include:
 - collection-order changes wherever order is semantic;
 - noncanonical set ordering, duplicate keys, invalid UTF-8, unpaired surrogate,
   count/length overflow, unsupported version, and invalid optional-tag
-  rejection; and
+  rejection;
+- exact domain bytes for all ten domains, proving every written `\u0000`
+  separator contributes exactly one `00` byte and no backslash notation bytes;
+  and
 - change of every fingerprint-relevant contract/version identifier.
 
 Golden vectors are normative interoperability artifacts. An independent test
@@ -830,6 +885,9 @@ cycle safety. Semantic provenance uses explicit immutable references.
 - Which public API exposes repository derivation reports, semantic provenance,
   and duplicate evidence without presenting claimed authority as accepted
   authority?
+- Does a future evidence-envelope contract carry aggregate-level provenance for
+  Repository Derivation Reports and Logical Source Authority Snapshots? Such an
+  envelope must remain separately versioned and acyclic.
 
 These questions do not block the first semantic fingerprint implementation.
 The first implementation must begin with the shared primitives, stable
@@ -843,6 +901,8 @@ An implementation conforms only if:
 - it implements exactly the ten domains and identifiers defined here;
 - it does not introduce a separate Scenario occurrence semantic fingerprint in
   V2;
+- every domain separator is the single U+0000 code point encoded as byte
+  `0x00`, never backslash notation;
 - it uses the common binary encoding and explicit optional tags;
 - every production domain encoder is owned authoritatively by Evidence
   Governance;
@@ -855,6 +915,9 @@ An implementation conforms only if:
   semantic fingerprints and every duplicate remains rejecting;
 - occurrence, provenance, qualification, and engineering meaning remain
   distinct;
+- semantic provenance refers only to completed child fingerprints, conforms to
+  the allowed-output-kind table, and creates no direct or transitive cycle;
+- no provenance embedded in an aggregate names that aggregate as its output;
 - Logical V2 excludes snapshotId, authority declarations, qualification,
   operational provenance, resolution, and canonical facts;
 - snapshot identity remains `sourceId + snapshotId + contentFingerprint`;
