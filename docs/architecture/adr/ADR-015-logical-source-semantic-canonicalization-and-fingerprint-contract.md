@@ -374,6 +374,91 @@ Manifest path, Scenario array index, raw bytes, raw fingerprint, JSON object
 order, source spans, and occurrence identity are excluded. These exclusions
 make two occurrences comparable without collapsing the occurrences.
 
+#### Mandatory Scenario composition anti-substitution boundary
+
+Leaf semantic fingerprint values are opaque integrity values. A supported
+value prefix proves the leaf fingerprint domain and version, but the digest
+does not expose or independently prove the claimed Scenario identity, Step
+phase or ordinal, or reference datum identity from which it was calculated.
+Opaque leaf fingerprint values alone are therefore insufficient evidence that
+a leaf belongs to the claimed Scenario into which it is composed.
+
+`ScenarioSemanticFingerprintEncoder` remains the low-level pure canonical
+encoder for the field sequence above. It encodes already-accepted leaf
+fingerprint references and must not deserialize, inspect, reconstruct, or
+independently canonicalize leaf semantic content. Direct construction from
+naked leaf fingerprint values is not an accepted production Scenario
+fingerprint path.
+
+Production construction passes through an Evidence Governance composition
+boundary. That boundary uses these immutable typed authoritative attestations:
+
+```text
+FingerprintStepAttestation {
+  exact StepSemanticFingerprintInput
+  authoritative StepSemanticFingerprint
+}
+
+FingerprintOperationReferenceAttestation {
+  exact HttpOperationReferenceSemanticFingerprintInput
+  authoritative HttpOperationReferenceSemanticFingerprint
+}
+
+FingerprintBusinessRuleReferenceAttestation {
+  exact BusinessRuleReferenceSemanticFingerprintInput
+  authoritative BusinessRuleReferenceSemanticFingerprint
+}
+```
+
+An attestation is created or verified only by Evidence Governance using the
+one authoritative encoder for that leaf domain. Verification recalculates the
+fingerprint from the exact attested input and requires value equality. A
+mismatched input/fingerprint pair, unsupported fingerprint type or version, or
+unsupported input contract is an integrity/processing failure, not an ordinary
+source outcome or qualification state.
+
+Before constructing `ScenarioSemanticFingerprintInput`, the composition
+boundary requires all of these invariants:
+
+1. Every Step input's exact claimed Scenario identity equals the parent
+   Scenario's exact claimed identity.
+2. Every Step phase equals its containing `GIVEN`, `WHEN`, or `THEN`
+   collection.
+3. Step ordinals in each phase are zero-based, contiguous, unique, and equal
+   to their collection positions.
+4. Every Step fingerprint is bound by its attestation to that exact Step
+   input.
+5. The Operation-reference input's exact claimed Scenario identity equals the
+   parent Scenario's exact claimed identity, and its fingerprint is bound by
+   its attestation to that exact input.
+6. Every Business Rule-reference input's exact claimed Scenario identity
+   equals the parent Scenario's exact claimed identity, and every fingerprint
+   is bound by its attestation to that exact input.
+7. Business Rule-reference authored positions are zero-based, contiguous,
+   unique, and preserve authored array order before position is discarded from
+   the individual Business Rule-reference semantic fingerprint.
+8. All identity, target-profile, fingerprint, normalization, and semantic
+   contracts are supported V1 contracts.
+9. Composition preserves the normalized authored order. It performs no
+   sorting, first/last/majority winner selection, deduplication, or caller
+   fingerprint substitution.
+
+Failure of any invariant is a deterministic processing/integrity failure and
+emits no Scenario semantic fingerprint. It does not emit a partial Scenario
+fingerprint and cannot be repaired by later authority qualification.
+
+ADR-014 normalized Scenario source records provide the source-native parent
+and leaf identities, phases, ordinals, authored positions, and exact content
+required for these checks. The Extractor may map those immutable normalized
+records into a composition request, but it does not attest or accept the
+fingerprints. Evidence Governance owns attestation creation/verification,
+composition validation, construction of the accepted
+`ScenarioSemanticFingerprintInput`, and invocation of the low-level encoder.
+
+This boundary adds no canonical fields. The Scenario canonical byte sequence,
+domain, encoding and value identifiers, fingerprint values, and normative
+golden vectors defined by this ADR remain unchanged.
+
 ### Manifest semantic content
 
 After the common prefix, encode:
@@ -755,15 +840,18 @@ encoder.
 
 The Scenario source adapter / Extractor owns source-specific parsing,
 attribution, schema-to-QAIP-diagnostic mapping, normalization, occurrence
-construction, and untrusted candidate assembly. It calls Evidence Governance
-fingerprint services.
+construction, mapping normalized records into composition requests, and
+untrusted candidate assembly. It calls Evidence Governance fingerprint
+services and must not treat naked leaf fingerprints as accepted Scenario
+composition input.
 
 Evidence Governance owns the common binary primitives, all domain encoders,
 digest/value types, supported-version registry, canonical diagnostic contract,
-anti-substitution validation, semantic provenance invariants, Logical V2
-aggregate encoding, and golden vectors. There is exactly one authoritative
-production implementation per domain. Source adapters must not copy, translate,
-or reproduce canonical serialization.
+typed leaf attestations, attestation verification, Scenario composition
+acceptance, anti-substitution validation, semantic provenance invariants,
+Logical V2 aggregate encoding, and golden vectors. There is exactly one
+authoritative production implementation per domain. Source adapters must not
+copy, translate, or reproduce canonical serialization.
 
 Runtime, Coverage, Explorer, Canonical Ontology, Operation/Rule resolution, and
 relationship formation own none of these encodings and are unchanged by this
@@ -906,6 +994,13 @@ An implementation conforms only if:
 - it uses the common binary encoding and explicit optional tags;
 - every production domain encoder is owned authoritatively by Evidence
   Governance;
+- production Scenario fingerprint construction uses Evidence Governance typed
+  leaf attestations and the mandatory composition anti-substitution boundary;
+- every attested leaf fingerprint equals the authoritative fingerprint of its
+  exact attested input, and every leaf belongs structurally and by exact
+  claimed Scenario identity to its parent Scenario;
+- failure of a Scenario composition invariant emits no Scenario semantic
+  fingerprint;
 - source adapters never reproduce canonical serialization;
 - raw byte fingerprints never substitute for semantic fingerprints;
 - JSON object order and validator-library behavior never define semantic
