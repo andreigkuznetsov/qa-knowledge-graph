@@ -1,6 +1,7 @@
 package ru.kuznetsov.qagraph.extractor.repositoryanalysis;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import ru.kuznetsov.qaip.evidencegovernance.diagnostic.ScenarioSchemaDiagnostic;
 
 import java.util.ArrayList;
 import java.util.List;

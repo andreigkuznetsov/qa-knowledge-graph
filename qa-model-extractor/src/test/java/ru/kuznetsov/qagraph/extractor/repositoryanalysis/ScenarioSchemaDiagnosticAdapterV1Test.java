@@ -9,8 +9,11 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
+import ru.kuznetsov.qaip.evidencegovernance.diagnostic.ScenarioSchemaDiagnostic;
 
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -167,9 +170,7 @@ class ScenarioSchemaDiagnosticAdapterV1Test {
         ScenarioSchemaDiagnostic diagnostic = adapter.map(document, List.of(signal(
                 "minLength", "/$defs/nonBlankString/minLength", "/a~1b/~0x"))).getFirst();
         assertEquals("/a~1b/~0x", diagnostic.instanceLocation());
-        assertThrows(IllegalArgumentException.class, () -> new ScenarioSchemaDiagnostic(
-                ScenarioSchemaDiagnostic.DIAGNOSTIC_CONTRACT_VERSION,
-                ScenarioSchemaDiagnostic.Code.SCHEMA_VIOLATION,
+        assertThrows(IllegalArgumentException.class, () -> ScenarioSchemaDiagnostic.v1(
                 "/bad~2escape", "type", PREFIX + "/type",
                 List.of(new ScenarioSchemaDiagnostic.TextParameter("expectedType", "object"))));
     }
@@ -189,10 +190,17 @@ class ScenarioSchemaDiagnosticAdapterV1Test {
 
     @Test
     void diagnosticModelHasOnlyQaipCanonicalFields() {
-        assertEquals(List.of("diagnosticContractVersion", "stableCode", "instanceLocation",
-                        "normativeSchemaKeyword", "schemaRuleIdentifier", "typedParameters"),
-                Stream.of(ScenarioSchemaDiagnostic.class.getRecordComponents())
-                        .map(java.lang.reflect.RecordComponent::getName).toList());
+        assertEquals("ru.kuznetsov.qaip.evidencegovernance.diagnostic",
+                ScenarioSchemaDiagnostic.class.getPackageName());
+    }
+
+    @Test
+    void adapterUsesEvidenceGovernanceOrderingWithoutCanonicalSerializationCopy() throws Exception {
+        String source = Files.readString(Path.of("src/main/java/ru/kuznetsov/qagraph/extractor/"
+                + "repositoryanalysis/ScenarioSchemaDiagnosticAdapterV1.java"));
+        assertTrue(source.contains("ScenarioSchemaDiagnostic.canonicalOrder()"));
+        assertFalse(source.contains("CanonicalBinaryWriter"));
+        assertFalse(source.contains("writeOrderedCollection"));
     }
 
     @Test

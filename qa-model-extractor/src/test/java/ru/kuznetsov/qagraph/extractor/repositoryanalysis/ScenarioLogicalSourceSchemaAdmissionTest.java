@@ -2,10 +2,13 @@ package ru.kuznetsov.qagraph.extractor.repositoryanalysis;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
+import ru.kuznetsov.qaip.evidencegovernance.diagnostic.ScenarioSchemaDiagnostic;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.RawSourceMemberFingerprint;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.RepositoryCaptureFingerprintEncoder;
 
 import java.nio.charset.StandardCharsets;
+import java.lang.reflect.ParameterizedType;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -218,15 +221,28 @@ class ScenarioLogicalSourceSchemaAdmissionTest {
                 before.structuralLocation(),
                 ScenarioLogicalSourceSchemaAdmission.SCHEMA_CONTRACT_IDENTIFIER,
                 AttributedMemberSchemaAdmissionOutcome.StructuralAdmissionState.STRUCTURALLY_ADMITTED,
-                List.of(new ScenarioSchemaDiagnostic(
-                        ScenarioSchemaDiagnostic.DIAGNOSTIC_CONTRACT_VERSION,
-                        ScenarioSchemaDiagnostic.Code.SCHEMA_VIOLATION,
+                List.of(ScenarioSchemaDiagnostic.v1(
                         "",
                         "required",
                         "qaip-scenario-authority-manifest-schema-v1#/required",
                         List.of(new ScenarioSchemaDiagnostic.TextParameter(
                                 "missingProperty", "authority")))),
                 before.parsedSource()));
+    }
+
+    @Test
+    void canonicalAdmissionAcceptsOnlyEvidenceGovernanceDiagnosticsNotLegacyPresentationData()
+            throws Exception {
+        ParameterizedType diagnosticsType = (ParameterizedType)
+                Arrays.stream(AttributedMemberSchemaAdmissionOutcome.class.getRecordComponents())
+                        .filter(component -> component.getName().equals("schemaDiagnostics"))
+                        .findFirst()
+                        .orElseThrow()
+                        .getGenericType();
+
+        assertEquals(ScenarioSchemaDiagnostic.class, diagnosticsType.getActualTypeArguments()[0]);
+        assertTrue(!ScenarioSchemaDiagnostic.class.isAssignableFrom(
+                ScenarioManifestSchemaValidationResult.Diagnostic.class));
     }
 
     private ScenarioSchemaAdmissionResult admit(

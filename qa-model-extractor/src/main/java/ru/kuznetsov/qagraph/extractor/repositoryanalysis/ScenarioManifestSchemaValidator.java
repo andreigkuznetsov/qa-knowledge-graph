@@ -57,6 +57,8 @@ public final class ScenarioManifestSchemaValidator {
         return validateMessages(document);
     }
 
+    /** Produces legacy noncanonical presentation data for the pre-ADR-014 compatibility API only. */
+    @SuppressWarnings("deprecation")
     private static ScenarioManifestSchemaValidationResult.Diagnostic legacyDiagnostic(
             String repositoryRelativePath,
             ValidationMessage message

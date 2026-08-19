@@ -3,11 +3,10 @@ package ru.kuznetsov.qagraph.extractor.repositoryanalysis;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.networknt.schema.JsonNodePath;
 import com.networknt.schema.ValidationMessage;
-import ru.kuznetsov.qaip.evidencegovernance.canonical.CanonicalBinaryWriter;
+import ru.kuznetsov.qaip.evidencegovernance.diagnostic.ScenarioSchemaDiagnostic;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -18,31 +17,16 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static ru.kuznetsov.qagraph.extractor.repositoryanalysis.ScenarioSchemaDiagnostic.*;
+import static ru.kuznetsov.qaip.evidencegovernance.diagnostic.ScenarioSchemaDiagnostic.*;
 
 /** Authoritative finite adapter for scenario-authority-schema-diagnostic-mapping-v1. */
 public final class ScenarioSchemaDiagnosticAdapterV1 {
     public static final String CONTRACT_IDENTIFIER =
-            "scenario-authority-schema-diagnostic-mapping-v1";
+            ScenarioSchemaDiagnostic.MAPPING_CONTRACT_IDENTIFIER;
     public static final String RULE_PREFIX =
-            "qaip-scenario-authority-manifest-schema-v1#";
+            ScenarioSchemaDiagnostic.RULE_PREFIX;
 
     private static final Map<String, Rule> RULE_BY_POINTER = rulesByPointer();
-    private static final Comparator<ScenarioSchemaDiagnostic> DIAGNOSTIC_ORDER =
-            (left, right) -> {
-                int compared = UnicodeCodePointOrder.compare(left.instanceLocation(), right.instanceLocation());
-                if (compared != 0) return compared;
-                compared = UnicodeCodePointOrder.compare(
-                        left.normativeSchemaKeyword(), right.normativeSchemaKeyword());
-                if (compared != 0) return compared;
-                compared = UnicodeCodePointOrder.compare(
-                        left.schemaRuleIdentifier(), right.schemaRuleIdentifier());
-                if (compared != 0) return compared;
-                compared = UnicodeCodePointOrder.compare(
-                        left.stableCode().name(), right.stableCode().name());
-                if (compared != 0) return compared;
-                return compareUnsigned(parameterBytes(left), parameterBytes(right));
-            };
 
     private final ScenarioManifestSchemaValidator validator;
 
@@ -83,7 +67,7 @@ public final class ScenarioSchemaDiagnosticAdapterV1 {
             if (mapped.isEmpty()) fail("validator signal is inconsistent with schema and instance");
             consolidated.addAll(mapped);
         }
-        return consolidated.stream().sorted(DIAGNOSTIC_ORDER).toList();
+        return consolidated.stream().sorted(ScenarioSchemaDiagnostic.canonicalOrder()).toList();
     }
 
     static int ruleCount() {
@@ -225,9 +209,7 @@ public final class ScenarioSchemaDiagnosticAdapterV1 {
         List<CanonicalTypedParameter> ordered = parameters.stream()
                 .sorted((left, right) -> UnicodeCodePointOrder.compare(left.name(), right.name()))
                 .toList();
-        return new ScenarioSchemaDiagnostic(
-                DIAGNOSTIC_CONTRACT_VERSION,
-                Code.SCHEMA_VIOLATION,
+        return ScenarioSchemaDiagnostic.v1(
                 location,
                 rule.keyword,
                 RULE_PREFIX + rule.pointer,
@@ -315,25 +297,6 @@ public final class ScenarioSchemaDiagnosticAdapterV1 {
             pointer.append('/').append(token.replace("~", "~0").replace("/", "~1"));
         }
         return pointer.toString();
-    }
-
-    private static byte[] parameterBytes(ScenarioSchemaDiagnostic diagnostic) {
-        return new CanonicalBinaryWriter()
-                .writeOrderedCollection(diagnostic.typedParameters(), (writer, parameter) -> {
-                    writer.writeText(parameter.name()).writeText(parameter.type().name());
-                    if (parameter instanceof TextParameter text) writer.writeText(text.value());
-                    else writer.writeUnsigned64(((Unsigned64Parameter) parameter).value());
-                })
-                .toByteArray();
-    }
-
-    private static int compareUnsigned(byte[] left, byte[] right) {
-        int length = Math.min(left.length, right.length);
-        for (int index = 0; index < length; index++) {
-            int comparison = Integer.compare(Byte.toUnsignedInt(left[index]), Byte.toUnsignedInt(right[index]));
-            if (comparison != 0) return comparison;
-        }
-        return Integer.compare(left.length, right.length);
     }
 
     private static Map<String, Rule> rulesByPointer() {

@@ -30,6 +30,12 @@ public record ScenarioManifestSchemaValidationResult(List<ValidatedMember> membe
         }
     }
 
+    /**
+     * Legacy noncanonical presentation/compatibility data. This record may contain
+     * validator-owned wording and must never be used for ADR-014 admission,
+     * canonical evidence, implicit canonical conversion, or fingerprinting.
+     */
+    @Deprecated(forRemoval = false)
     public record Diagnostic(
             Code code,
             String repositoryRelativePath,
