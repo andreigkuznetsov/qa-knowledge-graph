@@ -9,11 +9,13 @@ public final class SemanticProvenanceOutputReference {
     private final String outputKind;
     private final AttributedMemberOutcomeFingerprintInput.ParentCapturedMemberReference outputIdentity;
     private final AttributedMemberOutcomeFingerprint fingerprint;
+    private final String claimedAuthority;
 
     private SemanticProvenanceOutputReference(
             String outputKind,
             AttributedMemberOutcomeFingerprintInput.ParentCapturedMemberReference outputIdentity,
-            AttributedMemberOutcomeFingerprint fingerprint
+            AttributedMemberOutcomeFingerprint fingerprint,
+            String claimedAuthority
     ) {
         if (!OUTPUT_KIND.equals(Objects.requireNonNull(outputKind, "outputKind"))) {
             throw new IllegalArgumentException("outputKind must be " + OUTPUT_KIND);
@@ -21,6 +23,7 @@ public final class SemanticProvenanceOutputReference {
         this.outputKind = outputKind;
         this.outputIdentity = Objects.requireNonNull(outputIdentity, "outputIdentity");
         this.fingerprint = Objects.requireNonNull(fingerprint, "fingerprint");
+        this.claimedAuthority = Objects.requireNonNull(claimedAuthority, "claimedAuthority");
     }
 
     public static SemanticProvenanceOutputReference verified(
@@ -36,7 +39,8 @@ public final class SemanticProvenanceOutputReference {
                     "attributed-member output fingerprint does not match its authoritative input");
         }
         return new SemanticProvenanceOutputReference(
-                OUTPUT_KIND, authoritativeInput.parentMemberReference(), fingerprint);
+                OUTPUT_KIND, authoritativeInput.parentMemberReference(), fingerprint,
+                authoritativeInput.claimedAuthority());
     }
 
     public String outputKind() { return outputKind; }
@@ -44,4 +48,5 @@ public final class SemanticProvenanceOutputReference {
         return outputIdentity;
     }
     public AttributedMemberOutcomeFingerprint fingerprint() { return fingerprint; }
+    public String claimedAuthority() { return claimedAuthority; }
 }
