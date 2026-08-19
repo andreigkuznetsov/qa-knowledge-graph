@@ -136,7 +136,8 @@ Encode the accepted unresolved Business Rule-reference datum identity:
 3. Scenario identity scheme `qaip-scenario-identity-v1`;
 4. referenced authority;
 5. stable rule key;
-6. Business Rule identity scheme; and
+6. Business Rule identity scheme, exactly
+   `qaip-business-rule-identity-v1`; and
 7. identity version
    `qaip-scenario-business-rule-reference-datum-identity-v1`.
 
@@ -181,18 +182,53 @@ Contains:
 
 ### `SEMANTIC_DATUM`
 
-Contains:
+Contains one of these two finite, explicitly tagged forms. They are distinct
+typed concepts and cannot be substituted for one another.
 
-1. active semantic datum/output kind;
-2. exact typed datum identity for that kind;
-3. exact fingerprint value identifier; and
-4. complete prefixed semantic fingerprint value.
+`NORMALIZED_SOURCE_INPUT` contains:
 
-Parent provenance records are never embedded or referenced as parents. An
-unfingerprinted normalized object cannot be represented as a parent. For leaf
-activities its normalized identity is the output identity and its complete
-semantic binding is the output fingerprint; the captured-to-normalized origin
-is supplied by the attributed-member parent.
+1. the `NORMALIZED_SOURCE_INPUT` form tag;
+2. one active source-native datum kind;
+3. the exact typed datum identity for that kind;
+4. source-normalization version `scenario-authority-source-normalization-v1`;
+   and
+5. the complete normalized semantic fields consumed by that activity, in the
+   exact field order frozen below.
+
+It contains no semantic fingerprint. It is a finite Scenario-specific binding,
+not a generic unfingerprinted parent.
+
+`COMPLETED_SEMANTIC_OUTPUT` contains:
+
+1. the `COMPLETED_SEMANTIC_OUTPUT` form tag;
+2. active semantic output kind;
+3. exact typed output datum identity for that kind;
+4. exact fingerprint value identifier; and
+5. complete prefixed semantic fingerprint value.
+
+The normalized input bindings are:
+
+- Step: Step identity, followed by exact decoded authored Step text;
+- HTTP Operation reference: Operation-reference datum identity, fixed target
+  profile `qaip-http-operation-reference-v1`, exact admitted method, and exact
+  admitted path;
+- Business Rule reference: Business Rule-reference datum identity. Its
+  identity already contains the complete authority-qualified semantic tuple;
+- Scenario: `ScenarioDeclarationOccurrenceIdentity`, exact claimed Scenario
+  identity, and exact admitted title; and
+- Manifest: `ManifestOccurrenceIdentity`, exact claimed authority, Manifest
+  format identifier `qaip-scenario-authority-manifest-v1`, schema version
+  `1.0`, and Scenario identity scheme `qaip-scenario-identity-v1`.
+
+V1 accepts only Business Rule identity scheme
+`qaip-business-rule-identity-v1`. Any other scheme is an unsupported contract,
+not an alternate spelling, and requires a future explicitly versioned
+provenance contract.
+
+Parent provenance records are never embedded or referenced as parents. A
+normalized source input can enter only through the corresponding finite
+`SEMANTIC_DATUM/NORMALIZED_SOURCE_INPUT` form above. No arbitrary object,
+generic JSON value, parsed tree, or untyped datum is admitted.
 
 ## Per-activity parent requirements
 
@@ -205,40 +241,96 @@ is supplied by the attributed-member parent.
 ### Leaf fingerprint activities
 
 The Step, HTTP Operation-reference, and Business Rule-reference fingerprint
-activities each require exactly one `ATTRIBUTED_MEMBER_OUTCOME` parent for the
-structurally admitted Manifest from which the normalized leaf was derived.
-The output identity is the exact normalized leaf identity and the output
-fingerprint binds its complete supported semantic content. This avoids both an
-unfingerprinted-parent variant and a self-referential `SEMANTIC_DATUM` parent.
+activities each require exactly one
+`SEMANTIC_DATUM/NORMALIZED_SOURCE_INPUT` parent of the matching datum kind.
+The parent contains exactly the authoritative normalized fields consumed by
+the corresponding leaf encoder and no output fingerprint. Its identity must
+equal the provenance output identity. An `ATTRIBUTED_MEMBER_OUTCOME` parent or
+a `COMPLETED_SEMANTIC_OUTPUT` reference to the provenance output is forbidden.
 
 ### `COMPOSE_SCENARIO_SEMANTIC_CONTENT`
 
-Parents are all `SEMANTIC_DATUM` references in this sequence-semantic order:
+Parents are `SEMANTIC_DATUM` references in this sequence-semantic order:
 
-1. `GIVEN` Step references by increasing ordinal;
-2. `WHEN` Step references by increasing ordinal;
-3. `THEN` Step references by increasing ordinal;
-4. exactly one HTTP Operation-reference;
-5. Business Rule-reference parents in exact authored array order.
+1. exactly one matching Scenario `NORMALIZED_SOURCE_INPUT` binding;
+2. completed `GIVEN` Step outputs by increasing ordinal;
+3. completed `WHEN` Step outputs by increasing ordinal;
+4. completed `THEN` Step outputs by increasing ordinal;
+5. exactly one completed HTTP Operation-reference output;
+6. completed Business Rule-reference outputs in exact authored array order.
 
-Their identities and fingerprints must be exactly those accepted by the
-authoritative Scenario semantic composition request. Missing, extra,
-duplicated, or reordered parents are integrity failures.
+The normalized input binding and completed-output identities/fingerprints must
+be exactly those accepted by the authoritative Scenario semantic composition
+request. Missing, extra, duplicated, or reordered parents are integrity
+failures.
 
 ### `COMPOSE_MANIFEST_SEMANTIC_CONTENT`
 
 Parents are sequence-semantic in this exact order:
 
-1. exactly one `ATTRIBUTED_MEMBER_OUTCOME` parent for the admitted Manifest;
-2. `SCENARIO_SEMANTIC_CONTENT` parents in exact authored Manifest order.
+1. exactly one matching Manifest `NORMALIZED_SOURCE_INPUT` binding;
+2. completed `SCENARIO_SEMANTIC_CONTENT` outputs in exact authored Manifest
+   order.
 
-The attributed outcome must bind the same Manifest occurrence identity and
-Manifest semantic fingerprint as the provenance output. Every Scenario parent
-must correspond to exactly one declaration occurrence in that Manifest.
+An `ATTRIBUTED_MEMBER_OUTCOME` parent is forbidden because an admitted
+`AttributedMemberOutcomeFingerprint` already contains the Manifest semantic
+fingerprint. Every Scenario parent must correspond to exactly one declaration
+occurrence in the normalized Manifest input.
+
+The captured-member-to-admitted-Manifest link remains exclusively downstream:
+
+```text
+ManifestSemanticFingerprint
+    -> AttributedMemberOutcomeFingerprint
+```
+
+Manifest provenance never reverses or duplicates that edge.
 
 Where a future admitted activity does not declare sequence semantics, its
 parents must use canonical identity-byte order. No active V1 activity relies
 on locale, map iteration, validator emission order, or human diagnostics.
+
+## Active V1 dependency DAGs
+
+Every arrow below points from an input that exists before the output toward
+the completed output and then its provenance record.
+
+```text
+CAPTURED_MEMBER
+    -> AttributedMemberOutcomeFingerprint
+    -> DERIVE_ATTRIBUTED_MEMBER_OUTCOME provenance
+
+normalized Step input binding
+    -> StepSemanticFingerprint
+    -> FINGERPRINT_STEP_SEMANTIC_CONTENT provenance
+
+normalized HTTP Operation-reference input binding
+    -> HttpOperationReferenceSemanticFingerprint
+    -> FINGERPRINT_HTTP_OPERATION_REFERENCE_CONTENT provenance
+
+normalized Business Rule-reference input binding
+    -> BusinessRuleReferenceSemanticFingerprint
+    -> FINGERPRINT_BUSINESS_RULE_REFERENCE_CONTENT provenance
+
+normalized Scenario input binding
+    + ordered completed Step fingerprints
+    + completed HTTP Operation-reference fingerprint
+    + ordered completed Business Rule-reference fingerprints
+    -> ScenarioSemanticFingerprint
+    -> COMPOSE_SCENARIO_SEMANTIC_CONTENT provenance
+
+normalized Manifest input binding
+    + completed Scenario fingerprints in authored Manifest order
+    -> ManifestSemanticFingerprint
+    -> COMPOSE_MANIFEST_SEMANTIC_CONTENT provenance
+
+ManifestSemanticFingerprint
+    -> AttributedMemberOutcomeFingerprint
+```
+
+The last arrow is the existing admitted-member dependency and is not a parent
+of Manifest provenance. `DERIVE_ATTRIBUTED_MEMBER_OUTCOME` remains exactly the
+single-`CAPTURED_MEMBER` activity defined above.
 
 ## Authoritative top-level field order
 
@@ -280,6 +372,8 @@ Construction must fail before emitting a fingerprint unless all of these hold:
 - no parent is duplicated where the activity forbids duplicates;
 - the same provenance identity is not reused with different content;
 - no parent is a provenance record;
+- no leaf activity has an `ATTRIBUTED_MEMBER_OUTCOME` parent;
+- no Manifest activity has an `ATTRIBUTED_MEMBER_OUTCOME` parent;
 - no direct or transitive fingerprint dependency reaches the output
   fingerprint from itself;
 - the output is not a containing Repository Derivation Report or Logical
@@ -349,8 +443,11 @@ Before production activation, Evidence Governance must publish complete domain
 bytes, complete canonical bytes, and final prefixed fingerprints for:
 
 - one valid record for every active activity;
+- successful records only over the acyclic parent DAG declared for that
+  activity;
 - every active output kind and fingerprint value type;
 - all three parent-reference variants;
+- both finite `SEMANTIC_DATUM` forms and every active normalized-input binding;
 - absent and present optional structural locations as exercised through an
   attributed-member outcome;
 - zero, one, and multiple Scenario leaf parents where the activity permits;
@@ -369,6 +466,10 @@ bytes, complete canonical bytes, and final prefixed fingerprints for:
 - unsupported contract/version and fingerprint-value rejection;
 - malformed identity and RFC 6901 rejection;
 - direct self-dependency rejection;
+- transitive dependency through Manifest rejection;
+- `ATTRIBUTED_MEMBER_OUTCOME` as a leaf parent rejection;
+- `ATTRIBUTED_MEMBER_OUTCOME` as a Manifest parent rejection;
+- unsupported Business Rule identity scheme rejection;
 - transitive cycle, forward reference, and back-edge rejection;
 - provenance-as-parent rejection; and
 - containing-aggregate-as-output rejection.
