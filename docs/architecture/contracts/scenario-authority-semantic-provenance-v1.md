@@ -454,7 +454,8 @@ bytes, complete canonical bytes, and final prefixed fingerprints for:
 - `GIVEN`/`WHEN`/`THEN` ordinal ordering;
 - the fixed HTTP parent position;
 - authored Business Rule-reference order;
-- attributed parent first and authored Scenario order for Manifest composition;
+- normalized Manifest source input first, followed by completed Scenario
+  semantic outputs in exact authored Manifest order;
 - canonical identity ordering for provenance collections;
 - deterministic repeated calculation;
 - output fingerprint changes that leave provenance identity unchanged but
