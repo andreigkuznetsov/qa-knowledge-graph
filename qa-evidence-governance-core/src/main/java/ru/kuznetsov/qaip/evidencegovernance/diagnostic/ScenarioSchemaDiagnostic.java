@@ -79,6 +79,25 @@ public final class ScenarioSchemaDiagnostic {
         return parameterBytes(diagnostic.typedParameters);
     }
 
+    /** Writes one complete authoritative diagnostic without exposing a second serialization truth. */
+    public static void writeCanonical(
+            CanonicalBinaryWriter writer,
+            ScenarioSchemaDiagnostic diagnostic
+    ) {
+        Objects.requireNonNull(writer, "writer");
+        Objects.requireNonNull(diagnostic, "diagnostic");
+        writer.writeText(diagnostic.diagnosticContractVersion)
+                .writeText(diagnostic.stableCode.name())
+                .writeText(diagnostic.instanceLocation)
+                .writeText(diagnostic.normativeSchemaKeyword)
+                .writeText(diagnostic.schemaRuleIdentifier)
+                .writeOrderedCollection(diagnostic.typedParameters, (parameterWriter, parameter) -> {
+                    parameterWriter.writeText(parameter.name()).writeText(parameter.type().name());
+                    if (parameter instanceof TextParameter text) parameterWriter.writeText(text.value());
+                    else parameterWriter.writeUnsigned64(((Unsigned64Parameter) parameter).value());
+                });
+    }
+
     /** Exact Unicode code-point ordering for canonical typed-parameter names. */
     public static Comparator<CanonicalTypedParameter> canonicalParameterNameOrder() {
         return (left, right) -> compareCodePoints(left.name(), right.name());

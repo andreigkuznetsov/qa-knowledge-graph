@@ -9,6 +9,7 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -78,6 +79,17 @@ public final class CanonicalBinaryWriter {
         output.write(OPTIONAL_PRESENT);
         output.writeBytes(nested.toByteArray());
         return this;
+    }
+
+    /** Writes the approved explicit optional tag followed by the canonical present value. */
+    public <T> CanonicalBinaryWriter writeOptional(
+            Optional<? extends T> value,
+            BiConsumer<CanonicalBinaryWriter, T> valueEncoder
+    ) {
+        Objects.requireNonNull(value, "value");
+        Objects.requireNonNull(valueEncoder, "valueEncoder");
+        if (value.isEmpty()) return writeAbsent();
+        return writePresent(writer -> valueEncoder.accept(writer, value.get()));
     }
 
     /** Writes the list count and elements in exact caller order; this method never sorts. */
