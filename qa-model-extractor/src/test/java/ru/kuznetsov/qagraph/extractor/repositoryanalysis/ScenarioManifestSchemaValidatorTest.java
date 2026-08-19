@@ -5,6 +5,9 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.io.InputStream;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -137,6 +140,46 @@ class ScenarioManifestSchemaValidatorTest {
         assertThrows(UnsupportedOperationException.class,
                 () -> result.members().getFirst().diagnostics().clear());
         assertThrows(UnsupportedOperationException.class, () -> result.diagnostics().clear());
+    }
+
+    @Test
+    void exactFrozenV1SchemaFingerprintIsAcceptedAndAssociatedWithMapping() throws Exception {
+        byte[] bytes;
+        try (InputStream input = ScenarioManifestSchemaValidator.class.getResourceAsStream(
+                ScenarioManifestSchemaValidator.SCHEMA_RESOURCE)) {
+            bytes = input.readAllBytes();
+        }
+        String actual = HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA-256").digest(bytes));
+
+        assertEquals("7fdac4321c125cadec4afe734460920afc3dfcaf6ea8bb1f49cee43b49a901f1",
+                ScenarioManifestSchemaValidator.EXPECTED_SCHEMA_SHA256);
+        assertEquals(ScenarioManifestSchemaValidator.EXPECTED_SCHEMA_SHA256, actual);
+        assertEquals("sha256:" + actual, new ScenarioManifestSchemaValidator(bytes).schemaContentIdentity());
+        assertEquals(ScenarioManifestSchemaValidator.SCHEMA_CONTENT_IDENTITY,
+                ScenarioSchemaDiagnosticAdapterV1.SCHEMA_CONTENT_IDENTITY);
+        assertEquals(ScenarioSchemaDiagnosticAdapterV1.CONTRACT_IDENTIFIER + "|sha256:" + actual,
+                ScenarioSchemaDiagnosticAdapterV1.V1_SCHEMA_MAPPING_BINDING);
+    }
+
+    @Test
+    void alteredMissingAndMalformedSchemaBytesFailAsStableCompatibilityFailure() throws Exception {
+        byte[] bytes;
+        try (InputStream input = ScenarioManifestSchemaValidator.class.getResourceAsStream(
+                ScenarioManifestSchemaValidator.SCHEMA_RESOURCE)) {
+            bytes = input.readAllBytes();
+        }
+        bytes[bytes.length - 1] ^= 1;
+
+        assertMappingFailure(() -> new ScenarioManifestSchemaValidator(bytes));
+        assertMappingFailure(() -> new ScenarioManifestSchemaValidator(null));
+        assertMappingFailure(() -> new ScenarioManifestSchemaValidator("not-json".getBytes(StandardCharsets.UTF_8)));
+    }
+
+    private static void assertMappingFailure(org.junit.jupiter.api.function.Executable executable) {
+        ScenarioSchemaDiagnosticMappingException failure = assertThrows(
+                ScenarioSchemaDiagnosticMappingException.class, executable);
+        assertEquals("UNSUPPORTED_SCHEMA_DIAGNOSTIC_MAPPING", failure.failureCode());
     }
 
     private ScenarioManifestSchemaValidationResult validate(

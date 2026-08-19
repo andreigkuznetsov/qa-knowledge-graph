@@ -25,6 +25,10 @@ public final class ScenarioSchemaDiagnosticAdapterV1 {
             ScenarioSchemaDiagnostic.MAPPING_CONTRACT_IDENTIFIER;
     public static final String RULE_PREFIX =
             ScenarioSchemaDiagnostic.RULE_PREFIX;
+    public static final String SCHEMA_CONTENT_IDENTITY =
+            ScenarioManifestSchemaValidator.SCHEMA_CONTENT_IDENTITY;
+    public static final String V1_SCHEMA_MAPPING_BINDING =
+            CONTRACT_IDENTIFIER + "|" + SCHEMA_CONTENT_IDENTITY;
 
     private static final Map<String, Rule> RULE_BY_POINTER = rulesByPointer();
 
@@ -36,19 +40,44 @@ public final class ScenarioSchemaDiagnosticAdapterV1 {
 
     ScenarioSchemaDiagnosticAdapterV1(ScenarioManifestSchemaValidator validator) {
         this.validator = Objects.requireNonNull(validator, "validator");
+        if (!SCHEMA_CONTENT_IDENTITY.equals(validator.schemaContentIdentity())) {
+            fail("validator schema content identity is not bound to the V1 mapping contract");
+        }
     }
 
     /** Validates and maps completely, or throws one fail-closed compatibility failure. */
     public List<ScenarioSchemaDiagnostic> validate(JsonNode document) {
-        Objects.requireNonNull(document, "document");
-        List<ValidationSignal> signals = validator.validationMessages(document).stream()
-                .map(ScenarioSchemaDiagnosticAdapterV1::signal)
-                .toList();
-        return map(document, signals);
+        if (document == null) fail("validated document is missing");
+        try {
+            return mapValidationMessages(document, validator.validationMessages(document));
+        } catch (ScenarioSchemaDiagnosticMappingException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new ScenarioSchemaDiagnosticMappingException(
+                    "validator output is malformed or unusable", exception);
+        }
+    }
+
+    List<ScenarioSchemaDiagnostic> mapValidationMessages(
+            JsonNode document,
+            List<ValidationMessage> messages
+    ) {
+        if (document == null) fail("validated document is missing");
+        if (messages == null) fail("validation messages are missing");
+        try {
+            List<ValidationSignal> signals = new ArrayList<>(messages.size());
+            for (ValidationMessage message : messages) signals.add(signal(message));
+            return map(document, signals);
+        } catch (ScenarioSchemaDiagnosticMappingException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new ScenarioSchemaDiagnosticMappingException(
+                    "validator output is malformed or unusable", exception);
+        }
     }
 
     List<ScenarioSchemaDiagnostic> map(JsonNode document, List<ValidationSignal> signals) {
-        Objects.requireNonNull(document, "document");
+        if (document == null) fail("validated document is missing");
         if (signals == null) fail("validation signals are missing");
         for (ValidationSignal signal : signals) {
             if (signal == null) fail("validation signal is missing");
@@ -75,7 +104,7 @@ public final class ScenarioSchemaDiagnosticAdapterV1 {
     }
 
     private static ValidationSignal signal(ValidationMessage message) {
-        Objects.requireNonNull(message, "validation message");
+        if (message == null) fail("validation message is missing");
         String keyword = message.getType();
         if (keyword == null || keyword.isBlank()) fail("validator keyword is missing");
         if (message.getSchemaLocation() == null) fail("validator schema location is missing");

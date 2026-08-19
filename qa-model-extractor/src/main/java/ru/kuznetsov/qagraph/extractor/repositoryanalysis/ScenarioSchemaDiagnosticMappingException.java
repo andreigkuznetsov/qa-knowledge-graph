@@ -13,6 +13,11 @@ public final class ScenarioSchemaDiagnosticMappingException extends RuntimeExcep
         this.failureCode = FAILURE_CODE;
     }
 
+    ScenarioSchemaDiagnosticMappingException(String reason, Throwable cause) {
+        super(Objects.requireNonNull(reason, "reason"), Objects.requireNonNull(cause, "cause"));
+        this.failureCode = FAILURE_CODE;
+    }
+
     public String failureCode() {
         return failureCode;
     }

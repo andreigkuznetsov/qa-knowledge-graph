@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
+import com.networknt.schema.ValidationMessage;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
@@ -18,12 +19,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.Arrays;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ScenarioSchemaDiagnosticAdapterV1Test {
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -215,6 +219,33 @@ class ScenarioSchemaDiagnosticAdapterV1Test {
         assertFailure(() -> adapter.map(object, java.util.Arrays.asList((
                 ScenarioSchemaDiagnosticAdapterV1.ValidationSignal) null)));
         assertFailure(() -> adapter.map(object, List.of(signal("type", "/type", ""))));
+    }
+
+    @Test
+    void nullAndIncompleteNetworkntMessagesUseStableMappingFailureWithoutPartialOutput() {
+        ValidationMessage missingKeyword = mock(ValidationMessage.class);
+        when(missingKeyword.getType()).thenReturn(null);
+        ValidationMessage missingSchemaLocation = mock(ValidationMessage.class);
+        when(missingSchemaLocation.getType()).thenReturn("type");
+        when(missingSchemaLocation.getSchemaLocation()).thenReturn(null);
+        ValidationMessage brokenAccessor = mock(ValidationMessage.class);
+        when(brokenAccessor.getType()).thenThrow(new IllegalStateException("library failure"));
+
+        assertFailure(() -> adapter.mapValidationMessages(
+                BooleanNode.TRUE, Arrays.asList((ValidationMessage) null)));
+        assertFailure(() -> adapter.mapValidationMessages(
+                BooleanNode.TRUE, List.of(missingKeyword)));
+        assertFailure(() -> adapter.mapValidationMessages(
+                BooleanNode.TRUE, List.of(missingSchemaLocation)));
+        assertFailure(() -> adapter.mapValidationMessages(
+                BooleanNode.TRUE, List.of(brokenAccessor)));
+        assertFailure(() -> adapter.mapValidationMessages(BooleanNode.TRUE, null));
+        assertFailure(() -> adapter.mapValidationMessages(null, List.of()));
+        assertFailure(() -> adapter.map(null, List.of()));
+
+        List<ValidationMessage> partialThenMalformed = Arrays.asList(
+                new ScenarioManifestSchemaValidator().validationMessages(BooleanNode.TRUE).getFirst(), null);
+        assertFailure(() -> adapter.mapValidationMessages(BooleanNode.TRUE, partialThenMalformed));
     }
 
     @Test
