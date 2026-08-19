@@ -41,7 +41,7 @@ public record AttributedMemberSchemaAdmissionOutcome(
                 ScenarioManifestSchemaValidator.SCHEMA_CONTRACT_IDENTIFIER,
                 "schemaContractIdentifier");
         Objects.requireNonNull(structuralAdmissionState, "structuralAdmissionState");
-        schemaDiagnostics = List.copyOf(Objects.requireNonNull(schemaDiagnostics, "schemaDiagnostics"));
+        schemaDiagnostics = ScenarioSchemaDiagnostic.canonicalCollection(schemaDiagnostics);
         if ((structuralAdmissionState == StructuralAdmissionState.STRUCTURALLY_ADMITTED)
                 != schemaDiagnostics.isEmpty()) {
             throw new IllegalArgumentException(

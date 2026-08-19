@@ -245,6 +245,24 @@ class ScenarioLogicalSourceSchemaAdmissionTest {
                 ScenarioManifestSchemaValidationResult.Diagnostic.class));
     }
 
+    @Test
+    void canonicalAdmissionCollectionRejectsDuplicateTuplesSurvivingAdapterConsolidation() {
+        ScenarioLogicalSourceProcessingResult processing = process(
+                member("one", validManifest("orders", "ONE")));
+        AttributedMemberProcessingOutcome before = assertInstanceOf(
+                AttributedMemberProcessingOutcome.class, processing.memberOutcomes().getFirst());
+        ScenarioSchemaDiagnostic duplicate = ScenarioSchemaDiagnostic.v1(
+                "", "required", ScenarioSchemaDiagnostic.RULE_PREFIX + "/required",
+                List.of(new ScenarioSchemaDiagnostic.TextParameter("missingProperty", "authority")));
+
+        assertThrows(IllegalArgumentException.class, () -> new AttributedMemberSchemaAdmissionOutcome(
+                before.parentMemberRef(), before.claimedAuthority(), before.parserContractIdentifier(),
+                before.attributionContractIdentifier(), before.parseOutcome(), before.attributionOutcome(),
+                before.structuralLocation(), ScenarioLogicalSourceSchemaAdmission.SCHEMA_CONTRACT_IDENTIFIER,
+                AttributedMemberSchemaAdmissionOutcome.StructuralAdmissionState.STRUCTURALLY_REJECTED,
+                List.of(duplicate, duplicate), before.parsedSource()));
+    }
+
     private ScenarioSchemaAdmissionResult admit(
             ScenarioManifestStableCaptureResult.CapturedMember... members
     ) {

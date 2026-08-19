@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.networknt.schema.ValidationMessage;
+import com.networknt.schema.SchemaLocation;
+import com.networknt.schema.JsonNodePath;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
@@ -20,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -180,6 +183,75 @@ class ScenarioSchemaDiagnosticAdapterV1Test {
     }
 
     @Test
+    void rfc6901AcceptsCanonicalArrayIndexesAndRejectsNoncanonicalForms() throws Exception {
+        JsonNode document = JSON.readTree("[{\"value\":\"\"}]");
+        ScenarioSchemaDiagnostic diagnostic = adapter.map(document, List.of(signal(
+                "minLength", "/$defs/nonBlankString/minLength", "/0/value"))).getFirst();
+        assertEquals("/0/value", diagnostic.instanceLocation());
+
+        assertFailure(() -> adapter.map(document, List.of(signal(
+                "minLength", "/$defs/nonBlankString/minLength", "/00/value"))));
+        assertFailure(() -> adapter.map(document, List.of(signal(
+                "minLength", "/$defs/nonBlankString/minLength", "/+0/value"))));
+        assertThrows(IllegalArgumentException.class, () -> ScenarioSchemaDiagnostic.v1(
+                "not/a/pointer", "type", PREFIX + "/type",
+                List.of(new ScenarioSchemaDiagnostic.TextParameter("expectedType", "object"))));
+    }
+
+    @Test
+    void uniqueItemsHandlesIndependentGroupsAndOrdersTheirLowestIndexPairs() throws Exception {
+        ArrayNode values = (ArrayNode) JSON.readTree("""
+                [{"a":1,"b":2},{"b":2,"a":1.0},2,2.0,{"a":1.00,"b":2}]
+                """);
+
+        List<ScenarioSchemaDiagnostic> diagnostics = diagnostics(
+                "uniqueItems", "/$defs/scenario/properties/ruleRefs/uniqueItems", values);
+
+        assertEquals(List.of("0:1", "2:3", "0:4"), diagnostics.stream()
+                .map(ScenarioSchemaDiagnosticAdapterV1Test::indexPair).toList());
+    }
+
+    @Test
+    void validatorOwnedMetadataAndEmissionOrderDoNotAffectCanonicalDiagnostics() {
+        JsonNodePath rootLocation = new ScenarioManifestSchemaValidator()
+                .validationMessages(BooleanNode.TRUE).getFirst().getInstanceLocation();
+        ValidationMessage first = mock(ValidationMessage.class);
+        when(first.getType()).thenReturn("type");
+        when(first.getSchemaLocation()).thenReturn(SchemaLocation.of("https://one.example/schema#/type"));
+        when(first.getInstanceLocation()).thenReturn(rootLocation);
+        when(first.getMessage()).thenReturn("localized message one");
+        when(first.getMessageKey()).thenReturn("message.key.one");
+        when(first.getCode()).thenReturn("library-code-one");
+        when(first.getEvaluationPath()).thenReturn(rootLocation);
+        when(first.getArguments()).thenReturn(new Object[]{"one"});
+        when(first.getDetails()).thenReturn(Map.of("library", "one"));
+        when(first.getInstanceNode()).thenReturn(BooleanNode.TRUE);
+        when(first.getSchemaNode()).thenReturn(JSON.createObjectNode().put("rendering", "one"));
+
+        ValidationMessage second = mock(ValidationMessage.class);
+        when(second.getType()).thenReturn("type");
+        when(second.getSchemaLocation()).thenReturn(SchemaLocation.of("https://two.example/other#/type"));
+        when(second.getInstanceLocation()).thenReturn(rootLocation);
+        when(second.getMessage()).thenReturn("completely different prose");
+        when(second.getMessageKey()).thenReturn("another.key");
+        when(second.getCode()).thenReturn("different-code");
+        when(second.getEvaluationPath()).thenReturn(rootLocation.append("different"));
+        when(second.getArguments()).thenReturn(new Object[]{"two", 2});
+        when(second.getDetails()).thenReturn(Map.of("library", "two"));
+        when(second.getInstanceNode()).thenReturn(BooleanNode.FALSE);
+        when(second.getSchemaNode()).thenReturn(JSON.createObjectNode().put("rendering", "two"));
+
+        List<ScenarioSchemaDiagnostic> firstResult = adapter.mapValidationMessages(
+                BooleanNode.TRUE, List.of(first, second));
+        List<ScenarioSchemaDiagnostic> reversedResult = adapter.mapValidationMessages(
+                BooleanNode.TRUE, List.of(second, first));
+
+        assertEquals(firstResult, reversedResult);
+        assertEquals(1, firstResult.size());
+        assertEquals(PREFIX + "/type", firstResult.getFirst().schemaRuleIdentifier());
+    }
+
+    @Test
     void consolidatesDuplicatesAndSortsIndependentlyOfEmissionOrder() throws Exception {
         JsonNode document = JSON.readTree("{\"b\":false,\"a\":false}");
         List<ScenarioSchemaDiagnosticAdapterV1.ValidationSignal> signals = new ArrayList<>(List.of(
@@ -280,6 +352,14 @@ class ScenarioSchemaDiagnosticAdapterV1Test {
 
     private static String onlyTextValue(ScenarioSchemaDiagnostic diagnostic) {
         return ((ScenarioSchemaDiagnostic.TextParameter) diagnostic.typedParameters().getFirst()).value();
+    }
+
+    private static String indexPair(ScenarioSchemaDiagnostic diagnostic) {
+        BigInteger duplicate = ((ScenarioSchemaDiagnostic.Unsigned64Parameter)
+                diagnostic.typedParameters().get(0)).value();
+        BigInteger first = ((ScenarioSchemaDiagnostic.Unsigned64Parameter)
+                diagnostic.typedParameters().get(1)).value();
+        return first + ":" + duplicate;
     }
 
     private static void assertFailure(org.junit.jupiter.api.function.Executable executable) {

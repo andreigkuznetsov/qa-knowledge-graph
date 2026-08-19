@@ -5,6 +5,7 @@ import ru.kuznetsov.qaip.evidencegovernance.canonical.CanonicalBinaryWriter;
 import java.math.BigInteger;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -70,6 +71,36 @@ public final class ScenarioSchemaDiagnostic {
     /** The authoritative ADR-015 ordering, including canonical typed-parameter bytes. */
     public static Comparator<ScenarioSchemaDiagnostic> canonicalOrder() {
         return CANONICAL_ORDER;
+    }
+
+    /** Exact ADR-015 bytes used as the final diagnostic ordering key. */
+    public static byte[] canonicalTypedParameterBytes(ScenarioSchemaDiagnostic diagnostic) {
+        Objects.requireNonNull(diagnostic, "diagnostic");
+        return parameterBytes(diagnostic.typedParameters);
+    }
+
+    /** Exact Unicode code-point ordering for canonical typed-parameter names. */
+    public static Comparator<CanonicalTypedParameter> canonicalParameterNameOrder() {
+        return (left, right) -> compareCodePoints(left.name(), right.name());
+    }
+
+    /** Validates one already consolidated and canonically ordered V1 diagnostic collection. */
+    public static List<ScenarioSchemaDiagnostic> canonicalCollection(
+            List<ScenarioSchemaDiagnostic> diagnostics
+    ) {
+        List<ScenarioSchemaDiagnostic> immutable = List.copyOf(
+                Objects.requireNonNull(diagnostics, "diagnostics"));
+        if (new HashSet<>(immutable).size() != immutable.size()) {
+            throw new IllegalArgumentException(
+                    "canonical schema diagnostic collection must not contain duplicate tuples");
+        }
+        for (int index = 1; index < immutable.size(); index++) {
+            if (CANONICAL_ORDER.compare(immutable.get(index - 1), immutable.get(index)) >= 0) {
+                throw new IllegalArgumentException(
+                        "canonical schema diagnostic collection must use canonical order");
+            }
+        }
+        return immutable;
     }
 
     public String diagnosticContractVersion() { return diagnosticContractVersion; }
