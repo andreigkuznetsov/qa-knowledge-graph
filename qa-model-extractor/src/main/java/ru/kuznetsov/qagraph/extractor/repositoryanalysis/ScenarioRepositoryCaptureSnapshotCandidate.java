@@ -59,26 +59,8 @@ public final class ScenarioRepositoryCaptureSnapshotCandidate {
             throw new IllegalArgumentException("capture mutation-detection version is not ADR-013 v1");
         }
 
-        RepositoryCaptureFingerprintInput fingerprintInput = new RepositoryCaptureFingerprintInput(
-                sourceId,
-                contractIdentifiers.sourceContractVersion(),
-                contractIdentifiers.sourceProfile(),
-                contractIdentifiers.discoveryProfileVersion(),
-                contractIdentifiers.pathNormalizationVersion(),
-                contractIdentifiers.orderingVersion(),
-                contractIdentifiers.memberByteFingerprintAlgorithm(),
-                capture.members().stream()
-                        .map(member -> new RepositoryCaptureFingerprintInput.CapturedMember(
-                                member.repositoryRelativePath(),
-                                member.rawByteLength(),
-                                member.rawMemberFingerprint()))
-                        .toList(),
-                capture.unsupportedMatchingEntries().stream()
-                        .map(entry -> new RepositoryCaptureFingerprintInput.UnsupportedMatchingEntry(
-                                entry.repositoryRelativePath(),
-                                entry.entryKind(),
-                                entry.stableDiagnosticCode()))
-                        .toList());
+        RepositoryCaptureFingerprintInput fingerprintInput = fingerprintInput(
+                sourceId, contractIdentifiers, capture.members(), capture.unsupportedMatchingEntries());
 
         RepositoryCaptureFingerprint contentFingerprint =
                 RepositoryCaptureFingerprintEncoder.fingerprint(fingerprintInput);
@@ -87,6 +69,39 @@ public final class ScenarioRepositoryCaptureSnapshotCandidate {
                 contractIdentifiers,
                 capture,
                 provenance);
+    }
+
+    /** Exact authoritative ADR-013 input whose fingerprint identifies this approved candidate. */
+    public RepositoryCaptureFingerprintInput repositoryCaptureFingerprintInput() {
+        return fingerprintInput(sourceId(), contractIdentifiers, members, unsupportedMatchingEntries);
+    }
+
+    private static RepositoryCaptureFingerprintInput fingerprintInput(
+            String sourceId,
+            ContractIdentifiers contractIdentifiers,
+            List<ScenarioManifestStableCaptureResult.CapturedMember> members,
+            List<ScenarioManifestStableCaptureResult.UnsupportedMatchingEntry> unsupportedMatchingEntries
+    ) {
+        return new RepositoryCaptureFingerprintInput(
+                sourceId,
+                contractIdentifiers.sourceContractVersion(),
+                contractIdentifiers.sourceProfile(),
+                contractIdentifiers.discoveryProfileVersion(),
+                contractIdentifiers.pathNormalizationVersion(),
+                contractIdentifiers.orderingVersion(),
+                contractIdentifiers.memberByteFingerprintAlgorithm(),
+                members.stream()
+                        .map(member -> new RepositoryCaptureFingerprintInput.CapturedMember(
+                                member.repositoryRelativePath(),
+                                member.rawByteLength(),
+                                member.rawMemberFingerprint()))
+                        .toList(),
+                unsupportedMatchingEntries.stream()
+                        .map(entry -> new RepositoryCaptureFingerprintInput.UnsupportedMatchingEntry(
+                                entry.repositoryRelativePath(),
+                                entry.entryKind(),
+                                entry.stableDiagnosticCode()))
+                        .toList());
     }
 
     public SnapshotIdentity identity() {

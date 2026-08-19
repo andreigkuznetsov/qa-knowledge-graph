@@ -4,6 +4,7 @@ import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.AttributedMembe
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.RepositoryDerivationReportFingerprint;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.RepositoryDerivationReportFingerprintEncoder;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.RepositoryDerivationReportFingerprintInput;
+import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.RepositoryCaptureAttestation;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.SemanticProvenanceAttestation;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.SemanticProvenanceFingerprintEncoder;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.SemanticProvenanceOutputReference;
@@ -79,8 +80,12 @@ public final class RepositoryDerivationReportFingerprintComposer {
                         .map(entry -> new RepositoryDerivationReportFingerprintInput.UnsupportedMatchingEntry(
                                 entry.repositoryRelativePath(), entry.entryKind(), entry.stableDiagnosticCode()))
                         .toList();
-        var reportParent = new RepositoryDerivationReportFingerprintInput.ParentRepositoryCapture(
-                parent.sourceId(), parent.snapshotId(), parent.contentFingerprint(), parentMembers, unsupported);
+        var captureInput = parent.repositoryCaptureFingerprintInput();
+        var captureAttestation = RepositoryCaptureAttestation.verified(
+                parent.sourceId(), parent.snapshotId(), captureInput,
+                parent.contentFingerprint(), parentMembers, captureInput.unsupportedMatchingEntries());
+        var reportParent = RepositoryDerivationReportFingerprintInput.ParentRepositoryCapture
+                .verified(captureAttestation);
         var input = new RepositoryDerivationReportFingerprintInput(
                 RepositoryDerivationReportFingerprintInput.REPORT_CONTRACT_VERSION,
                 reportParent,

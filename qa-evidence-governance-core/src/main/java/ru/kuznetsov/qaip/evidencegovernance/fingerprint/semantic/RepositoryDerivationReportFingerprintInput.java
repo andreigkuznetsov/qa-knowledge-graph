@@ -100,32 +100,18 @@ public record RepositoryDerivationReportFingerprintInput(
         }
     }
 
-    public record ParentRepositoryCapture(
-            String sourceId,
-            String snapshotId,
-            RepositoryCaptureFingerprint contentFingerprint,
-            List<AttributedMemberOutcomeFingerprintInput.ParentCapturedMemberReference> regularMembers,
-            List<UnsupportedMatchingEntry> unsupportedMatchingEntries
-    ) {
-        public ParentRepositoryCapture {
-            sourceId = requireNonBlank(sourceId, "sourceId");
-            snapshotId = requireNonBlank(snapshotId, "snapshotId");
-            Objects.requireNonNull(contentFingerprint, "contentFingerprint");
-            regularMembers = List.copyOf(Objects.requireNonNull(regularMembers, "regularMembers"));
-            unsupportedMatchingEntries = List.copyOf(
-                    Objects.requireNonNull(unsupportedMatchingEntries, "unsupportedMatchingEntries"));
-            if (new HashSet<>(regularMembers).size() != regularMembers.size()) {
-                throw new IllegalArgumentException("parent regular members must be unique");
-            }
-            for (var member : regularMembers) {
-                if (!sourceId.equals(member.parentSourceId())
-                        || !snapshotId.equals(member.parentSnapshotId())
-                        || !contentFingerprint.equals(member.parentContentFingerprint())) {
-                    throw new IllegalArgumentException("regular member belongs to another parent capture");
-                }
-            }
+    public static final class ParentRepositoryCapture {
+        private final RepositoryCaptureAttestation attestation;
+        private final List<UnsupportedMatchingEntry> unsupportedMatchingEntries;
+
+        private ParentRepositoryCapture(RepositoryCaptureAttestation attestation) {
+            this.attestation = Objects.requireNonNull(attestation, "attestation");
+            this.unsupportedMatchingEntries = attestation.unsupportedMatchingEntries().stream()
+                    .map(entry -> new UnsupportedMatchingEntry(entry.normalizedRepositoryRelativePath(),
+                            entry.entryKind(), entry.stableDiagnosticCode()))
+                    .toList();
             requireCanonicalUnsupportedOrder(unsupportedMatchingEntries);
-            var regularPaths = regularMembers.stream()
+            var regularPaths = regularMembers().stream()
                     .map(AttributedMemberOutcomeFingerprintInput.ParentCapturedMemberReference::normalizedRepositoryRelativePath)
                     .collect(java.util.stream.Collectors.toSet());
             if (unsupportedMatchingEntries.stream()
@@ -133,6 +119,20 @@ public record RepositoryDerivationReportFingerprintInput(
                     .anyMatch(regularPaths::contains)) {
                 throw new IllegalArgumentException("a path cannot be both regular and unsupported");
             }
+        }
+
+        public static ParentRepositoryCapture verified(RepositoryCaptureAttestation attestation) {
+            return new ParentRepositoryCapture(attestation);
+        }
+
+        public String sourceId() { return attestation.sourceId(); }
+        public String snapshotId() { return attestation.snapshotId(); }
+        public RepositoryCaptureFingerprint contentFingerprint() { return attestation.contentFingerprint(); }
+        public List<AttributedMemberOutcomeFingerprintInput.ParentCapturedMemberReference> regularMembers() {
+            return attestation.regularMembers();
+        }
+        public List<UnsupportedMatchingEntry> unsupportedMatchingEntries() {
+            return unsupportedMatchingEntries;
         }
     }
 
@@ -160,11 +160,11 @@ public record RepositoryDerivationReportFingerprintInput(
             ParentRepositoryCapture parent,
             List<MemberOutcome> outcomes
     ) {
-        if (outcomes.size() != parent.regularMembers.size()) {
+        if (outcomes.size() != parent.regularMembers().size()) {
             throw new IllegalArgumentException("exactly one outcome is required for every regular parent member");
         }
         for (int index = 0; index < outcomes.size(); index++) {
-            if (!parent.regularMembers.get(index).equals(outcomes.get(index).parentMember())) {
+            if (!parent.regularMembers().get(index).equals(outcomes.get(index).parentMember())) {
                 throw new IllegalArgumentException("member outcomes must preserve exact parent-member order");
             }
         }

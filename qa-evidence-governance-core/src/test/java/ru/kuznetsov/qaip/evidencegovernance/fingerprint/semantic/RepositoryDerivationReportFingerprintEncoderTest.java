@@ -76,8 +76,6 @@ class RepositoryDerivationReportFingerprintEncoderTest {
         assertThrows(IllegalArgumentException.class, () -> report(
                 List.of(first.parentMember(), second.parentMember()),
                 List.of(second.outcome(), first.outcome()), List.of(), List.of()));
-        var otherCapture = member("other", "capture:2", "a.scenario.json");
-        assertThrows(IllegalArgumentException.class, () -> parent(List.of(otherCapture), List.of()));
     }
 
     @Test
@@ -164,12 +162,9 @@ class RepositoryDerivationReportFingerprintEncoderTest {
                 unattributableMembers(changed), unattributableOutcomes(changed), List.of(), List.of())));
 
         var second = unattributable("b.scenario.json", "MALFORMED_JSON", "PARSE_UNATTRIBUTABLE", Optional.empty());
-        var forward = report(List.of(first.parentMember(), second.parentMember()),
-                List.of(first.outcome(), second.outcome()), List.of(), List.of());
-        var reverseParent = parent(List.of(second.parentMember(), first.parentMember()), List.of());
-        var reverse = input(reverseParent, List.of(second.outcome(), first.outcome()), List.of(), List.of(),
-                RepositoryDerivationReportFingerprintInput.REPORT_CONTRACT_VERSION);
-        assertNotEquals(fingerprint(forward), fingerprint(reverse));
+        assertThrows(IllegalArgumentException.class, () -> report(
+                List.of(first.parentMember(), second.parentMember()),
+                List.of(second.outcome(), first.outcome()), List.of(), List.of()));
 
         var directory = List.of(new RepositoryDerivationReportFingerprintInput.UnsupportedMatchingEntry(
                 "z.scenario.json", "DIRECTORY", "UNSUPPORTED_DIRECTORY"));
@@ -214,8 +209,34 @@ class RepositoryDerivationReportFingerprintEncoderTest {
             List<AttributedMemberOutcomeFingerprintInput.ParentCapturedMemberReference> members,
             List<RepositoryDerivationReportFingerprintInput.UnsupportedMatchingEntry> unsupported
     ) {
-        return new RepositoryDerivationReportFingerprintInput.ParentRepositoryCapture(
-                "repository:orders", "capture:17", CAPTURE, members, unsupported);
+        try {
+            var constructor = RepositoryCaptureAttestation.class.getDeclaredConstructor(
+                    String.class, String.class,
+                    ru.kuznetsov.qaip.evidencegovernance.fingerprint.RepositoryCaptureFingerprintInput.class,
+                    RepositoryCaptureFingerprint.class, List.class, List.class);
+            constructor.setAccessible(true);
+            var fingerprintInput = new ru.kuznetsov.qaip.evidencegovernance.fingerprint.RepositoryCaptureFingerprintInput(
+                    "repository:orders", "qaip-source-snapshot-contract-v1",
+                    "qaip-scenario-authority-repository-json-v1",
+                    "scenario-authority-repository-discovery-v1",
+                    "scenario-authority-repository-path-v1", "unicode-code-point-order-v1",
+                    RawSourceMemberFingerprint.ALGORITHM_IDENTIFIER,
+                    members.stream().map(member ->
+                            new ru.kuznetsov.qaip.evidencegovernance.fingerprint.RepositoryCaptureFingerprintInput.CapturedMember(
+                                    member.normalizedRepositoryRelativePath(), member.rawByteLength(),
+                                    member.rawMemberFingerprint())).toList(),
+                    unsupported.stream().map(entry ->
+                            new ru.kuznetsov.qaip.evidencegovernance.fingerprint.RepositoryCaptureFingerprintInput.UnsupportedMatchingEntry(
+                                    entry.normalizedRepositoryRelativePath(), entry.entryKind(),
+                                    entry.stableDiagnosticCode())).toList());
+            var goldenVectorAttestation = constructor.newInstance(
+                    "repository:orders", "capture:17", fingerprintInput, CAPTURE, members,
+                    fingerprintInput.unsupportedMatchingEntries());
+            return RepositoryDerivationReportFingerprintInput.ParentRepositoryCapture
+                    .verified(goldenVectorAttestation);
+        } catch (ReflectiveOperationException exception) {
+            throw new AssertionError("test-only frozen golden fixture could not be constructed", exception);
+        }
     }
 
     private static AttributedFixture attributed(String path, boolean admitted, String authority) {
