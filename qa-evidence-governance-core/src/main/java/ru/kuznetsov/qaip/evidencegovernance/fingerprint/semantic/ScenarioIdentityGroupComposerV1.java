@@ -17,11 +17,11 @@ public final class ScenarioIdentityGroupComposerV1 {
             ScenarioSemanticCompositionRequest.ClaimedScenarioIdentity identity,List<ScenarioOccurrenceCompositionOutcomeV1> occurrences){
         Objects.requireNonNull(identity); occurrences=List.copyOf(Objects.requireNonNull(occurrences));
         if(!DUPLICATE_OUTCOME_CONTRACT.equals(duplicateContract)||occurrences.isEmpty())throw new IllegalArgumentException("unsupported or empty group");
+        if(!ScenarioSemanticFingerprintEncoder.SCENARIO_IDENTITY_SCHEME_VERSION.equals(identity.identitySchemeVersion()))throw new IllegalArgumentException("unsupported group claimed-identity scheme");
         String previous=null; BigInteger previousIndex=null;
         for(var outcome:occurrences){var o=outcome.occurrence(); if(!identity.equals(o.claimedIdentity()))throw new IllegalArgumentException("group/occurrence identity mismatch");
             // Re-run the sole attempt to reject substituted/fabricated outcome objects.
-            var verified=ScenarioOccurrenceCompositionAttemptV1.attemptScenarioOccurrenceCompositionV1(o);
-            if(!same(verified,outcome))throw new IllegalArgumentException("occurrence outcome substitution");
+            ScenarioOccurrenceCompositionAttemptV1.revalidateProof(outcome);
             String path=o.parentMember().normalizedRepositoryRelativePath(); BigInteger index=index(o.structuralLocation());
             if(previous!=null){int c=codePoints(previous,path); if(c>0||(c==0&&previousIndex.compareTo(index)>=0))throw new IllegalArgumentException("noncanonical or duplicate occurrence ordering key");}
             previous=path;previousIndex=index;
@@ -45,7 +45,6 @@ public final class ScenarioIdentityGroupComposerV1 {
          .writeText(p.parentSourceId()).writeText(p.parentSnapshotId()).writeText(RepositoryCaptureFingerprint.VALUE_IDENTIFIER).writeText(p.parentContentFingerprint().value()).writeText(p.normalizedRepositoryRelativePath()).writeUnsigned64(p.rawByteLength()).writeText(RawSourceMemberFingerprint.ALGORITHM_IDENTIFIER).writeText(p.rawMemberFingerprint().value()).writeText(o.structuralLocation());
         if(out instanceof ScenarioOccurrenceCompositionOutcomeV1.Composed c){w.writePresent(x->x.writeText(ScenarioSemanticFingerprint.VALUE_IDENTIFIER).writeText(c.fingerprint().value())).writeAbsent();}
         else {var u=(ScenarioOccurrenceCompositionOutcomeV1.Unavailable)out;w.writeAbsent().writePresent(x->x.writeText(u.reason().name()));}}
-    private static boolean same(ScenarioOccurrenceCompositionOutcomeV1 a,ScenarioOccurrenceCompositionOutcomeV1 b){if(a.getClass()!=b.getClass()||a.occurrence()!=b.occurrence())return false;if(a instanceof ScenarioOccurrenceCompositionOutcomeV1.Composed x)return x.fingerprint().equals(((ScenarioOccurrenceCompositionOutcomeV1.Composed)b).fingerprint());return ((ScenarioOccurrenceCompositionOutcomeV1.Unavailable)a).reason()==((ScenarioOccurrenceCompositionOutcomeV1.Unavailable)b).reason();}
     private static BigInteger index(String p){return new BigInteger(p.substring(p.lastIndexOf('/')+1));}
     private static int codePoints(String a,String b){var x=a.codePoints().iterator();var y=b.codePoints().iterator();while(x.hasNext()&&y.hasNext()){int c=Integer.compare(x.nextInt(),y.nextInt());if(c!=0)return c;}return x.hasNext()?1:y.hasNext()?-1:0;}
 }

@@ -37,6 +37,39 @@ class ScenarioIdentityGroupComposerV1Test {
         var badParent=input(f,"a.json",2,"x");var foreign=new NormalizedScenarioOccurrenceInputV1(badParent.sourceNormalizationVersion(),badParent.scenarioSemanticCanonicalizationVersion(),badParent.scenarioSemanticContractVersion(),badParent.occurrenceIdentity(),f.refs.get(1),badParent.repositoryCaptureAttestation(),badParent.structuralLocation(),badParent.claimedIdentity(),badParent.exactTitle(),badParent.authoredGiven(),badParent.givenSteps(),badParent.authoredWhen(),badParent.whenSteps(),badParent.authoredThen(),badParent.thenSteps(),badParent.operationReference(),badParent.businessRuleReferences());
         assertThrows(IllegalArgumentException.class,()->attempt(foreign));
     }
+    @Test void rejectsUnsupportedGroupSchemeEvenWhenEveryOccurrenceIsUnavailable() {
+        var f=fixture();var unavailable=attempt(input(f,"a.json",2,"x","future-source"));
+        var future=new ScenarioSemanticCompositionRequest.ClaimedScenarioIdentity("orders","checkout","future-identity-v2");
+        assertThrows(IllegalArgumentException.class,()->ScenarioIdentityGroupComposerV1.compose(
+                ScenarioIdentityGroupComposerV1.DUPLICATE_OUTCOME_CONTRACT,future,List.of(unavailable,unavailable)));
+    }
+    @Test void revalidatesCompleteComposedAndUnavailableProofs() {
+        var f=fixture();var first=(ScenarioOccurrenceCompositionOutcomeV1.Composed)attempt(input(f,"a.json",2,"one"));
+        var second=(ScenarioOccurrenceCompositionOutcomeV1.Composed)attempt(input(f,"a.json",10,"two"));
+        var substitutedRequest=new ScenarioOccurrenceCompositionOutcomeV1.Composed(first.occurrence(),second.request(),first.composition());
+        assertThrows(IllegalArgumentException.class,()->compose(substitutedRequest));
+        var substitutedScenarioProof=new ScenarioOccurrenceCompositionOutcomeV1.Composed(first.occurrence(),first.request(),second.composition());
+        assertThrows(IllegalArgumentException.class,()->compose(substitutedScenarioProof));
+        var unsupported=input(f,"b.json",2,"x","future-source");
+        var fabricatedReason=new ScenarioOccurrenceCompositionOutcomeV1.Unavailable(unsupported,
+                ScenarioOccurrenceCompositionOutcomeV1.UnavailableReason.SCENARIO_COMPOSITION_INTEGRITY_FAILURE);
+        assertThrows(IllegalArgumentException.class,()->compose(fabricatedReason,
+                attempt(input(f,"a.json",2,"valid"))));
+    }
+    @Test void unsupportedPrecedesFiniteIntegrityAndUnexpectedIdentityFailuresPropagate() {
+        var f=fixture();var base=input(f,"a.json",2,"x","future-source");
+        var mismatchedStep=new NormalizedScenarioOccurrenceInputV1.NormalizedStep(ID,StepSemanticFingerprintInput.Phase.WHEN,
+                BigInteger.valueOf(7),StepSemanticFingerprintEncoder.STEP_IDENTITY_SCHEME_VERSION,"different",StepSemanticFingerprintEncoder.ENCODING_IDENTIFIER);
+        var combined=new NormalizedScenarioOccurrenceInputV1(base.sourceNormalizationVersion(),base.scenarioSemanticCanonicalizationVersion(),base.scenarioSemanticContractVersion(),base.occurrenceIdentity(),base.parentMember(),base.repositoryCaptureAttestation(),base.structuralLocation(),base.claimedIdentity(),base.exactTitle(),base.authoredGiven(),List.of(mismatchedStep),base.authoredWhen(),base.whenSteps(),base.authoredThen(),base.thenSteps(),base.operationReference(),base.businessRuleReferences());
+        assertEquals(ScenarioOccurrenceCompositionOutcomeV1.UnavailableReason.UNSUPPORTED_SEMANTIC_CONTRACT,
+                ((ScenarioOccurrenceCompositionOutcomeV1.Unavailable)attempt(combined)).reason());
+        var badLocation=new NormalizedScenarioOccurrenceInputV1(base.sourceNormalizationVersion(),base.scenarioSemanticCanonicalizationVersion(),base.scenarioSemanticContractVersion(),base.occurrenceIdentity(),base.parentMember(),base.repositoryCaptureAttestation(),"/scenarios/99",base.claimedIdentity(),base.exactTitle(),base.authoredGiven(),base.givenSteps(),base.authoredWhen(),base.whenSteps(),base.authoredThen(),base.thenSteps(),base.operationReference(),base.businessRuleReferences());
+        assertThrows(IllegalArgumentException.class,()->attempt(badLocation));
+    }
+    @Test void finiteTaxonomyHasNoGenericEscapeCategory() {
+        assertEquals(22,ScenarioOccurrenceIntegrityRejectionV1.values().length);
+        assertTrue(Arrays.stream(ScenarioOccurrenceIntegrityRejectionV1.values()).noneMatch(v->v.name().contains("UNKNOWN")||v.name().contains("OTHER")));
+    }
     private static VerifiedScenarioIdentityGroupV1 compose(ScenarioOccurrenceCompositionOutcomeV1...o){return ScenarioIdentityGroupComposerV1.compose(ScenarioIdentityGroupComposerV1.DUPLICATE_OUTCOME_CONTRACT,ID,List.of(o));}
     private static ScenarioOccurrenceCompositionOutcomeV1 attempt(NormalizedScenarioOccurrenceInputV1 o){return ScenarioOccurrenceCompositionAttemptV1.attemptScenarioOccurrenceCompositionV1(o);}
     private static NormalizedScenarioOccurrenceInputV1 input(Fixture f,String path,int index,String title){return input(f,path,index,title,ScenarioSemanticFingerprintEncoder.SOURCE_NORMALIZATION_VERSION);}

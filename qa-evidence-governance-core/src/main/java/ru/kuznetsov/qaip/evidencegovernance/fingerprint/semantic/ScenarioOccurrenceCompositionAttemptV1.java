@@ -1,6 +1,5 @@
 package ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic;
 
-import java.math.BigInteger;
 import java.util.List;
 
 /** Approved finite support/integrity decision and authoritative composer binding. */
@@ -11,14 +10,55 @@ public final class ScenarioOccurrenceCompositionAttemptV1 {
         if (!supported(o)) return new ScenarioOccurrenceCompositionOutcomeV1.Unavailable(o,
                 ScenarioOccurrenceCompositionOutcomeV1.UnavailableReason.UNSUPPORTED_SEMANTIC_CONTRACT);
         try {
-            ScenarioSemanticCompositionRequest request = request(o);
-            ScenarioSemanticCompositionResult result = ScenarioSemanticFingerprintComposer.compose(request);
+            ScenarioSemanticCompositionRequest request = ScenarioOccurrenceCorrespondenceValidatorV1.validateAndConstruct(o);
+            ScenarioSemanticCompositionResult result;
+            try {
+                result = ScenarioSemanticFingerprintComposer.compose(request);
+            } catch (ScenarioSemanticCompositionException exception) {
+                throw mapComposerRejection(exception);
+            }
             return new ScenarioOccurrenceCompositionOutcomeV1.Composed(o, request, result);
-        } catch (IllegalArgumentException e) {
+        } catch (ScenarioOccurrenceIntegrityExceptionV1 rejection) {
             return new ScenarioOccurrenceCompositionOutcomeV1.Unavailable(o,
                     ScenarioOccurrenceCompositionOutcomeV1.UnavailableReason.SCENARIO_COMPOSITION_INTEGRITY_FAILURE);
         }
     }
+
+    /** Recomputes and compares the complete proof; used before any outcome enters a group. */
+    static void revalidateProof(ScenarioOccurrenceCompositionOutcomeV1 claimed) {
+        var verified=attemptScenarioOccurrenceCompositionV1(claimed.occurrence());
+        if(claimed instanceof ScenarioOccurrenceCompositionOutcomeV1.Unavailable unavailable){
+            if(!(verified instanceof ScenarioOccurrenceCompositionOutcomeV1.Unavailable v)||v.reason()!=unavailable.reason())
+                throw new IllegalArgumentException("unavailable outcome is not the authoritative attempt result");
+            return;
+        }
+        if(!(verified instanceof ScenarioOccurrenceCompositionOutcomeV1.Composed v))throw new IllegalArgumentException("composed outcome is not authoritative");
+        var c=(ScenarioOccurrenceCompositionOutcomeV1.Composed)claimed;
+        if(!sameRequest(c.request(),v.request())||!c.composition().equals(v.composition()))
+            throw new IllegalArgumentException("composed request, leaf attestations, or Scenario proof was substituted");
+    }
+
+    private static boolean sameRequest(ScenarioSemanticCompositionRequest a,ScenarioSemanticCompositionRequest b){
+        return a.parentIdentity().equals(b.parentIdentity())&&a.exactTitle().equals(b.exactTitle())
+                &&sameSteps(a.givenSteps(),b.givenSteps())&&sameSteps(a.whenSteps(),b.whenSteps())&&sameSteps(a.thenSteps(),b.thenSteps())
+                &&a.operationReference().input().equals(b.operationReference().input())&&a.operationReference().fingerprint().equals(b.operationReference().fingerprint())
+                &&sameRules(a.businessRuleReferences(),b.businessRuleReferences())
+                &&a.scenarioSemanticCanonicalizationVersion().equals(b.scenarioSemanticCanonicalizationVersion())
+                &&a.sourceNormalizationVersion().equals(b.sourceNormalizationVersion())&&a.scenarioSemanticContractVersion().equals(b.scenarioSemanticContractVersion());
+    }
+    private static boolean sameSteps(List<FingerprintStepAttestation>a,List<FingerprintStepAttestation>b){if(a.size()!=b.size())return false;for(int i=0;i<a.size();i++)if(!a.get(i).input().equals(b.get(i).input())||!a.get(i).fingerprint().equals(b.get(i).fingerprint()))return false;return true;}
+    private static boolean sameRules(List<ScenarioSemanticCompositionRequest.PositionedBusinessRuleReference>a,List<ScenarioSemanticCompositionRequest.PositionedBusinessRuleReference>b){if(a.size()!=b.size())return false;for(int i=0;i<a.size();i++){var x=a.get(i);var y=b.get(i);if(!x.authoredPosition().equals(y.authoredPosition())||!x.attestation().input().equals(y.attestation().input())||!x.attestation().fingerprint().equals(y.attestation().fingerprint()))return false;}return true;}
+    private static ScenarioOccurrenceIntegrityExceptionV1 mapComposerRejection(ScenarioSemanticCompositionException e){var reason=switch(e.code()){
+        case STEP_ATTESTATION_MISMATCH->ScenarioOccurrenceIntegrityRejectionV1.STEP_ATTESTATION_INPUT_FINGERPRINT_MISMATCH;
+        case STEP_SCENARIO_IDENTITY_MISMATCH->ScenarioOccurrenceIntegrityRejectionV1.STEP_IDENTITY_MISMATCH;
+        case STEP_PHASE_MISMATCH->ScenarioOccurrenceIntegrityRejectionV1.STEP_PHASE_MISMATCH;
+        case STEP_ORDINAL_MISMATCH->ScenarioOccurrenceIntegrityRejectionV1.STEP_ORDINAL_MISMATCH;
+        case OPERATION_REFERENCE_ATTESTATION_MISMATCH->ScenarioOccurrenceIntegrityRejectionV1.OPERATION_ATTESTATION_INPUT_FINGERPRINT_MISMATCH;
+        case OPERATION_REFERENCE_SCENARIO_IDENTITY_MISMATCH->ScenarioOccurrenceIntegrityRejectionV1.OPERATION_OWNERSHIP_MISMATCH;
+        case BUSINESS_RULE_REFERENCE_ATTESTATION_MISMATCH->ScenarioOccurrenceIntegrityRejectionV1.BUSINESS_RULE_ATTESTATION_INPUT_FINGERPRINT_MISMATCH;
+        case BUSINESS_RULE_REFERENCE_SCENARIO_IDENTITY_MISMATCH->ScenarioOccurrenceIntegrityRejectionV1.BUSINESS_RULE_OWNERSHIP_MISMATCH;
+        case BUSINESS_RULE_REFERENCE_POSITION_MISMATCH->ScenarioOccurrenceIntegrityRejectionV1.BUSINESS_RULE_ORDER_POSITION_MISMATCH;
+        case UNSUPPORTED_CONTRACT->throw e;};return new ScenarioOccurrenceIntegrityExceptionV1(reason);}
     private static void validateOccurrence(NormalizedScenarioOccurrenceInputV1 o) {
         if (o == null) throw new NullPointerException("occurrence");
         var id=o.occurrenceIdentity(); var m=id.manifest(); var p=o.parentMember();
@@ -49,23 +89,5 @@ public final class ScenarioOccurrenceCompositionAttemptV1 {
                 & eq(r.semanticCanonicalizationVersion(),BusinessRuleReferenceSemanticFingerprintEncoder.ENCODING_IDENTIFIER);
         return ok;
     }
-    private static ScenarioSemanticCompositionRequest request(NormalizedScenarioOccurrenceInputV1 o) {
-        var given=steps(o,o.authoredGiven(),o.givenSteps(),StepSemanticFingerprintInput.Phase.GIVEN);
-        var when=steps(o,o.authoredWhen(),o.whenSteps(),StepSemanticFingerprintInput.Phase.WHEN);
-        var then=steps(o,o.authoredThen(),o.thenSteps(),StepSemanticFingerprintInput.Phase.THEN);
-        var op=o.operationReference(); require(op.claimedIdentity().equals(o.claimedIdentity()));
-        var opa=FingerprintOperationReferenceAttestation.create(new HttpOperationReferenceSemanticFingerprintInput(op.claimedIdentity().authority(),op.claimedIdentity().scenarioKey(),op.claimedIdentity().identitySchemeVersion(),op.role(),op.datumIdentityVersion(),op.targetProfile(),op.method(),op.path(),op.semanticCanonicalizationVersion()));
-        var rules=new java.util.ArrayList<ScenarioSemanticCompositionRequest.PositionedBusinessRuleReference>(); int i=0;
-        for(var r:o.businessRuleReferences()){require(r.authoredPosition().equals(BigInteger.valueOf(i++)) && r.claimedIdentity().equals(o.claimedIdentity()));
-            rules.add(new ScenarioSemanticCompositionRequest.PositionedBusinessRuleReference(r.authoredPosition(),FingerprintBusinessRuleReferenceAttestation.create(new BusinessRuleReferenceSemanticFingerprintInput(r.claimedIdentity().authority(),r.claimedIdentity().scenarioKey(),r.claimedIdentity().identitySchemeVersion(),r.referencedAuthority(),r.stableRuleKey(),r.identityScheme(),r.datumIdentityVersion(),r.semanticCanonicalizationVersion()))));}
-        return new ScenarioSemanticCompositionRequest(o.claimedIdentity(),o.exactTitle(),given,when,then,opa,rules,o.scenarioSemanticCanonicalizationVersion(),o.sourceNormalizationVersion(),o.scenarioSemanticContractVersion());
-    }
-    private static List<FingerprintStepAttestation> steps(NormalizedScenarioOccurrenceInputV1 o,List<String> authored,List<NormalizedScenarioOccurrenceInputV1.NormalizedStep> values,StepSemanticFingerprintInput.Phase phase){
-        require(authored.size()==values.size()); var out=new java.util.ArrayList<FingerprintStepAttestation>();
-        for(int i=0;i<values.size();i++){var s=values.get(i);require(s.claimedIdentity().equals(o.claimedIdentity())&&s.phase()==phase&&s.ordinal().equals(BigInteger.valueOf(i))&&s.exactAuthoredText().equals(authored.get(i)));
-            out.add(FingerprintStepAttestation.create(new StepSemanticFingerprintInput(s.claimedIdentity().authority(),s.claimedIdentity().scenarioKey(),s.claimedIdentity().identitySchemeVersion(),s.phase(),s.ordinal(),s.identityVersion(),s.exactAuthoredText(),s.semanticCanonicalizationVersion())));}
-        return List.copyOf(out);
-    }
-    private static void require(boolean v){if(!v)throw new IllegalArgumentException("occurrence composition correspondence failure");}
     private static boolean eq(String a,String b){return b.equals(a);} @SafeVarargs private static <T> List<T> concat(List<T>...ls){return java.util.Arrays.stream(ls).flatMap(List::stream).toList();}
 }
