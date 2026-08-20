@@ -227,6 +227,7 @@ class ScenarioLogicalSourceSchemaAdmissionTest {
                         "qaip-scenario-authority-manifest-schema-v1#/required",
                         List.of(new ScenarioSchemaDiagnostic.TextParameter(
                                 "missingProperty", "authority")))),
+                before.authoritativeParsedJson(), before.authoritativeAttribution(),
                 before.parsedSource()));
     }
 
@@ -260,7 +261,8 @@ class ScenarioLogicalSourceSchemaAdmissionTest {
                 before.attributionContractIdentifier(), before.parseOutcome(), before.attributionOutcome(),
                 before.structuralLocation(), ScenarioLogicalSourceSchemaAdmission.SCHEMA_CONTRACT_IDENTIFIER,
                 AttributedMemberSchemaAdmissionOutcome.StructuralAdmissionState.STRUCTURALLY_REJECTED,
-                List.of(duplicate, duplicate), before.parsedSource()));
+                List.of(duplicate, duplicate), before.authoritativeParsedJson(),
+                before.authoritativeAttribution(), before.parsedSource()));
     }
 
     private ScenarioSchemaAdmissionResult admit(

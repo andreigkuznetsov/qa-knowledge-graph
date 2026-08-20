@@ -72,6 +72,8 @@ public final class ScenarioLogicalSourceMemberProcessor {
                 ScenarioMemberProcessingOutcome.ParseOutcome.PARSED,
                 ScenarioMemberProcessingOutcome.AttributionOutcome.ATTRIBUTED,
                 Optional.empty(),
+                parsed,
+                attribution,
                 parsed.document());
     }
 

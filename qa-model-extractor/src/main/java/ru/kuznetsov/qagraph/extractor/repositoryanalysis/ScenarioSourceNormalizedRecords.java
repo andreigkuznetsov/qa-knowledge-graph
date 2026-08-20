@@ -1,6 +1,7 @@
 package ru.kuznetsov.qagraph.extractor.repositoryanalysis;
 
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.RepositoryCaptureFingerprint;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityNormalizationContractsV1;
 
 import java.util.List;
 import java.util.Objects;
@@ -8,18 +9,19 @@ import java.util.Objects;
 /** Immutable ADR-014 source-native records. These records make no resolution or canonical claims. */
 public final class ScenarioSourceNormalizedRecords {
     public static final String MANIFEST_OCCURRENCE_IDENTITY_VERSION =
-            "qaip-scenario-manifest-occurrence-identity-v1";
+            ScenarioAuthorityNormalizationContractsV1.MANIFEST_OCCURRENCE_IDENTITY;
     public static final String DECLARATION_OCCURRENCE_IDENTITY_VERSION =
-            "qaip-scenario-declaration-occurrence-identity-v1";
-    public static final String CLAIMED_SCENARIO_IDENTITY_VERSION = "qaip-scenario-identity-v1";
-    public static final String STEP_IDENTITY_VERSION = "qaip-scenario-step-identity-v1";
+            ScenarioAuthorityNormalizationContractsV1.SCENARIO_DECLARATION_OCCURRENCE_IDENTITY;
+    public static final String CLAIMED_SCENARIO_IDENTITY_VERSION =
+            ScenarioAuthorityNormalizationContractsV1.selectedV1().scenarioIdentityScheme();
+    public static final String STEP_IDENTITY_VERSION = ScenarioAuthorityNormalizationContractsV1.STEP_IDENTITY;
     public static final String OPERATION_REFERENCE_DATUM_IDENTITY_VERSION =
-            "qaip-scenario-operation-reference-datum-identity-v1";
+            ScenarioAuthorityNormalizationContractsV1.selectedV1().operationDatumIdentityVersion();
     public static final String OPERATION_REFERENCE_TARGET_PROFILE =
-            "qaip-http-operation-reference-v1";
+            ScenarioAuthorityNormalizationContractsV1.selectedV1().operationTargetProfile();
     public static final String BUSINESS_RULE_REFERENCE_DATUM_IDENTITY_VERSION =
-            "qaip-scenario-business-rule-reference-datum-identity-v1";
-    public static final String OPERATION_REFERENCE_ROLE = "OPERATION_REF";
+            ScenarioAuthorityNormalizationContractsV1.selectedV1().businessRuleDatumIdentityVersion();
+    public static final String OPERATION_REFERENCE_ROLE = ScenarioAuthorityNormalizationContractsV1.OPERATION_ROLE;
 
     private ScenarioSourceNormalizedRecords() {
     }

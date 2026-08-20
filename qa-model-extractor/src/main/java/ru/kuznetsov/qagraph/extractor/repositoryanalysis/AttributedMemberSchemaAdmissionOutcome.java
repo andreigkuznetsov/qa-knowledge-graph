@@ -2,6 +2,8 @@ package ru.kuznetsov.qagraph.extractor.repositoryanalysis;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import ru.kuznetsov.qaip.evidencegovernance.diagnostic.ScenarioSchemaDiagnostic;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityAttributionV1;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityParsedJsonV1;
 
 import java.util.List;
 import java.util.Objects;
@@ -19,6 +21,8 @@ public record AttributedMemberSchemaAdmissionOutcome(
         String schemaContractIdentifier,
         StructuralAdmissionState structuralAdmissionState,
         List<ScenarioSchemaDiagnostic> schemaDiagnostics,
+        ScenarioAuthorityParsedJsonV1 authoritativeParsedJson,
+        ScenarioAuthorityAttributionV1 authoritativeAttribution,
         JsonNode parsedSource
 ) implements ScenarioSchemaAdmissionOutcome, ScenarioSourceNormalizationMemberOutcome {
     public AttributedMemberSchemaAdmissionOutcome {
@@ -42,12 +46,20 @@ public record AttributedMemberSchemaAdmissionOutcome(
                 "schemaContractIdentifier");
         Objects.requireNonNull(structuralAdmissionState, "structuralAdmissionState");
         schemaDiagnostics = ScenarioSchemaDiagnostic.canonicalCollection(schemaDiagnostics);
+        Objects.requireNonNull(authoritativeParsedJson, "authoritativeParsedJson");
+        Objects.requireNonNull(authoritativeAttribution, "authoritativeAttribution");
+        if (authoritativeAttribution.parsedJson() != authoritativeParsedJson)
+            throw new IllegalArgumentException("attribution must bind the exact parsed proof");
+        if (!claimedAuthority.equals(authoritativeAttribution.authority()))
+            throw new IllegalArgumentException("claimedAuthority must project authoritative attribution");
         if ((structuralAdmissionState == StructuralAdmissionState.STRUCTURALLY_ADMITTED)
                 != schemaDiagnostics.isEmpty()) {
             throw new IllegalArgumentException(
                     "STRUCTURALLY_ADMITTED requires no diagnostics and STRUCTURALLY_REJECTED requires diagnostics");
         }
         parsedSource = Objects.requireNonNull(parsedSource, "parsedSource").deepCopy();
+        if (!parsedSource.equals(authoritativeParsedJson.document()))
+            throw new IllegalArgumentException("parsedSource must project the authoritative parsed proof");
     }
 
     @Override

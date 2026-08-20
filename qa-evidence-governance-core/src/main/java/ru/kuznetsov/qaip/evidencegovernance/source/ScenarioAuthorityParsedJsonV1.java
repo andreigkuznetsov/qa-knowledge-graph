@@ -20,4 +20,11 @@ public final class ScenarioAuthorityParsedJsonV1 {
     public byte[] exactRawBytes() { return exactRawBytes.clone(); }
     public JsonNode document() { return document.deepCopy(); }
     JsonNode authoritativeDocument() { return document; }
+
+    @Override public boolean equals(Object other) {
+        return this == other || other instanceof ScenarioAuthorityParsedJsonV1 that
+                && java.util.Arrays.equals(exactRawBytes, that.exactRawBytes)
+                && document.equals(that.document);
+    }
+    @Override public int hashCode() { return 31 * java.util.Arrays.hashCode(exactRawBytes) + document.hashCode(); }
 }

@@ -9,6 +9,9 @@ import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.ManifestSemanti
 
 import java.util.List;
 import java.util.Optional;
+import java.nio.charset.StandardCharsets;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityAttributorV1;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityExactJsonParserV1;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -67,12 +70,18 @@ class AttributedMemberOutcomeFingerprintComposerTest {
             List<ScenarioSchemaDiagnostic> diagnostics,
             com.fasterxml.jackson.databind.JsonNode json
     ) {
+        com.fasterxml.jackson.databind.JsonNode proofDocument = json.deepCopy();
+        if (proofDocument instanceof com.fasterxml.jackson.databind.node.ObjectNode object
+                && !object.has("authority")) object.put("authority", "orders");
+        var parsed = new ScenarioAuthorityExactJsonParserV1().parseExactBytes(
+                proofDocument.toString().getBytes(StandardCharsets.UTF_8));
+        var attribution = new ScenarioAuthorityAttributorV1().attribute(parsed);
         return new AttributedMemberSchemaAdmissionOutcome(
                 PARENT, "orders", ScenarioMemberProcessingOutcome.PARSER_CONTRACT_IDENTIFIER,
                 ScenarioMemberProcessingOutcome.ATTRIBUTION_CONTRACT_IDENTIFIER,
                 ScenarioMemberProcessingOutcome.ParseOutcome.PARSED,
                 ScenarioMemberProcessingOutcome.AttributionOutcome.ATTRIBUTED,
                 Optional.empty(), ScenarioManifestSchemaValidator.SCHEMA_CONTRACT_IDENTIFIER,
-                state, diagnostics, json);
+                state, diagnostics, parsed, attribution, proofDocument);
     }
 }

@@ -16,4 +16,10 @@ public final class ScenarioAuthorityAttributionV1 {
     public String attributionContractIdentifier() { return ATTRIBUTION_CONTRACT_IDENTIFIER; }
     public ScenarioAuthorityParsedJsonV1 parsedJson() { return parsedJson; }
     public String authority() { return authority; }
+
+    @Override public boolean equals(Object other) {
+        return this == other || other instanceof ScenarioAuthorityAttributionV1 that
+                && parsedJson.equals(that.parsedJson) && authority.equals(that.authority);
+    }
+    @Override public int hashCode() { return Objects.hash(parsedJson, authority); }
 }

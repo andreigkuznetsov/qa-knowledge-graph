@@ -1,6 +1,8 @@
 package ru.kuznetsov.qagraph.extractor.repositoryanalysis;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityAttributionV1;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityParsedJsonV1;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -14,6 +16,8 @@ public record AttributedMemberProcessingOutcome(
         ScenarioMemberProcessingOutcome.ParseOutcome parseOutcome,
         ScenarioMemberProcessingOutcome.AttributionOutcome attributionOutcome,
         Optional<String> structuralLocation,
+        ScenarioAuthorityParsedJsonV1 authoritativeParsedJson,
+        ScenarioAuthorityAttributionV1 authoritativeAttribution,
         JsonNode parsedSource
 ) implements ScenarioMemberProcessingOutcome {
     public AttributedMemberProcessingOutcome {
@@ -29,7 +33,15 @@ public record AttributedMemberProcessingOutcome(
             throw new IllegalArgumentException("attributed member must have ATTRIBUTED outcome");
         }
         structuralLocation = ScenarioMemberProcessingOutcome.requireJsonPointer(structuralLocation);
+        Objects.requireNonNull(authoritativeParsedJson, "authoritativeParsedJson");
+        Objects.requireNonNull(authoritativeAttribution, "authoritativeAttribution");
+        if (authoritativeAttribution.parsedJson() != authoritativeParsedJson)
+            throw new IllegalArgumentException("attribution must bind the exact parsed proof");
+        if (!claimedAuthority.equals(authoritativeAttribution.authority()))
+            throw new IllegalArgumentException("claimedAuthority must project authoritative attribution");
         parsedSource = Objects.requireNonNull(parsedSource, "parsedSource").deepCopy();
+        if (!parsedSource.equals(authoritativeParsedJson.document()))
+            throw new IllegalArgumentException("parsedSource must project the authoritative parsed proof");
     }
 
     @Override

@@ -71,6 +71,8 @@ public final class ScenarioLogicalSourceSchemaAdmission {
                 SCHEMA_CONTRACT_IDENTIFIER,
                 state,
                 diagnostics,
+                attributed.authoritativeParsedJson(),
+                attributed.authoritativeAttribution(),
                 attributed.parsedSource());
     }
 
