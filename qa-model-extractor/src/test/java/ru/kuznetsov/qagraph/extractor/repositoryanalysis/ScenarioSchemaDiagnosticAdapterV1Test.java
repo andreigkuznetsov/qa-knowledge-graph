@@ -213,8 +213,8 @@ class ScenarioSchemaDiagnosticAdapterV1Test {
 
     @Test
     void validatorOwnedMetadataAndEmissionOrderDoNotAffectCanonicalDiagnostics() {
-        JsonNodePath rootLocation = new ScenarioManifestSchemaValidator()
-                .validationMessages(BooleanNode.TRUE).getFirst().getInstanceLocation();
+        JsonNodePath rootLocation = mock(JsonNodePath.class);
+        when(rootLocation.getNameCount()).thenReturn(0);
         ValidationMessage first = mock(ValidationMessage.class);
         when(first.getType()).thenReturn("type");
         when(first.getSchemaLocation()).thenReturn(SchemaLocation.of("https://one.example/schema#/type"));
@@ -235,7 +235,8 @@ class ScenarioSchemaDiagnosticAdapterV1Test {
         when(second.getMessage()).thenReturn("completely different prose");
         when(second.getMessageKey()).thenReturn("another.key");
         when(second.getCode()).thenReturn("different-code");
-        when(second.getEvaluationPath()).thenReturn(rootLocation.append("different"));
+        JsonNodePath differentEvaluationPath = mock(JsonNodePath.class);
+        when(second.getEvaluationPath()).thenReturn(differentEvaluationPath);
         when(second.getArguments()).thenReturn(new Object[]{"two", 2});
         when(second.getDetails()).thenReturn(Map.of("library", "two"));
         when(second.getInstanceNode()).thenReturn(BooleanNode.FALSE);
@@ -315,8 +316,11 @@ class ScenarioSchemaDiagnosticAdapterV1Test {
         assertFailure(() -> adapter.mapValidationMessages(null, List.of()));
         assertFailure(() -> adapter.map(null, List.of()));
 
-        List<ValidationMessage> partialThenMalformed = Arrays.asList(
-                new ScenarioManifestSchemaValidator().validationMessages(BooleanNode.TRUE).getFirst(), null);
+        ValidationMessage valid = mock(ValidationMessage.class);
+        when(valid.getType()).thenReturn("type");
+        when(valid.getSchemaLocation()).thenReturn(SchemaLocation.of("https://example/schema#/type"));
+        when(valid.getInstanceLocation()).thenReturn(mock(JsonNodePath.class));
+        List<ValidationMessage> partialThenMalformed = Arrays.asList(valid, null);
         assertFailure(() -> adapter.mapValidationMessages(BooleanNode.TRUE, partialThenMalformed));
     }
 

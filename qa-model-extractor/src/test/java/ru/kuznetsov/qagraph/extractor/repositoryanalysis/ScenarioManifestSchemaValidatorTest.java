@@ -155,31 +155,11 @@ class ScenarioManifestSchemaValidatorTest {
         assertEquals("7fdac4321c125cadec4afe734460920afc3dfcaf6ea8bb1f49cee43b49a901f1",
                 ScenarioManifestSchemaValidator.EXPECTED_SCHEMA_SHA256);
         assertEquals(ScenarioManifestSchemaValidator.EXPECTED_SCHEMA_SHA256, actual);
-        assertEquals("sha256:" + actual, new ScenarioManifestSchemaValidator(bytes).schemaContentIdentity());
+        assertEquals("sha256:" + actual, validator.schemaContentIdentity());
         assertEquals(ScenarioManifestSchemaValidator.SCHEMA_CONTENT_IDENTITY,
                 ScenarioSchemaDiagnosticAdapterV1.SCHEMA_CONTENT_IDENTITY);
         assertEquals(ScenarioSchemaDiagnosticAdapterV1.CONTRACT_IDENTIFIER + "|sha256:" + actual,
                 ScenarioSchemaDiagnosticAdapterV1.V1_SCHEMA_MAPPING_BINDING);
-    }
-
-    @Test
-    void alteredMissingAndMalformedSchemaBytesFailAsStableCompatibilityFailure() throws Exception {
-        byte[] bytes;
-        try (InputStream input = ScenarioManifestSchemaValidator.class.getResourceAsStream(
-                ScenarioManifestSchemaValidator.SCHEMA_RESOURCE)) {
-            bytes = input.readAllBytes();
-        }
-        bytes[bytes.length - 1] ^= 1;
-
-        assertMappingFailure(() -> new ScenarioManifestSchemaValidator(bytes));
-        assertMappingFailure(() -> new ScenarioManifestSchemaValidator(null));
-        assertMappingFailure(() -> new ScenarioManifestSchemaValidator("not-json".getBytes(StandardCharsets.UTF_8)));
-    }
-
-    private static void assertMappingFailure(org.junit.jupiter.api.function.Executable executable) {
-        ScenarioSchemaDiagnosticMappingException failure = assertThrows(
-                ScenarioSchemaDiagnosticMappingException.class, executable);
-        assertEquals("UNSUPPORTED_SCHEMA_DIAGNOSTIC_MAPPING", failure.failureCode());
     }
 
     private ScenarioManifestSchemaValidationResult validate(

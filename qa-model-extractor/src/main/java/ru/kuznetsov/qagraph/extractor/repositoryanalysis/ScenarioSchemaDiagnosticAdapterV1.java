@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.networknt.schema.JsonNodePath;
 import com.networknt.schema.ValidationMessage;
 import ru.kuznetsov.qaip.evidencegovernance.diagnostic.ScenarioSchemaDiagnostic;
+import ru.kuznetsov.qagraph.validationcore.scenarioauthority.ScenarioAuthorityManifestSchemaValidationV1;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -49,7 +50,23 @@ public final class ScenarioSchemaDiagnosticAdapterV1 {
     public List<ScenarioSchemaDiagnostic> validate(JsonNode document) {
         if (document == null) fail("validated document is missing");
         try {
-            return mapValidationMessages(document, validator.validationMessages(document));
+            return mapValidationSignals(document, validator.validationSignals(document));
+        } catch (ScenarioSchemaDiagnosticMappingException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new ScenarioSchemaDiagnosticMappingException(
+                    "validator output is malformed or unusable", exception);
+        }
+    }
+
+    List<ScenarioSchemaDiagnostic> mapValidationSignals(
+            JsonNode document,
+            List<ScenarioAuthorityManifestSchemaValidationV1.Signal> messages
+    ) {
+        if (document == null) fail("validated document is missing");
+        if (messages == null) fail("validation signals are missing");
+        try {
+            return map(document, messages.stream().map(ScenarioSchemaDiagnosticAdapterV1::signal).toList());
         } catch (ScenarioSchemaDiagnosticMappingException exception) {
             throw exception;
         } catch (RuntimeException exception) {
@@ -111,6 +128,11 @@ public final class ScenarioSchemaDiagnosticAdapterV1 {
         String schemaPointer = pathPointer(message.getSchemaLocation().getFragment());
         String instancePointer = pathPointer(message.getInstanceLocation());
         return new ValidationSignal(keyword, schemaPointer, instancePointer);
+    }
+
+    private static ValidationSignal signal(ScenarioAuthorityManifestSchemaValidationV1.Signal signal) {
+        if (signal == null) fail("validation signal is missing");
+        return new ValidationSignal(signal.keyword(), signal.schemaPointer(), signal.instancePointer());
     }
 
     private static List<ScenarioSchemaDiagnostic> mapRule(
