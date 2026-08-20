@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-18
+- Amended: 2026-08-20 (Manifest semantic availability)
 - Decision owners: QAIP architecture
 
 ## Context
@@ -461,6 +462,20 @@ golden vectors defined by this ADR remain unchanged.
 
 ### Manifest semantic content
 
+This ADR distinguishes three independent states:
+
+1. **Structural admission** means that the authority-attributed Manifest
+   satisfies the fixed Scenario Authority JSON Schema.
+2. **Scenario semantic availability** means that an authored Scenario
+   occurrence has an authoritative supported `ScenarioSemanticFingerprint`.
+3. **Manifest semantic availability** means that every authored Scenario
+   occurrence in the structurally admitted Manifest has an authoritative
+   `ScenarioSemanticFingerprint`, so the `ManifestSemanticFingerprint` can be
+   composed.
+
+Structural admission does not imply Scenario semantic availability or Manifest
+semantic availability.
+
 After the common prefix, encode:
 
 1. normalization version;
@@ -478,10 +493,43 @@ snapshot separately binds one manifest occurrence identity to this fingerprint.
 Moving a manifest therefore changes occurrence and repository identity without
 misrepresenting unchanged manifest meaning.
 
-Only `STRUCTURALLY_ADMITTED` V1 manifests form a manifest semantic fingerprint.
+`ManifestSemanticFingerprint` represents only a structurally admitted Manifest
+whose complete authored Scenario semantic content is available. It requires
+exactly one authoritative `ScenarioSemanticFingerprint` for every authored
+Scenario, in exact authored Scenario-array order. If any authored Scenario is
+semantically unavailable, no partial Manifest semantic fingerprint is emitted;
+structural admission and authority attribution remain unchanged, and the
+Manifest occurrence remains retained evidence.
+
 An attributable rejected member remains fingerprint-bound through its
 attributed-member outcome. A future contract may safely fingerprint a broader
-rejected semantic envelope only under a new explicit version.
+rejected semantic envelope only under a new explicit version. This amendment
+does not change the Manifest semantic fingerprint domain, encoding, canonical
+sequence, or golden bytes.
+
+#### Manifest semantic composition outcome V1
+
+`ManifestSemanticCompositionOutcomeV1` is an authoritative outcome with exactly
+two states:
+
+- `COMPOSED` requires a structurally admitted Manifest, the exact normalized
+  Manifest, an authoritative `COMPOSED` Scenario semantic outcome for every
+  authored Scenario, and the authoritative `ManifestSemanticFingerprint`.
+- `UNAVAILABLE` requires a structurally admitted Manifest, the exact normalized
+  Manifest, at least one authoritative finite `UNAVAILABLE` Scenario semantic
+  outcome, and no `ManifestSemanticFingerprint`.
+
+The only Manifest-level unavailable reason is
+`SCENARIO_SEMANTIC_CONTENT_UNAVAILABLE`. Exact child Scenario outcomes retain
+whether the underlying reason is `UNSUPPORTED_SEMANTIC_CONTRACT`,
+`SCENARIO_COMPOSITION_INTEGRITY_FAILURE`, or a mixture; those reasons are not
+duplicated at Manifest level.
+
+Only authoritative finite Scenario semantic-unavailable outcomes may produce
+Manifest `UNAVAILABLE`. Caller-selected Manifest outcome or reason is
+prohibited. Unexpected programming, infrastructure, runtime, or unclassified
+failures remain processing failures: they produce neither Manifest
+`UNAVAILABLE` nor a Manifest fingerprint.
 
 ## Attributed-member outcome fingerprint
 
@@ -507,11 +555,22 @@ After the common prefix, encode:
 12. optional manifest occurrence identity; and
 13. optional admitted manifest semantic fingerprint reference.
 
-`STRUCTURALLY_ADMITTED` requires no schema diagnostics and present manifest
-identity/fingerprint. `STRUCTURALLY_REJECTED` requires at least one stable
-diagnostic and absent manifest identity/fingerprint. The parent reference binds
-rejected content to exact captured bytes without treating the raw digest as a
-semantic digest.
+`STRUCTURALLY_ADMITTED` requires no schema diagnostics, a present Manifest
+occurrence identity, and a present authoritative
+`ManifestSemanticCompositionOutcomeV1`. If that outcome is `COMPOSED`, the
+Manifest semantic fingerprint must be present. If it is `UNAVAILABLE`, the
+Manifest semantic fingerprint must be absent. `STRUCTURALLY_REJECTED` requires
+at least one stable diagnostic and no admitted Manifest occurrence identity,
+Manifest semantic composition outcome, or Manifest semantic fingerprint.
+
+This activates the already encodable combination `STRUCTURALLY_ADMITTED` plus
+present Manifest occurrence identity plus absent Manifest semantic fingerprint
+only when an authoritative Manifest `UNAVAILABLE` proof backs it. The canonical
+field order and optional encoding above do not change. Existing valid
+attributed-member outcome fingerprint bytes therefore remain unchanged; the
+newly admitted combination receives deterministic bytes through that existing
+optional encoding. The parent reference binds rejected content to exact
+captured bytes without treating the raw digest as a semantic digest.
 
 Parsed JSON trees, generic serialized JSON, human messages, validator metadata,
 and qualification results are excluded.
@@ -585,6 +644,18 @@ There is no first, last, file-order, newest, majority, source-category, or
 content-similarity winner. Title, Steps, references, JSON trees, and authored
 text are never compared directly by grouping; only complete supported Scenario
 semantic fingerprints are compared.
+
+`DUPLICATE_UNCLASSIFIED` remains persistent direct evidence. An occurrence with
+an authoritative semantic `UNAVAILABLE` outcome neither revokes its parent
+Manifest's structural admission, removes that Manifest from its authority
+partition, nor removes the occurrence from group evidence. Its parent Manifest
+has Manifest semantic outcome `UNAVAILABLE` and no Manifest semantic
+fingerprint.
+
+`DUPLICATE_EQUIVALENT` and `DUPLICATE_CONFLICTING` may coexist with a parent
+Manifest semantic outcome of `COMPOSED` when every authored Scenario occurrence
+has a Scenario semantic fingerprint. Duplicate classification controls Scenario
+admissibility, not Manifest semantic availability.
 
 ## Semantic provenance fingerprint
 
@@ -676,10 +747,13 @@ After the common prefix, encode in this exact order:
    provenance contract identifiers in that order;
 8. attributed-member count and outcome fingerprint references in exact parent
    member order for members attributed to this exact authority;
-9. admitted manifest occurrence count and, in normalized member-path order,
-   each exact manifest occurrence identity plus manifest semantic fingerprint
-   reference; rejected attributed members remain represented by item 8 and do
-   not fabricate a normalized manifest occurrence;
+9. structurally admitted Manifest occurrence count and, in normalized
+   member-path order, each exact Manifest occurrence identity plus its
+   authoritative `ManifestSemanticCompositionOutcomeV1`; a `COMPOSED` entry
+   includes its Manifest semantic fingerprint reference, while an `UNAVAILABLE`
+   entry includes no Manifest semantic fingerprint reference; rejected
+   attributed members remain represented by item 8 and do not fabricate a
+   normalized Manifest occurrence or Manifest semantic composition outcome;
 10. Scenario identity-group count and group fingerprint references in exact
     claimed-identity order;
 11. normalized datum count and each datum kind, datum identity, and semantic
@@ -694,6 +768,13 @@ the normalized datum section. A duplicate Scenario group publishes occurrence
 data and semantic fingerprints for comparison but publishes no unique accepted
 Scenario, Step, or reference datum membership. The group remains visible and
 fingerprinted.
+
+Every structurally admitted Manifest remains direct authority evidence through
+its occurrence identity and authoritative Manifest semantic composition
+outcome. A normalized `MANIFEST` datum appears in item 11 only for `COMPOSED`.
+For `UNAVAILABLE`, no normalized `MANIFEST` datum or Manifest semantic
+fingerprint is published, but the Manifest occurrence/outcome remains direct
+evidence. Scenario identity-group evidence is retained independently.
 
 The snapshot identity remains exactly:
 
@@ -762,7 +843,9 @@ or logical semantic fingerprints.
 Step fingerprints -----------+
 Operation-reference fp ------+--> Scenario semantic fingerprint
 Business Rule-reference fps -+             |
-                                            +--> Manifest semantic fingerprint
+                                            +--> Manifest semantic composition outcome
+                                                       |
+                                                       +--> Manifest semantic fingerprint
                                             |
 Parent member ref + stable outcomes --------+--> Attributed-member outcome fp
 
@@ -778,7 +861,7 @@ Scenario occurrence identities
   + parent-member refs
   + Scenario semantic fps ----------------------> Scenario identity-group fp
 
-Attributed outcomes + manifest occurrences
+Attributed outcomes + manifest occurrences/outcomes
   + Scenario groups + normalized data
   + provenance for allowed completed children ---> Logical Source Snapshot V2 fp
 
@@ -836,6 +919,21 @@ Golden vectors are normative interoperability artifacts. An independent test
 reader may verify them, but production adapters do not implement a second
 encoder.
 
+The Manifest semantic-availability amendment additionally requires future
+golden or rejection vectors for:
+
+- admitted Manifest with all Scenario outcomes composed;
+- admitted Manifest with an unsupported Scenario;
+- admitted Manifest with an integrity-unavailable Scenario;
+- mixed child unavailable reasons;
+- all child fingerprints available with `DUPLICATE_EQUIVALENT`;
+- all child fingerprints available with `DUPLICATE_CONFLICTING`;
+- rejection of a caller-selected Manifest unavailable reason;
+- proof that an unexpected child processing failure does not become Manifest
+  `UNAVAILABLE`;
+- admitted-unavailable attributed-member outcome bytes; and
+- existing composed and rejected attributed-member outcome byte compatibility.
+
 ## Ownership
 
 The Scenario source adapter / Extractor owns source-specific parsing,
@@ -889,6 +987,11 @@ qualification context, and qualification state remain later independent
 results. One logical snapshot can receive different qualification results
 without changing content identity.
 
+`COMPOSE_MANIFEST_SEMANTIC_CONTENT` provenance applies only to successfully
+`COMPOSED` Manifest semantic content. Under semantic provenance V1, Manifest
+`UNAVAILABLE` creates no semantic provenance fingerprint. No additional
+provenance activity is activated by this amendment.
+
 No Canonical Ontology change is required. No canonical `SCENARIO`, resolved
 reference, `SPECIFIED_BY`, `COVERS`, or `VALIDATES` assertion is created.
 
@@ -905,6 +1008,8 @@ reference, `SPECIFIED_BY`, `COVERS`, or `VALIDATES` assertion is created.
 - Domain separation prevents one fingerprint kind from substituting for
   another.
 - Logical snapshots remain requalifiable under different frozen contexts.
+- Structural admission remains retained when complete Manifest semantics cannot
+  be composed.
 
 ### Negative
 
@@ -915,6 +1020,25 @@ reference, `SPECIFIED_BY`, `COVERS`, or `VALIDATES` assertion is created.
   precedence.
 - Fingerprint version changes can invalidate comparison with older semantic
   fingerprints until an explicit compatibility policy exists.
+
+### Manifest semantic-availability compatibility
+
+Existing `ScenarioSemanticFingerprint`, `ManifestSemanticFingerprint`,
+`ScenarioIdentityGroupFingerprint`, and semantic provenance bytes are
+unchanged. No partial Manifest fingerprint is introduced. Existing valid
+`AttributedMemberOutcomeFingerprint` bytes are unchanged. The newly permitted
+structurally-admitted, Manifest-unavailable combination receives deterministic
+bytes using the already defined optional encoding. No existing semantic
+fingerprint domain requires a version change.
+
+This amendment requires four follow-up deliverables before the corrected path
+is implemented and gated:
+
+1. a subordinate Manifest semantic-outcome V1 contract;
+2. the corresponding Attributed Member Outcome invariant correction;
+3. a Logical V2 subordinate-contract correction; and
+4. the production Manifest composition-attempt implementation and capability
+   gate.
 
 ## Rejected alternatives
 
@@ -1001,6 +1125,19 @@ An implementation conforms only if:
   claimed Scenario identity to its parent Scenario;
 - failure of a Scenario composition invariant emits no Scenario semantic
   fingerprint;
+- structural Manifest admission does not imply Scenario or Manifest semantic
+  availability;
+- Manifest `COMPOSED` is derived only from authoritative `COMPOSED` outcomes
+  for every authored Scenario, and emits exactly one complete Manifest semantic
+  fingerprint;
+- Manifest `UNAVAILABLE` is derived only from at least one authoritative finite
+  Scenario `UNAVAILABLE` outcome, uses only
+  `SCENARIO_SEMANTIC_CONTENT_UNAVAILABLE`, and emits no Manifest semantic
+  fingerprint;
+- caller-selected Manifest outcomes and conversion of unexpected failures into
+  Manifest `UNAVAILABLE` are rejected;
+- every structurally admitted Manifest remains direct Logical V2 evidence, but
+  only a `COMPOSED` Manifest contributes a normalized `MANIFEST` datum;
 - source adapters never reproduce canonical serialization;
 - raw byte fingerprints never substitute for semantic fingerprints;
 - JSON object order and validator-library behavior never define semantic
