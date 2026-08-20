@@ -6,6 +6,8 @@ import ru.kuznetsov.qaip.evidencegovernance.fingerprint.RawSourceMemberFingerpri
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.RepositoryCaptureFingerprint;
 
 import java.nio.charset.StandardCharsets;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
@@ -15,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SemanticProvenanceFingerprintEncoderTest {
     private static final HexFormat HEX = HexFormat.of();
@@ -73,10 +76,8 @@ class SemanticProvenanceFingerprintEncoderTest {
     @Test
     void rejectsFingerprintSubstitutionAndParentIdentityMismatch() {
         var authoritative = admittedInput(parent());
-        var wrongFingerprint = AttributedMemberOutcomeFingerprintEncoder.fingerprint(
-                admittedInput(parent(".qaip/scenarios/other.scenario.json")));
-        assertThrows(IllegalArgumentException.class, () ->
-                SemanticProvenanceOutputReference.verified(authoritative, wrongFingerprint));
+        assertTrue(Arrays.stream(AttributedMemberOutcomeComposerV1.Composition.class.getDeclaredConstructors())
+                .allMatch(c->Modifier.isPrivate(c.getModifiers())));
 
         var output = output(authoritative);
         var wrongParent = SemanticProvenanceParentReference.capturedMember(
@@ -150,8 +151,15 @@ class SemanticProvenanceFingerprintEncoderTest {
     private static SemanticProvenanceOutputReference output(
             AttributedMemberOutcomeFingerprintInput attributedInput
     ) {
-        return SemanticProvenanceOutputReference.verified(
-                attributedInput, AttributedMemberOutcomeFingerprintEncoder.fingerprint(attributedInput));
+        return SemanticProvenanceOutputReference.verified(testComposition(attributedInput));
+    }
+
+    private static AttributedMemberOutcomeComposerV1.Composition testComposition(
+            AttributedMemberOutcomeFingerprintInput input){
+        try{var c=AttributedMemberOutcomeComposerV1.Composition.class.getDeclaredConstructors()[0];c.setAccessible(true);
+            return (AttributedMemberOutcomeComposerV1.Composition)c.newInstance(input,
+                    AttributedMemberOutcomeFingerprintEncoder.fingerprint(input));
+        }catch(ReflectiveOperationException exception){throw new AssertionError(exception);}
     }
 
     private static SemanticProvenanceFingerprintInput candidate(

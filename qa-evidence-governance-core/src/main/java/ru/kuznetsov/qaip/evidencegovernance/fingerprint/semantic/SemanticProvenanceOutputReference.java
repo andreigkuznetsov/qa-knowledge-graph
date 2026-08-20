@@ -27,19 +27,11 @@ public final class SemanticProvenanceOutputReference {
     }
 
     public static SemanticProvenanceOutputReference verified(
-            AttributedMemberOutcomeFingerprintInput authoritativeInput,
-            AttributedMemberOutcomeFingerprint fingerprint
-    ) {
-        Objects.requireNonNull(authoritativeInput, "authoritativeInput");
-        Objects.requireNonNull(fingerprint, "fingerprint");
-        AttributedMemberOutcomeFingerprint expected =
-                AttributedMemberOutcomeFingerprintEncoder.fingerprint(authoritativeInput);
-        if (!expected.equals(fingerprint)) {
-            throw new IllegalArgumentException(
-                    "attributed-member output fingerprint does not match its authoritative input");
-        }
+            AttributedMemberOutcomeComposerV1.Composition authoritativeComposition) {
+        Objects.requireNonNull(authoritativeComposition, "authoritativeComposition");
+        AttributedMemberOutcomeFingerprintInput authoritativeInput=authoritativeComposition.input();
         return new SemanticProvenanceOutputReference(
-                OUTPUT_KIND, authoritativeInput.parentMemberReference(), fingerprint,
+                OUTPUT_KIND, authoritativeInput.parentMemberReference(), authoritativeComposition.fingerprint(),
                 authoritativeInput.claimedAuthority());
     }
 

@@ -29,10 +29,9 @@ class RepositoryDerivationReportFingerprintComposerTest {
         var admission = new ScenarioLogicalSourceSchemaAdmission().admit(processing);
         var attributed = assertInstanceOf(
                 AttributedMemberSchemaAdmissionOutcome.class, admission.memberOutcomes().getFirst());
-        var input = AttributedMemberOutcomeFingerprintComposer.input(
-                attributed, Optional.empty(), Optional.empty());
-        var output = SemanticProvenanceOutputReference.verified(
-                input, AttributedMemberOutcomeFingerprintEncoder.fingerprint(input));
+        var attributedComposition = AttributedMemberOutcomeFingerprintComposer.fingerprintRejected(attributed);
+        var input = attributedComposition.input();
+        var output = SemanticProvenanceOutputReference.verified(attributedComposition);
         var evidence = new RepositoryDerivationReportFingerprintComposer.AttributedMemberEvidence(
                 attributed, output, SemanticProvenanceAttestation.deriveAttributedMemberOutcome(output));
 

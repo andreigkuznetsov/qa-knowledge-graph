@@ -62,10 +62,9 @@ public record AttributedMemberOutcomeFingerprintInput(
 
         if (structuralAdmissionState == StructuralAdmissionState.STRUCTURALLY_ADMITTED) {
             if (!schemaDiagnostics.isEmpty()
-                    || manifestOccurrenceIdentity.isEmpty()
-                    || manifestSemanticFingerprint.isEmpty()) {
+                    || manifestOccurrenceIdentity.isEmpty()) {
                 throw new IllegalArgumentException(
-                        "STRUCTURALLY_ADMITTED requires empty diagnostics and present Manifest identity/fingerprint");
+                        "STRUCTURALLY_ADMITTED requires empty diagnostics and present Manifest identity");
             }
             manifestOccurrenceIdentity.get().requireMatches(parentMemberReference);
         } else if (schemaDiagnostics.isEmpty()

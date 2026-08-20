@@ -256,8 +256,12 @@ class RepositoryDerivationReportFingerprintEncoderTest {
                     AttributedMemberOutcomeFingerprintInput.StructuralAdmissionState.STRUCTURALLY_REJECTED,
                     List.of(REQUIRED), Optional.empty(), Optional.empty());
         }
-        var output = SemanticProvenanceOutputReference.verified(
-                attributedInput, AttributedMemberOutcomeFingerprintEncoder.fingerprint(attributedInput));
+        AttributedMemberOutcomeComposerV1.Composition composition;
+        try{var c=AttributedMemberOutcomeComposerV1.Composition.class.getDeclaredConstructors()[0];c.setAccessible(true);
+            composition=(AttributedMemberOutcomeComposerV1.Composition)c.newInstance(attributedInput,
+                    AttributedMemberOutcomeFingerprintEncoder.fingerprint(attributedInput));
+        }catch(ReflectiveOperationException exception){throw new AssertionError(exception);}
+        var output = SemanticProvenanceOutputReference.verified(composition);
         var provenance = SemanticProvenanceAttestation.deriveAttributedMemberOutcome(output);
         var outcome = new RepositoryDerivationReportFingerprintInput.AttributedMemberRetained(
                 parent, authority, output);

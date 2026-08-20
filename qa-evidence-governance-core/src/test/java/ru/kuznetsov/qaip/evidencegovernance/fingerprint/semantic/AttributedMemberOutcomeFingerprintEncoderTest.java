@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -89,7 +90,7 @@ class AttributedMemberOutcomeFingerprintEncoderTest {
         assertThrows(IllegalArgumentException.class, () -> input(
                 AttributedMemberOutcomeFingerprintInput.StructuralAdmissionState.STRUCTURALLY_ADMITTED,
                 List.of(REQUIRED_AUTHORITY), Optional.of(occurrence()), Optional.of(MANIFEST), Optional.empty()));
-        assertThrows(IllegalArgumentException.class, () -> input(
+        assertDoesNotThrow(() -> input(
                 AttributedMemberOutcomeFingerprintInput.StructuralAdmissionState.STRUCTURALLY_ADMITTED,
                 List.of(), Optional.of(occurrence()), Optional.empty(), Optional.empty()));
         assertThrows(IllegalArgumentException.class, () -> input(

@@ -54,7 +54,7 @@ public final class AttributedMemberOutcomeFingerprintEncoder {
                 .toByteArray();
     }
 
-    public static AttributedMemberOutcomeFingerprint fingerprint(
+    static AttributedMemberOutcomeFingerprint fingerprint(
             AttributedMemberOutcomeFingerprintInput input
     ) {
         return new AttributedMemberOutcomeFingerprint(

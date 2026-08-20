@@ -68,7 +68,7 @@ class ManifestSemanticOutcomeMapperV1Test {
   assertTrue(mapper.contains("AdmittedManifestVerificationRequestV1.selectedV1Identifiers()"));
  }
 
- private static ScenarioAuthorityNormalizedProcessingV1 handoff(String snapshot,String name,String authority,String...keys){
+ static ScenarioAuthorityNormalizedProcessingV1 handoff(String snapshot,String name,String authority,String...keys){
   String scenarios=String.join(",",Arrays.stream(keys).map(ManifestSemanticOutcomeMapperV1Test::scenario).toList());String json="{\"format\":\"qaip-scenario-authority-manifest-v1\",\"schemaVersion\":\"1.0\",\"authority\":\""+authority+"\",\"scenarioIdentityScheme\":\"qaip-scenario-identity-v1\",\"scenarios\":["+scenarios+"]}";
   byte[] bytes=json.getBytes(StandardCharsets.UTF_8);var member=new ScenarioManifestStableCaptureResult.CapturedMember(".qaip/scenarios/"+name+".scenario.json",bytes,bytes.length,RawSourceMemberFingerprint.calculate(bytes));
   var capture=new ScenarioManifestStableCaptureResult.Completed(List.of(member),List.of(),RepositoryCaptureFingerprintEncoder.MUTATION_DETECTION_VERSION);

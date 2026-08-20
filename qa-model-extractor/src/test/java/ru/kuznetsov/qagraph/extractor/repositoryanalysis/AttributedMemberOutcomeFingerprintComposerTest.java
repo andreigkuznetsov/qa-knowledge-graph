@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import ru.kuznetsov.qaip.evidencegovernance.diagnostic.ScenarioSchemaDiagnostic;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.RawSourceMemberFingerprint;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.RepositoryCaptureFingerprint;
-import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.ManifestSemanticFingerprint;
+import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.*;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,23 +23,14 @@ class AttributedMemberOutcomeFingerprintComposerTest {
             "repository:orders", "capture:17", CAPTURE,
             ".qaip/scenarios/orders.scenario.json", 321,
             new RawSourceMemberFingerprint(RawSourceMemberFingerprint.VALUE_PREFIX + "b".repeat(64)));
-    private static final ManifestSemanticFingerprint MANIFEST = new ManifestSemanticFingerprint(
-            ManifestSemanticFingerprint.VALUE_PREFIX + "c".repeat(64));
-
     @Test
-    void mapsAdr014OutcomeWithoutDependingOnParsedJson() {
-        var firstJson = JsonNodeFactory.instance.objectNode().put("presentation", "one");
-        var secondJson = JsonNodeFactory.instance.objectNode().put("presentation", "two");
-        var occurrence = Optional.of(new ScenarioSourceNormalizedRecords.ManifestOccurrenceIdentity(
-                PARENT.parentSourceId(), PARENT.parentSnapshotId(), PARENT.parentContentFingerprint(),
-                PARENT.normalizedRepositoryRelativePath(),
-                ScenarioSourceNormalizedRecords.MANIFEST_OCCURRENCE_IDENTITY_VERSION));
-
-        assertEquals(
-                AttributedMemberOutcomeFingerprintComposer.fingerprint(
-                        admitted(firstJson), occurrence, Optional.of(MANIFEST)),
-                AttributedMemberOutcomeFingerprintComposer.fingerprint(
-                        admitted(secondJson), occurrence, Optional.of(MANIFEST)));
+    void admittedCompositionConsumesOnlyAuthoritativeManifestOutcome() {
+        var handoff=ManifestSemanticOutcomeMapperV1Test.handoff("capture:amo","amo","orders","A");
+        var manifest=(ScenarioSourceNormalizedRecords.NormalizedManifestDatum)handoff.normalizationResult().memberOutcomes().getFirst();
+        var outcome=new ManifestSemanticOutcomeMapperV1().attempt(handoff,manifest);
+        var composition=AttributedMemberOutcomeFingerprintComposer.fingerprintAdmitted(outcome);
+        assertEquals(Optional.of(((ManifestSemanticCompositionOutcomeV1.Composed)outcome).fingerprint()),
+                composition.input().manifestSemanticFingerprint());
     }
 
     @Test
@@ -51,13 +42,11 @@ class AttributedMemberOutcomeFingerprintComposerTest {
                 AttributedMemberSchemaAdmissionOutcome.StructuralAdmissionState.STRUCTURALLY_REJECTED,
                 List.of(diagnostic), JsonNodeFactory.instance.objectNode());
 
-        assertEquals(AttributedMemberOutcomeFingerprintComposer.fingerprint(
-                        rejected, Optional.empty(), Optional.empty()),
-                AttributedMemberOutcomeFingerprintComposer.fingerprint(
-                        rejected, Optional.empty(), Optional.empty()));
+        var first=AttributedMemberOutcomeFingerprintComposer.fingerprintRejected(rejected);
+        var second=AttributedMemberOutcomeFingerprintComposer.fingerprintRejected(rejected);
+        assertEquals(first.input(),second.input());assertEquals(first.fingerprint(),second.fingerprint());
         assertThrows(IllegalArgumentException.class, () ->
-                AttributedMemberOutcomeFingerprintComposer.fingerprint(
-                        rejected, Optional.empty(), Optional.of(MANIFEST)));
+                AttributedMemberOutcomeFingerprintComposer.fingerprintRejected(admitted(JsonNodeFactory.instance.objectNode())));
     }
 
     private static AttributedMemberSchemaAdmissionOutcome admitted(com.fasterxml.jackson.databind.JsonNode json) {
