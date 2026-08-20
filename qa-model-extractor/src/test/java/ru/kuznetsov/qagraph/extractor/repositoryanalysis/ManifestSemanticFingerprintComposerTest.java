@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.RawSourceMemberFingerprint;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.RepositoryCaptureFingerprintEncoder;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.ManifestSemanticFingerprintEncoder;
+import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.ManifestSemanticCompositionOutcomeV1;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
@@ -33,6 +34,25 @@ class ManifestSemanticFingerprintComposerTest {
                 result.fingerprint());
         assertEquals(attestations.stream().map(NormalizedScenarioSemanticAttestation::fingerprint).toList(),
                 result.acceptedInput().scenarioSemanticFingerprints());
+    }
+
+    @Test
+    void authoritativeOutcomeMapperUsesVerifiedHandoffAndEvidenceGovernanceAttempt() {
+        ScenarioAuthorityNormalizedProcessingV1 handoff = handoff("mapped", "orders", "A", "B");
+        NormalizedManifestDatum manifest = (NormalizedManifestDatum) handoff.normalizationResult()
+                .memberOutcomes().getFirst();
+
+        ManifestSemanticCompositionOutcomeV1.Composed outcome = assertInstanceOf(
+                ManifestSemanticCompositionOutcomeV1.Composed.class,
+                new ManifestSemanticOutcomeMapperV1().attempt(handoff, manifest));
+
+        assertEquals(2, outcome.childOutcomes().size());
+        assertEquals(outcome.fingerprint(), ManifestSemanticFingerprintEncoder.fingerprint(
+                new ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.ManifestSemanticFingerprintInput(
+                        ManifestSemanticFingerprintEncoder.ENCODING_IDENTIFIER, manifest.claimedAuthority(),
+                        manifest.format(), manifest.schemaVersion(), manifest.scenarioIdentityScheme(),
+                        ManifestSemanticFingerprintEncoder.SOURCE_NORMALIZATION_VERSION,
+                        outcome.scenarioFingerprints())));
     }
 
     @Test
@@ -139,6 +159,28 @@ class ManifestSemanticFingerprintComposerTest {
         var admitted = new ScenarioLogicalSourceSchemaAdmission().admit(processed);
         return (NormalizedManifestDatum) new ScenarioSourceDeclarationNormalizer()
                 .normalize(admitted).memberOutcomes().getFirst();
+    }
+
+    private static ScenarioAuthorityNormalizedProcessingV1 handoff(
+            String memberName, String authority, String... keys) {
+        String scenarios = String.join(",", java.util.Arrays.stream(keys)
+                .map(ManifestSemanticFingerprintComposerTest::scenario).toList());
+        String json = "{\"format\":\"qaip-scenario-authority-manifest-v1\",\"schemaVersion\":\"1.0\","
+                + "\"authority\":\"" + authority + "\",\"scenarioIdentityScheme\":"
+                + "\"qaip-scenario-identity-v1\",\"scenarios\":[" + scenarios + "]}";
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        var member = new ScenarioManifestStableCaptureResult.CapturedMember(
+                ".qaip/scenarios/" + memberName + ".scenario.json", bytes, bytes.length,
+                RawSourceMemberFingerprint.calculate(bytes));
+        var capture = new ScenarioManifestStableCaptureResult.Completed(
+                List.of(member), List.of(), RepositoryCaptureFingerprintEncoder.MUTATION_DETECTION_VERSION);
+        var candidate = ScenarioRepositoryCaptureSnapshotCandidate.create(capture, "repository:test", "capture:21",
+                CONTRACT, ScenarioRepositoryCaptureSnapshotCandidate.CaptureProvenance.empty());
+        var normalization = new ScenarioSourceDeclarationNormalizer().normalize(
+                new ScenarioLogicalSourceSchemaAdmission().admit(
+                        new ScenarioLogicalSourceMemberProcessor().process(candidate)));
+        return ScenarioAuthorityNormalizedProcessingV1.verified(candidate, normalization,
+                ScenarioAuthorityNormalizedProcessingV1.ContractIdentifiers.selectedV1());
     }
 
     private static String scenario(String key) {

@@ -1,5 +1,6 @@
 package ru.kuznetsov.qagraph.extractor.repositoryanalysis;
 
+import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.ManifestSemanticFingerprintComposerV1;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.ManifestSemanticFingerprintEncoder;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.ManifestSemanticFingerprintInput;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.semantic.ScenarioSemanticFingerprint;
@@ -55,7 +56,7 @@ public final class ManifestSemanticFingerprintComposer {
                 ManifestSemanticFingerprintEncoder.SOURCE_NORMALIZATION_VERSION,
                 fingerprints);
         return new ManifestSemanticCompositionResult(
-                accepted, ManifestSemanticFingerprintEncoder.fingerprint(accepted));
+                accepted, ManifestSemanticFingerprintComposerV1.fingerprintAcceptedInput(accepted));
     }
 
     private static void requireStructurallyAdmitted(NormalizedManifestDatum manifest) {
