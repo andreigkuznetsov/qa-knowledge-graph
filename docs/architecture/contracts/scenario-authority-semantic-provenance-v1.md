@@ -272,9 +272,10 @@ Parents are sequence-semantic in this exact order:
 2. completed `SCENARIO_SEMANTIC_CONTENT` outputs in exact authored Manifest
    order.
 
-An `ATTRIBUTED_MEMBER_OUTCOME` parent is forbidden because an admitted
-`AttributedMemberOutcomeFingerprint` already contains the Manifest semantic
-fingerprint. Every Scenario parent must correspond to exactly one declaration
+An `ATTRIBUTED_MEMBER_OUTCOME` parent is forbidden. An admitted
+`AttributedMemberOutcomeFingerprint` contains the Manifest semantic fingerprint
+exactly when its authoritative Manifest semantic composition outcome is
+`COMPOSED`. Every Scenario parent must correspond to exactly one declaration
 occurrence in the normalized Manifest input.
 
 The captured-member-to-admitted-Manifest link remains exclusively downstream:
@@ -323,14 +324,23 @@ normalized Manifest input binding
     + completed Scenario fingerprints in authored Manifest order
     -> ManifestSemanticFingerprint
     -> COMPOSE_MANIFEST_SEMANTIC_CONTENT provenance
+    -> admitted/COMPOSED AttributedMemberOutcomeFingerprint
 
-ManifestSemanticFingerprint
-    -> AttributedMemberOutcomeFingerprint
+normalized Manifest input binding
+    + authoritative child Scenario composition outcomes
+    -> Manifest semantic outcome UNAVAILABLE
+    -> admitted/UNAVAILABLE AttributedMemberOutcomeFingerprint
+       (no ManifestSemanticFingerprint;
+        no COMPOSE_MANIFEST_SEMANTIC_CONTENT provenance)
 ```
 
-The last arrow is the existing admitted-member dependency and is not a parent
-of Manifest provenance. `DERIVE_ATTRIBUTED_MEMBER_OUTCOME` remains exactly the
-single-`CAPTURED_MEMBER` activity defined above.
+The successful branch retains the existing admitted-member dependency;
+`AttributedMemberOutcomeFingerprint` is not a parent of Manifest provenance.
+For admitted Manifest `UNAVAILABLE`, the attributed-member fingerprint contains
+no Manifest semantic fingerprint and no `COMPOSE_MANIFEST_SEMANTIC_CONTENT`
+provenance exists. This does not invalidate the attributed-member outcome and
+does not create provenance for unavailability. `DERIVE_ATTRIBUTED_MEMBER_OUTCOME`
+remains exactly the single-`CAPTURED_MEMBER` activity defined above.
 
 ## Authoritative top-level field order
 

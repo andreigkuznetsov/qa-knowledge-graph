@@ -572,6 +572,13 @@ newly admitted combination receives deterministic bytes through that existing
 optional encoding. The parent reference binds rejected content to exact
 captured bytes without treating the raw digest as a semantic digest.
 
+The authoritative Manifest composition outcome is proof-bearing validation
+input for constructing an admitted attributed-member fingerprint. It is not a
+new canonical attributed-outcome field. Evidence Governance verifies that
+outcome before constructing the canonical input above: the Manifest occurrence
+identity is canonical, and the existing optional Manifest fingerprint is
+present exactly for `COMPOSED` and absent exactly for `UNAVAILABLE`.
+
 Parsed JSON trees, generic serialized JSON, human messages, validator metadata,
 and qualification results are excluded.
 
@@ -748,12 +755,12 @@ After the common prefix, encode in this exact order:
 8. attributed-member count and outcome fingerprint references in exact parent
    member order for members attributed to this exact authority;
 9. structurally admitted Manifest occurrence count and, in normalized
-   member-path order, each exact Manifest occurrence identity plus its
-   authoritative `ManifestSemanticCompositionOutcomeV1`; a `COMPOSED` entry
-   includes its Manifest semantic fingerprint reference, while an `UNAVAILABLE`
-   entry includes no Manifest semantic fingerprint reference; rejected
-   attributed members remain represented by item 8 and do not fabricate a
-   normalized Manifest occurrence or Manifest semantic composition outcome;
+   member-path order, each canonical Manifest evidence entry containing exactly:
+   the exact Manifest occurrence identity, Manifest semantic availability state,
+   explicit optional Manifest semantic fingerprint reference, and explicit
+   optional Manifest unavailable reason; rejected attributed members remain
+   represented by item 8 and do not fabricate a normalized Manifest occurrence
+   or Manifest semantic composition outcome;
 10. Scenario identity-group count and group fingerprint references in exact
     claimed-identity order;
 11. normalized datum count and each datum kind, datum identity, and semantic
@@ -775,6 +782,25 @@ outcome. A normalized `MANIFEST` datum appears in item 11 only for `COMPOSED`.
 For `UNAVAILABLE`, no normalized `MANIFEST` datum or Manifest semantic
 fingerprint is published, but the Manifest occurrence/outcome remains direct
 evidence. Scenario identity-group evidence is retained independently.
+
+The Manifest evidence-entry invariants are exact:
+
+- `COMPOSED` means state `COMPOSED`, present Manifest semantic fingerprint, and
+  absent unavailable reason.
+- `UNAVAILABLE` means state `UNAVAILABLE`, absent Manifest semantic fingerprint,
+  and present unavailable reason exactly
+  `SCENARIO_SEMANTIC_CONTENT_UNAVAILABLE`.
+
+Both optionals present, both absent, or either optional inconsistent with the
+state is an aggregate-integrity failure. The complete proof-bearing
+`ManifestSemanticCompositionOutcomeV1` is verified during construction but is
+not serialized verbatim into Logical V2 canonical bytes. Its normalized
+Manifest object, complete child Scenario composition outcomes, leaf
+attestations, recomputation intermediates, and human or debug diagnostics are
+proof-only validation inputs and do not enter Logical V2 canonical bytes
+through the Manifest entry. They may contribute independently through another
+already-approved direct Logical V2 member where that member's contract requires
+them.
 
 The snapshot identity remains exactly:
 
@@ -842,11 +868,18 @@ or logical semantic fingerprints.
 ```text
 Step fingerprints -----------+
 Operation-reference fp ------+--> Scenario semantic fingerprint
-Business Rule-reference fps -+             |
-                                            +--> Manifest semantic composition outcome
-                                                       |
-                                                       +--> Manifest semantic fingerprint
-                                            |
+Business Rule-reference fps -+
+
+Authoritative Scenario occurrence composition outcomes
+  + exact normalized Manifest --------------------------> Manifest semantic composition outcome
+                                                            | COMPOSED for every authored child
+                                                            + ordered Scenario semantic fps
+                                                            +--> Manifest semantic fingerprint
+                                                            |
+                                                            | at least one authoritative UNAVAILABLE
+                                                            +--> Manifest UNAVAILABLE
+                                                                 + no Manifest semantic fingerprint
+
 Parent member ref + stable outcomes --------+--> Attributed-member outcome fp
 
 Completed child datum/outcome fingerprint
@@ -1031,13 +1064,24 @@ structurally-admitted, Manifest-unavailable combination receives deterministic
 bytes using the already defined optional encoding. No existing semantic
 fingerprint domain requires a version change.
 
-This amendment requires four follow-up deliverables before the corrected path
+Logical V2 has no production fingerprints, so its corrected canonical Manifest
+entry requires no migration or compatibility version. The Manifest semantic
+fingerprint itself remains available only after all authored Scenario outcomes
+are `COMPOSED`; its canonical input remains exactly the authored-order sequence
+of complete Scenario semantic fingerprints. No unavailable marker or partial
+child content enters that fingerprint domain.
+
+This amendment requires five follow-up deliverables before the corrected path
 is implemented and gated:
 
 1. a subordinate Manifest semantic-outcome V1 contract;
-2. the corresponding Attributed Member Outcome invariant correction;
-3. a Logical V2 subordinate-contract correction; and
-4. the production Manifest composition-attempt implementation and capability
+2. the corresponding Attributed Member Outcome invariant and construction
+   correction;
+3. a Logical V2 subordinate-contract correction;
+4. a Semantic Provenance V1 wording and DAG compatibility correction, satisfied
+   by the accompanying documentation correction, which introduces no new
+   provenance activity, fingerprint version, or byte change; and
+5. the production Manifest composition-attempt implementation and capability
    gate.
 
 ## Rejected alternatives
