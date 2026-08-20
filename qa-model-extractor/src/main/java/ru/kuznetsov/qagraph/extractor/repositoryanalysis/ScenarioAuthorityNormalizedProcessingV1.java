@@ -10,12 +10,13 @@ public final class ScenarioAuthorityNormalizedProcessingV1 {
     private final RepositoryCaptureAttestation captureAttestation;
     private final ContractIdentifiers contracts;
     private final List<OccurrenceBinding> occurrences;
+    private final List<ScenarioManifestStableCaptureResult.CapturedMember> capturedMembers;
 
     private ScenarioAuthorityNormalizedProcessingV1(ScenarioSourceNormalizationResult normalization,
             RepositoryCaptureAttestation captureAttestation, ContractIdentifiers contracts,
-            List<OccurrenceBinding> occurrences) {
+            List<OccurrenceBinding> occurrences, List<ScenarioManifestStableCaptureResult.CapturedMember> capturedMembers) {
         this.normalization=normalization; this.captureAttestation=captureAttestation;
-        this.contracts=contracts; this.occurrences=occurrences;
+        this.contracts=contracts; this.occurrences=occurrences;this.capturedMembers=List.copyOf(capturedMembers);
     }
 
     public static ScenarioAuthorityNormalizedProcessingV1 verified(
@@ -41,13 +42,25 @@ public final class ScenarioAuthorityNormalizedProcessingV1 {
             var p=outcome.parentMemberRef(); var ref=reference(p);
             if(!refs.contains(ref)) throw new IllegalArgumentException("normalized member is not in the verified capture");
         }
-        return new ScenarioAuthorityNormalizedProcessingV1(normalization,attestation,contracts,List.copyOf(exact));
+        return new ScenarioAuthorityNormalizedProcessingV1(normalization,attestation,contracts,List.copyOf(exact),parent.members());
     }
 
     public ScenarioSourceNormalizationResult normalizationResult(){return normalization;}
     public RepositoryCaptureAttestation captureAttestation(){return captureAttestation;}
     public ContractIdentifiers contracts(){return contracts;}
     public List<OccurrenceBinding> occurrences(){return occurrences;}
+    /** Defensive exact-byte handoff from the completed stable capture for one fully corresponding member. */
+    public byte[] exactCapturedBytes(ParentCapturedMemberRef selected){
+        Objects.requireNonNull(selected);var expected=reference(selected);
+        int index=captureAttestation.regularMembers().indexOf(expected);
+        if(index<0)throw new IllegalArgumentException("selected member is not capture-attested");
+        var captured=capturedMembers.get(index);
+        if(!captured.repositoryRelativePath().equals(selected.normalizedRepositoryRelativePath())
+                ||captured.rawByteLength()!=selected.rawByteLength()
+                ||!captured.rawMemberFingerprint().equals(selected.rawMemberFingerprint()))
+            throw new IllegalArgumentException("selected member has no exact capture-owned bytes");
+        return captured.bytes();
+    }
 
     public record OccurrenceBinding(ParentCapturedMemberRef parentMemberRef,
             NormalizedScenarioDeclarationOccurrence declaration) {

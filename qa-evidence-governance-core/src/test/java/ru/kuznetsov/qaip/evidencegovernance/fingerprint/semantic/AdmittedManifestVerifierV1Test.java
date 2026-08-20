@@ -169,13 +169,12 @@ class AdmittedManifestVerifierV1Test {
                 f.capture.fingerprintInput(),f.capture.contentFingerprint(),f.capture.regularMembers(),f.capture.unsupportedMatchingEntries());
         assertNotSame(f.capture,equivalent);
         var child=withCapture(proof.authoredScenarios().getFirst(),equivalent);
-        assertDoesNotThrow(()->VerifiedAdmittedManifestV1.fromAuthoritativeSource(proof.capture(),proof.parentMember(),
-                proof.occurrenceIdentity(),proof.claimedAuthority(),proof.authoritativeAdmissionResult(),proof.exactNormalizedManifest(),
-                proof.format(),proof.schemaVersion(),proof.scenarioIdentityScheme(),proof.sourceContractIdentifiers(),List.of(child)));
+        assertDoesNotThrow(()->VerifiedAdmittedManifestV1.fromVerifier(proof.capture(),proof.parentMember(),
+                proof.occurrenceIdentity(),proof.parserProof(),proof.attributionProof(),proof.normalizedManifest(),
+                proof.sourceContractIdentifiers(),List.of(child)));
         Fixture changed=fixture(manifest(scenario("other","Other")));
-        assertThrows(IllegalArgumentException.class,()->VerifiedAdmittedManifestV1.fromAuthoritativeSource(proof.capture(),proof.parentMember(),
-                proof.occurrenceIdentity(),proof.claimedAuthority(),proof.authoritativeAdmissionResult(),proof.exactNormalizedManifest(),
-                proof.format(),proof.schemaVersion(),proof.scenarioIdentityScheme(),proof.sourceContractIdentifiers(),
+        assertThrows(IllegalArgumentException.class,()->VerifiedAdmittedManifestV1.fromVerifier(proof.capture(),proof.parentMember(),
+                proof.occurrenceIdentity(),proof.parserProof(),proof.attributionProof(),proof.normalizedManifest(),proof.sourceContractIdentifiers(),
                 List.of(withCapture(proof.authoredScenarios().getFirst(),changed.capture))));
     }
 
@@ -188,9 +187,8 @@ class AdmittedManifestVerifierV1Test {
         Path root=repositoryRoot();String verifierSource=Files.readString(root.resolve(
                 "qa-evidence-governance-core/src/main/java/ru/kuznetsov/qaip/evidencegovernance/fingerprint/semantic/AdmittedManifestVerifierV1.java"));
         assertTrue(verifierSource.contains("VerifiedAdmittedManifestV1.fromVerifier("));
-        String bridge=Files.readString(root.resolve(
-                "qa-model-extractor/src/main/java/ru/kuznetsov/qaip/evidencegovernance/fingerprint/semantic/VerifiedAdmittedManifestSourceBridgeV1.java"));
-        assertFalse(bridge.contains("fromVerifier("));assertTrue(bridge.contains("fromAuthoritativeSource("));
+        assertFalse(Files.exists(root.resolve(
+                "qa-model-extractor/src/main/java/ru/kuznetsov/qaip/evidencegovernance/fingerprint/semantic/VerifiedAdmittedManifestSourceBridgeV1.java")));
     }
 
     private static NormalizedScenarioOccurrenceInputV1 withCapture(NormalizedScenarioOccurrenceInputV1 x,RepositoryCaptureAttestation capture){
