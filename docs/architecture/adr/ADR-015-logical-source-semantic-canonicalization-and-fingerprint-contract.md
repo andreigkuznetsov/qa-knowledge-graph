@@ -871,14 +871,25 @@ Operation-reference fp ------+--> Scenario semantic fingerprint
 Business Rule-reference fps -+
 
 Authoritative Scenario occurrence composition outcomes
-  + exact normalized Manifest --------------------------> Manifest semantic composition outcome
-                                                            | COMPOSED for every authored child
-                                                            + ordered Scenario semantic fps
-                                                            +--> Manifest semantic fingerprint
-                                                            |
-                                                            | at least one authoritative UNAVAILABLE
-                                                            +--> Manifest UNAVAILABLE
-                                                                 + no Manifest semantic fingerprint
+  |
+  +-- all authored outcomes COMPOSED
+  |     + ordered authoritative Scenario semantic fingerprints
+  |     + exact normalized Manifest
+  |         |
+  |         +--> Manifest semantic fingerprint
+  |                  |
+  |                  +--> Manifest semantic composition outcome COMPOSED
+  |                            |
+  |                            +--> admitted/COMPOSED attributed-member outcome fp
+  |
+  +-- at least one authoritative outcome UNAVAILABLE
+        + exact normalized Manifest
+            |
+            +--> Manifest semantic composition outcome UNAVAILABLE
+                     |
+                     +--> no Manifest semantic fingerprint
+                     |
+                     +--> admitted/UNAVAILABLE attributed-member outcome fp
 
 Parent member ref + stable outcomes --------+--> Attributed-member outcome fp
 
@@ -902,12 +913,16 @@ Repository Derivation Report fp ----------------> optional later external envelo
 Logical Source Snapshot V2 fp ------------------> optional later external envelope
 ```
 
-Every arrow points from an already-completed fingerprint toward a later
-fingerprint. No provenance arrow points backward from a child to an aggregate
-that contains it. An aggregate embeds fingerprint references rather than
-reimplementing a child's canonical field serialization. Aggregate-level
-provenance, when present, is downstream in an external non-cyclic envelope and
-cannot alter the completed aggregate fingerprint.
+Every dependency edge points from already-established authoritative input or
+evidence to a value that depends on it. Dependencies may originate from
+normalized authoritative input, authoritative composition outcomes, completed
+semantic fingerprints, or other already-established proof-bearing evidence. No
+dependency may point from a value to one of its own required inputs. No
+provenance arrow points backward from a child to an aggregate that contains it.
+An aggregate embeds fingerprint references rather than reimplementing a child's
+canonical field serialization. Aggregate-level provenance, when present, is
+downstream in an external non-cyclic envelope and cannot alter the completed
+aggregate fingerprint.
 
 ## Golden vectors
 
