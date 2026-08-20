@@ -72,9 +72,14 @@ class ScenarioSchemaDiagnosticAdapterV1Test {
         assertFalse(source.contains("com.networknt"));
         assertFalse(source.contains("ValidationMessage"));
         assertFalse(source.contains("signal.message()"));
-        assertTrue(source.contains("validator.validationSignals(document)"));
-        assertTrue(source.contains("private List<ScenarioSchemaDiagnostic> mapValidationSignals"));
-        assertTrue(source.contains("private List<ScenarioSchemaDiagnostic> map("));
+        assertTrue(source.contains("ScenarioAuthoritySchemaDiagnosticMapperV1"));
+        assertTrue(source.contains("delegate.validate(document)"));
+        Path authorityPath = repositoryRoot().resolve(
+                "qa-evidence-governance-core/src/main/java/ru/kuznetsov/qaip/evidencegovernance/diagnostic/ScenarioAuthoritySchemaDiagnosticMapperV1.java");
+        String authority = Files.readString(authorityPath);
+        assertTrue(authority.contains("validator.validate("));
+        assertTrue(authority.contains("private List<ScenarioSchemaDiagnostic> mapValidationSignals"));
+        assertTrue(authority.contains("private List<ScenarioSchemaDiagnostic> map("));
     }
 
     private static ObjectNode validManifest() {
