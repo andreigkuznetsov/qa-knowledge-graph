@@ -1,8 +1,6 @@
 package ru.kuznetsov.qagraph.extractor.repositoryanalysis;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.networknt.schema.JsonNodePath;
-import com.networknt.schema.ValidationMessage;
 import ru.kuznetsov.qaip.evidencegovernance.diagnostic.ScenarioSchemaDiagnostic;
 import ru.kuznetsov.qagraph.validationcore.scenarioauthority.ScenarioAuthorityManifestSchemaValidationV1;
 
@@ -59,7 +57,7 @@ public final class ScenarioSchemaDiagnosticAdapterV1 {
         }
     }
 
-    List<ScenarioSchemaDiagnostic> mapValidationSignals(
+    private List<ScenarioSchemaDiagnostic> mapValidationSignals(
             JsonNode document,
             List<ScenarioAuthorityManifestSchemaValidationV1.Signal> messages
     ) {
@@ -75,25 +73,7 @@ public final class ScenarioSchemaDiagnosticAdapterV1 {
         }
     }
 
-    List<ScenarioSchemaDiagnostic> mapValidationMessages(
-            JsonNode document,
-            List<ValidationMessage> messages
-    ) {
-        if (document == null) fail("validated document is missing");
-        if (messages == null) fail("validation messages are missing");
-        try {
-            List<ValidationSignal> signals = new ArrayList<>(messages.size());
-            for (ValidationMessage message : messages) signals.add(signal(message));
-            return map(document, signals);
-        } catch (ScenarioSchemaDiagnosticMappingException exception) {
-            throw exception;
-        } catch (RuntimeException exception) {
-            throw new ScenarioSchemaDiagnosticMappingException(
-                    "validator output is malformed or unusable", exception);
-        }
-    }
-
-    List<ScenarioSchemaDiagnostic> map(JsonNode document, List<ValidationSignal> signals) {
+    private List<ScenarioSchemaDiagnostic> map(JsonNode document, List<ValidationSignal> signals) {
         if (document == null) fail("validated document is missing");
         if (signals == null) fail("validation signals are missing");
         for (ValidationSignal signal : signals) {
@@ -114,20 +94,6 @@ public final class ScenarioSchemaDiagnosticAdapterV1 {
             consolidated.addAll(mapped);
         }
         return consolidated.stream().sorted(ScenarioSchemaDiagnostic.canonicalOrder()).toList();
-    }
-
-    static int ruleCount() {
-        return RULE_BY_POINTER.size();
-    }
-
-    private static ValidationSignal signal(ValidationMessage message) {
-        if (message == null) fail("validation message is missing");
-        String keyword = message.getType();
-        if (keyword == null || keyword.isBlank()) fail("validator keyword is missing");
-        if (message.getSchemaLocation() == null) fail("validator schema location is missing");
-        String schemaPointer = pathPointer(message.getSchemaLocation().getFragment());
-        String instancePointer = pathPointer(message.getInstanceLocation());
-        return new ValidationSignal(keyword, schemaPointer, instancePointer);
     }
 
     private static ValidationSignal signal(ScenarioAuthorityManifestSchemaValidationV1.Signal signal) {
@@ -338,16 +304,6 @@ public final class ScenarioSchemaDiagnosticAdapterV1 {
             }
         }
         return decoded.toString();
-    }
-
-    private static String pathPointer(JsonNodePath path) {
-        if (path == null) fail("validator path is missing");
-        StringBuilder pointer = new StringBuilder();
-        for (int index = 0; index < path.getNameCount(); index++) {
-            String token = String.valueOf(path.getElement(index));
-            pointer.append('/').append(token.replace("~", "~0").replace("/", "~1"));
-        }
-        return pointer.toString();
     }
 
     private static Map<String, Rule> rulesByPointer() {

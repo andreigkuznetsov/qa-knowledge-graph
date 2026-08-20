@@ -37,8 +37,6 @@ class ScenarioSchemaDiagnosticNetworkntConformanceTest {
         assertEquals(36, cases.size());
         assertEquals(36, cases.stream().map(value -> value.expected().schemaRuleIdentifier())
                 .distinct().count());
-        assertEquals(36, ScenarioSchemaDiagnosticAdapterV1.ruleCount());
-
         return cases.stream().map(value -> DynamicTest.dynamicTest(
                 value.expected().schemaRuleIdentifier(), () -> {
                     List<ScenarioSchemaDiagnostic> actual = adapter.validate(value.document());
