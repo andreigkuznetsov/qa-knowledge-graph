@@ -64,14 +64,6 @@ class ManifestSemanticFingerprintEncoderTest {
                 fingerprint(input(List.of(SCENARIO_B, SCENARIO_A))).value());
         assertNotEquals(fingerprint(input(List.of(SCENARIO_A, SCENARIO_B))),
                 fingerprint(input(List.of(SCENARIO_B, SCENARIO_A))));
-        assertEquals(fingerprint(input(List.of(SCENARIO_A))),
-                ManifestSemanticFingerprintComposerV1.fingerprintAcceptedInput(input(List.of(SCENARIO_A))));
-        assertEquals(fingerprint(input(List.of(SCENARIO_A, SCENARIO_B))),
-                ManifestSemanticFingerprintComposerV1.fingerprintAcceptedInput(
-                        input(List.of(SCENARIO_A, SCENARIO_B))));
-        assertEquals(fingerprint(input(List.of(SCENARIO_B, SCENARIO_A))),
-                ManifestSemanticFingerprintComposerV1.fingerprintAcceptedInput(
-                        input(List.of(SCENARIO_B, SCENARIO_A))));
     }
 
     @Test

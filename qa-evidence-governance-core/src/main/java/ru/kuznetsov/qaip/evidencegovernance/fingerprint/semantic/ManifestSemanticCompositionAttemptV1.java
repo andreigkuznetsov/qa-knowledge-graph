@@ -17,7 +17,6 @@ public final class ManifestSemanticCompositionAttemptV1 {
     }
     private static void validateAdmission(NormalizedManifestSemanticCompositionInputV1 input){
         if(input==null)throw new NullPointerException("input");var m=input.manifest();
-        if(!m.admissionProof().structurallyAdmitted())throw new ManifestCompositionRejectionV1(ManifestCompositionRejectionV1.Code.STRUCTURALLY_UNADMITTED_MANIFEST);
         if(!m.capture().regularMembers().contains(m.parentMember()))throw new IllegalArgumentException("Manifest parent is not capture-attested");
     }
     private static void validateSupport(NormalizedManifestSemanticCompositionInputV1 i){

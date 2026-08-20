@@ -40,7 +40,7 @@ public final class ManifestSemanticFingerprintEncoder {
                 .toByteArray();
     }
 
-    public static ManifestSemanticFingerprint fingerprint(ManifestSemanticFingerprintInput input) {
+    static ManifestSemanticFingerprint fingerprint(ManifestSemanticFingerprintInput input) {
         return new ManifestSemanticFingerprint(ManifestSemanticFingerprint.VALUE_PREFIX
                 + CanonicalSha256.lowercaseHexDigest(encode(input)));
     }

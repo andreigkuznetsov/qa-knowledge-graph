@@ -40,9 +40,13 @@ class ManifestSemanticCompositionAttemptV1Test {
         var m=verified(f,List.of(a,b));var oa=attemptChild(a);var ob=attemptChild(b);
         assertCode(ManifestCompositionRejectionV1.Code.SCENARIO_COUNT_MISMATCH,()->attempt(m,List.of(oa)));
         assertCode(ManifestCompositionRejectionV1.Code.SCENARIO_COUNT_MISMATCH,()->attempt(m,List.of(oa,ob,oa)));
+        assertCode(ManifestCompositionRejectionV1.Code.SCENARIO_DECLARATION_SUBSTITUTION,()->attempt(m,List.of(oa,oa)));
         assertCode(ManifestCompositionRejectionV1.Code.SCENARIO_DECLARATION_SUBSTITUTION,()->attempt(m,List.of(ob,oa)));
         var foreign=ScenarioIdentityGroupComposerV1Test.input(f,"b.json",0,"x");
         assertCode(ManifestCompositionRejectionV1.Code.SCENARIO_DECLARATION_SUBSTITUTION,()->attempt(m,List.of(attemptChild(foreign),ob)));
+        var otherFixture=ScenarioIdentityGroupComposerV1Test.fixture("a.json");
+        var crossCapture=ScenarioIdentityGroupComposerV1Test.input(otherFixture,"a.json",0,"x");
+        assertCode(ManifestCompositionRejectionV1.Code.SCENARIO_DECLARATION_SUBSTITUTION,()->attempt(m,List.of(attemptChild(crossCapture),ob)));
     }
 
     @Test void revalidationRejectsFabricatedComposedUnavailableAndFingerprintSubstitution(){
@@ -57,7 +61,9 @@ class ManifestSemanticCompositionAttemptV1Test {
     }
 
     @Test void finiteComposerTaxonomyAndUnsupportedInputDoNotBecomeUnavailable(){
-        assertEquals(9,ManifestCompositionRejectionV1.Code.values().length);
+        assertEquals(3,ManifestCompositionRejectionV1.Code.values().length);
+        assertEquals(9,ManifestCompositionRejectionV1.HistoricalCode.values().length);
+        assertEquals(9,Arrays.stream(ManifestCompositionRejectionV1.HistoricalCode.values()).map(ManifestCompositionRejectionV1::disposition).count());
         assertTrue(Arrays.stream(ManifestCompositionRejectionV1.Code.values()).noneMatch(x->x.name().contains("OTHER")||x.name().contains("UNKNOWN")));
         var f=ScenarioIdentityGroupComposerV1Test.fixture("a.json");var a=ScenarioIdentityGroupComposerV1Test.input(f,"a.json",0,"a");var m=verified(f,List.of(a));
         assertCode(ManifestCompositionRejectionV1.Code.SCENARIO_COUNT_MISMATCH,()->ManifestSemanticFingerprintComposerV1.composeManifestSemanticFingerprintV1(m,List.of()));
@@ -65,16 +71,19 @@ class ManifestSemanticCompositionAttemptV1Test {
                 NormalizedManifestSemanticCompositionInputV1.ATTEMPT_VERSION,NormalizedManifestSemanticCompositionInputV1.OUTCOME_VOCABULARY_VERSION,
                 NormalizedManifestSemanticCompositionInputV1.REASON_VOCABULARY_VERSION,m,List.of(attemptChild(a)));
         assertCode(ManifestCompositionRejectionV1.Code.UNSUPPORTED_MANIFEST_CONTRACT,()->ManifestSemanticCompositionAttemptV1.attemptManifestSemanticCompositionV1(future));
+        assertThrows(NullPointerException.class,()->ManifestSemanticCompositionAttemptV1.attemptManifestSemanticCompositionV1(null));
+        assertThrows(IllegalArgumentException.class,()->ManifestSemanticFingerprintComposerV1.composeManifestSemanticFingerprintV1(m,explodingList(new IllegalArgumentException("unexpected"))));
+        assertThrows(IllegalStateException.class,()->ManifestSemanticFingerprintComposerV1.composeManifestSemanticFingerprintV1(m,explodingList(new IllegalStateException("unexpected"))));
     }
 
     private static ManifestSemanticCompositionOutcomeV1 attempt(VerifiedAdmittedManifestV1 m,List<ScenarioOccurrenceCompositionOutcomeV1> o){return attempt(m,o,true);}
     private static ManifestSemanticCompositionOutcomeV1 attempt(VerifiedAdmittedManifestV1 m,List<ScenarioOccurrenceCompositionOutcomeV1> o,boolean ignored){return ManifestSemanticCompositionAttemptV1.attemptManifestSemanticCompositionV1(NormalizedManifestSemanticCompositionInputV1.selectedV1(m,o));}
     private static ScenarioOccurrenceCompositionOutcomeV1 attemptChild(NormalizedScenarioOccurrenceInputV1 o){return ScenarioOccurrenceCompositionAttemptV1.attemptScenarioOccurrenceCompositionV1(o);}
     private static VerifiedAdmittedManifestV1 verified(ScenarioIdentityGroupComposerV1Test.Fixture f,List<NormalizedScenarioOccurrenceInputV1> c){var p=c.getFirst().parentMember();var mi=c.getFirst().occurrenceIdentity().manifest();
-        var proof=new VerifiedAdmittedManifestV1.StructuralAdmissionProofV1(p,"orders","parser-v1","attribution-v1","schema-v1",true);
-        return VerifiedAdmittedManifestV1.verified(f.att(),p,mi,"orders",proof,ManifestSemanticFingerprintEncoder.MANIFEST_FORMAT_IDENTIFIER,ManifestSemanticFingerprintEncoder.SCHEMA_VERSION,ManifestSemanticFingerprintEncoder.SCENARIO_IDENTITY_SCHEME_VERSION,c);}
+        return VerifiedAdmittedManifestV1.fromAuthoritativeSource(f.att(),p,mi,"orders",new Object(),new Object(),ManifestSemanticFingerprintEncoder.MANIFEST_FORMAT_IDENTIFIER,ManifestSemanticFingerprintEncoder.SCHEMA_VERSION,ManifestSemanticFingerprintEncoder.SCENARIO_IDENTITY_SCHEME_VERSION,List.of("parser-v1","attribution-v1","schema-v1"),c);}
     private static NormalizedScenarioOccurrenceInputV1 integrityInput(NormalizedScenarioOccurrenceInputV1 b){var bad=new NormalizedScenarioOccurrenceInputV1.NormalizedStep(b.claimedIdentity(),StepSemanticFingerprintInput.Phase.WHEN,BigInteger.valueOf(7),StepSemanticFingerprintEncoder.STEP_IDENTITY_SCHEME_VERSION,"different",StepSemanticFingerprintEncoder.ENCODING_IDENTIFIER);
         return new NormalizedScenarioOccurrenceInputV1(b.sourceNormalizationVersion(),b.scenarioSemanticCanonicalizationVersion(),b.scenarioSemanticContractVersion(),b.occurrenceIdentity(),b.parentMember(),b.repositoryCaptureAttestation(),b.structuralLocation(),b.claimedIdentity(),b.exactTitle(),b.authoredGiven(),List.of(bad),b.authoredWhen(),b.whenSteps(),b.authoredThen(),b.thenSteps(),b.operationReference(),b.businessRuleReferences());}
     private static List<NormalizedScenarioOccurrenceInputV1> reindex(List<NormalizedScenarioOccurrenceInputV1> source){var result=new ArrayList<NormalizedScenarioOccurrenceInputV1>();for(int i=0;i<source.size();i++){var b=source.get(i);var oi=new NormalizedScenarioOccurrenceInputV1.ScenarioDeclarationOccurrenceIdentity(b.occurrenceIdentity().manifest(),"/scenarios/"+i,b.occurrenceIdentity().identityVersion());result.add(new NormalizedScenarioOccurrenceInputV1(b.sourceNormalizationVersion(),b.scenarioSemanticCanonicalizationVersion(),b.scenarioSemanticContractVersion(),oi,b.parentMember(),b.repositoryCaptureAttestation(),oi.structuralPath(),b.claimedIdentity(),b.exactTitle(),b.authoredGiven(),b.givenSteps(),b.authoredWhen(),b.whenSteps(),b.authoredThen(),b.thenSteps(),b.operationReference(),b.businessRuleReferences()));}return result;}
+    private static List<ScenarioOccurrenceCompositionOutcomeV1.Composed> explodingList(RuntimeException failure){return new AbstractList<>(){@Override public ScenarioOccurrenceCompositionOutcomeV1.Composed get(int index){throw failure;}@Override public int size(){throw failure;}@Override public Object[] toArray(){throw failure;}@Override public <T>T[] toArray(T[] target){throw failure;}};}
     private static void assertCode(ManifestCompositionRejectionV1.Code c,org.junit.jupiter.api.function.Executable x){assertEquals(c,assertThrows(ManifestCompositionRejectionV1.class,x).code());}
 }

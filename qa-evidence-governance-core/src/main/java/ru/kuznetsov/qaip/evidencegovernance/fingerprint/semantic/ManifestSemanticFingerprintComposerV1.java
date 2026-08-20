@@ -13,17 +13,13 @@ public final class ManifestSemanticFingerprintComposerV1 {
             if(!child.occurrence().equals(expected))fail(ManifestCompositionRejectionV1.Code.SCENARIO_DECLARATION_SUBSTITUTION);
             fps.add(child.fingerprint());
         }
-        return fingerprintAcceptedInput(input(manifest,fps));
+        return ManifestSemanticFingerprintEncoder.fingerprint(input(manifest,fps));
     }
     static ManifestSemanticFingerprintInput input(VerifiedAdmittedManifestV1 manifest,List<ScenarioSemanticFingerprint> fps){
         String normalization=manifest.authoredScenarios().isEmpty()?ManifestSemanticFingerprintEncoder.SOURCE_NORMALIZATION_VERSION:
                 manifest.authoredScenarios().getFirst().sourceNormalizationVersion();
         return new ManifestSemanticFingerprintInput(ManifestSemanticFingerprintEncoder.ENCODING_IDENTIFIER,manifest.claimedAuthority(),
                 manifest.format(),manifest.schemaVersion(),manifest.scenarioIdentityScheme(),normalization,fps);
-    }
-    /** Compatibility endpoint: hashing still has exactly one Evidence Governance implementation. */
-    public static ManifestSemanticFingerprint fingerprintAcceptedInput(ManifestSemanticFingerprintInput acceptedInput){
-        return ManifestSemanticFingerprintEncoder.fingerprint(Objects.requireNonNull(acceptedInput,"acceptedInput"));
     }
     private static void fail(ManifestCompositionRejectionV1.Code code){throw new ManifestCompositionRejectionV1(code);}
 }
