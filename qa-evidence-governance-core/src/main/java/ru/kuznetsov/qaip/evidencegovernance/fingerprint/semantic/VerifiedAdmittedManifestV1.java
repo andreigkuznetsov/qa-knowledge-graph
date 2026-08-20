@@ -40,7 +40,7 @@ public final class VerifiedAdmittedManifestV1 {
   var children=List.copyOf(Objects.requireNonNull(supplied));
   if(!c.sourceId().equals(p.parentSourceId())||!c.snapshotId().equals(p.parentSnapshotId())||!c.contentFingerprint().equals(p.parentContentFingerprint())||!c.regularMembers().contains(p))throw new IllegalArgumentException("parent is not capture-attested");
   if(!o.parentSourceId().equals(p.parentSourceId())||!o.parentSnapshotId().equals(p.parentSnapshotId())||!o.parentFingerprint().equals(p.parentContentFingerprint())||!o.memberPath().equals(p.normalizedRepositoryRelativePath())||!NormalizedScenarioOccurrenceInputV1.MANIFEST_OCCURRENCE_IDENTITY_VERSION.equals(o.identityVersion()))throw new IllegalArgumentException("Manifest occurrence mismatch");
-  for(int i=0;i<children.size();i++){var x=children.get(i);if(x.repositoryCaptureAttestation()!=c||!x.parentMember().equals(p)||!x.occurrenceIdentity().manifest().equals(o)||!x.claimedIdentity().authority().equals(a)||!x.structuralLocation().equals("/scenarios/"+i)||!x.occurrenceIdentity().structuralPath().equals(x.structuralLocation()))throw new IllegalArgumentException("authored Scenario mismatch");}
+  for(int i=0;i<children.size();i++){var x=children.get(i);if(!sameCapture(x.repositoryCaptureAttestation(),c)||!x.parentMember().equals(p)||!x.occurrenceIdentity().manifest().equals(o)||!x.claimedIdentity().authority().equals(a)||!x.structuralLocation().equals("/scenarios/"+i)||!x.occurrenceIdentity().structuralPath().equals(x.structuralLocation()))throw new IllegalArgumentException("authored Scenario mismatch");}
   return new VerifiedAdmittedManifestV1(c,p,o,a,admission,normalized,f,s,scheme,versions,children);
  }
  public RepositoryCaptureAttestation capture(){return capture;} public AttributedMemberOutcomeFingerprintInput.ParentCapturedMemberReference parentMember(){return parentMember;}
@@ -51,5 +51,12 @@ public final class VerifiedAdmittedManifestV1 {
  public EvidenceGovernanceNormalizedManifestV1 normalizedManifest(){return (EvidenceGovernanceNormalizedManifestV1)exactNormalizedManifest;}
  public List<ScenarioSchemaDiagnostic> structuralDiagnostics(){return structuralDiagnostics;}
  Object authoritativeAdmissionResult(){return authoritativeAdmissionResult;}Object exactNormalizedManifest(){return exactNormalizedManifest;}
+ private static boolean sameCapture(RepositoryCaptureAttestation left,RepositoryCaptureAttestation right){
+  return left.sourceId().equals(right.sourceId())&&left.snapshotId().equals(right.snapshotId())
+    &&left.contentFingerprint().equals(right.contentFingerprint())
+    &&left.fingerprintInput().equals(right.fingerprintInput())
+    &&left.regularMembers().equals(right.regularMembers())
+    &&left.unsupportedMatchingEntries().equals(right.unsupportedMatchingEntries());
+ }
  private static void text(String x){if(x==null||x.isEmpty())throw new IllegalArgumentException("text must not be empty");}
 }

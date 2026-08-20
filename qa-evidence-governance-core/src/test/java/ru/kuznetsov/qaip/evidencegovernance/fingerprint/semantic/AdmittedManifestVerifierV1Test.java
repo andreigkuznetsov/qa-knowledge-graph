@@ -6,6 +6,8 @@ import ru.kuznetsov.qaip.evidencegovernance.fingerprint.*;
 import java.lang.reflect.Modifier;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -50,6 +52,17 @@ class AdmittedManifestVerifierV1Test {
                 new AdmittedManifestVerificationRequestV1(f.capture,f.parent,new byte[]{1},ids));
     }
 
+    @Test void everySelectedIdentifierIsIndependentlyFailClosedBeforeBytes(){
+        Fixture f=fixture("not json"); List<String> supported=ids(); assertEquals(23,supported.size());
+        for(int index=0;index<supported.size();index++){
+            var changed=new ArrayList<>(supported);changed.set(index,supported.get(index)+"-unsupported");
+            var rejection=assertThrows(AdmittedManifestVerificationRejectionV1.class,()->verifier.verifyAdmittedManifestV1(
+                    new AdmittedManifestVerificationRequestV1(f.capture,f.parent,new byte[]{(byte)0xff},changed)),
+                    "selection index "+index+" must be independently rejected");
+            assertEquals(UNSUPPORTED_VERIFICATION_CONTRACT,rejection.code(),"selection index "+index);
+        }
+    }
+
     @Test void everyCaptureOrRawSubstitutionHasOneCode(){
         Fixture f=fixture(manifest(scenario("one","One"))); byte[] changed=f.bytes.clone();changed[changed.length-1]^=1;
         Fixture foreign=fixture(manifest(scenario("other","Other")));
@@ -80,10 +93,66 @@ class AdmittedManifestVerifierV1Test {
         assertEquals("/authority",x.attributionLocation());
     }
 
+    @Test void everyAttributionCauseIsRetainedExactly(){
+        record Vector(String json,ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityAttributionRejectionV1.Code cause,String location){}
+        var vectors=List.of(
+                new Vector("[]",ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityAttributionRejectionV1.Code.NON_OBJECT_ROOT,""),
+                new Vector("{}",ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityAttributionRejectionV1.Code.MISSING_AUTHORITY,"/authority"),
+                new Vector("{\"authority\":7}",ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityAttributionRejectionV1.Code.AUTHORITY_NOT_STRING,"/authority"),
+                new Vector("{\"authority\":\"not valid!\"}",ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityAttributionRejectionV1.Code.INVALID_AUTHORITY,"/authority"));
+        for(Vector vector:vectors){Fixture f=fixture(vector.json);var x=assertThrows(AdmittedManifestVerificationRejectionV1.class,
+                ()->verifier.verifyAdmittedManifestV1(f.request()));assertEquals(AUTHORITY_ATTRIBUTION_UNAVAILABLE,x.code());
+            assertEquals(vector.cause,x.attributionCause());assertEquals(vector.location,x.attributionLocation());}
+    }
+
+    @Test void captureMismatchPrecedesParseRejection(){
+        Fixture f=fixture(manifest(""));assertCode(CAPTURE_MEMBER_RAW_BYTES_MISMATCH,
+                new AdmittedManifestVerificationRequestV1(f.capture,f.parent,new byte[]{(byte)0xff},ids()));
+    }
+    @Test void parseRejectionPrecedesUnavailableAttribution(){
+        Fixture f=fixture("{");var x=assertThrows(AdmittedManifestVerificationRejectionV1.class,
+                ()->verifier.verifyAdmittedManifestV1(f.request()));assertEquals(PARSE_REJECTED,x.code());
+    }
+    @Test void attributionRejectionPrecedesStructuralSchemaRejection(){
+        Fixture f=fixture("{}");var x=assertThrows(AdmittedManifestVerificationRejectionV1.class,
+                ()->verifier.verifyAdmittedManifestV1(f.request()));assertEquals(AUTHORITY_ATTRIBUTION_UNAVAILABLE,x.code());
+        assertTrue(x.canonicalDiagnostics().isEmpty());
+    }
+    @Test void schemaRejectionProducesNoDownstreamProof(){
+        Fixture f=fixture("{\"authority\":\"Orders/V1\"}");
+        assertEquals(STRUCTURAL_SCHEMA_REJECTED,assertThrows(AdmittedManifestVerificationRejectionV1.class,
+                ()->verifier.verifyAdmittedManifestV1(f.request())).code());
+    }
+
+    @Test void rejectsForeignRepositoryCapture(){Fixture a=fixture(manifest("")),b=fixture(manifest(scenario("b","B")));
+        assertCode(CAPTURE_MEMBER_RAW_BYTES_MISMATCH,new AdmittedManifestVerificationRequestV1(b.capture,a.parent,a.bytes,ids()));}
+    @Test void rejectsForeignCapturedMember(){Fixture a=fixture(manifest("")),b=fixture(manifest(scenario("b","B")));
+        assertCode(CAPTURE_MEMBER_RAW_BYTES_MISMATCH,new AdmittedManifestVerificationRequestV1(a.capture,b.parent,a.bytes,ids()));}
+    @Test void rejectsCaptureAWithCaptureBExactBytes(){Fixture a=fixture(manifest("")),b=fixture(manifest(scenario("b","B")));
+        assertCode(CAPTURE_MEMBER_RAW_BYTES_MISMATCH,new AdmittedManifestVerificationRequestV1(a.capture,a.parent,b.bytes,ids()));}
+    @Test void rejectsChangedNormalizedPath(){Fixture f=fixture(manifest(""));assertCode(CAPTURE_MEMBER_RAW_BYTES_MISMATCH,
+        new AdmittedManifestVerificationRequestV1(f.capture,parent(f,0,"other.json",f.parent.rawByteLength(),f.parent.rawSourceMemberFingerprint()),f.bytes,ids()));}
+    @Test void rejectsChangedOrderedPosition(){Fixture f=fixture(manifest(""));assertCode(CAPTURE_MEMBER_RAW_BYTES_MISMATCH,
+        new AdmittedManifestVerificationRequestV1(f.capture,parent(f,1,f.parent.normalizedRepositoryRelativePath(),f.parent.rawByteLength(),f.parent.rawSourceMemberFingerprint()),f.bytes,ids()));}
+    @Test void rejectsChangedBytesWithCorrectMetadata(){Fixture f=fixture(manifest(""));byte[] changed=f.bytes.clone();changed[0]^=1;
+        assertCode(CAPTURE_MEMBER_RAW_BYTES_MISMATCH,new AdmittedManifestVerificationRequestV1(f.capture,f.parent,changed,ids()));}
+    @Test void rejectsChangedRawByteLength(){Fixture f=fixture(manifest(""));assertCode(CAPTURE_MEMBER_RAW_BYTES_MISMATCH,
+        new AdmittedManifestVerificationRequestV1(f.capture,parent(f,0,f.parent.normalizedRepositoryRelativePath(),BigInteger.ZERO,f.parent.rawSourceMemberFingerprint()),f.bytes,ids()));}
+    @Test void rejectsChangedRawFingerprint(){Fixture f=fixture(manifest(""));assertCode(CAPTURE_MEMBER_RAW_BYTES_MISMATCH,
+        new AdmittedManifestVerificationRequestV1(f.capture,parent(f,0,f.parent.normalizedRepositoryRelativePath(),f.parent.rawByteLength(),RawSourceMemberFingerprint.calculate(new byte[]{9})),f.bytes,ids()));}
+    @Test void rejectsFullyCoordinatedCandidateRelabeling(){Fixture authority=fixture(manifest("")),candidate=fixture(manifest(scenario("b","B")));
+        assertCode(CAPTURE_MEMBER_RAW_BYTES_MISMATCH,new AdmittedManifestVerificationRequestV1(authority.capture,candidate.parent,candidate.bytes,ids()));}
+
     @Test void schemaRejectionRetainsCanonicalDiagnostics(){
         Fixture f=fixture("{\"authority\":\"Orders/V1\"}");var x=assertThrows(AdmittedManifestVerificationRejectionV1.class,
                 ()->verifier.verifyAdmittedManifestV1(f.request()));
-        assertEquals(STRUCTURAL_SCHEMA_REJECTED,x.code());assertFalse(x.canonicalDiagnostics().isEmpty());
+        assertEquals(STRUCTURAL_SCHEMA_REJECTED,x.code());
+        var expected=List.of("format","scenarioIdentityScheme","scenarios","schemaVersion").stream()
+                .map(property->ru.kuznetsov.qaip.evidencegovernance.diagnostic.ScenarioSchemaDiagnostic.v1("","required",
+                        ru.kuznetsov.qaip.evidencegovernance.diagnostic.ScenarioSchemaDiagnostic.RULE_PREFIX+"/required",
+                        List.of(new ru.kuznetsov.qaip.evidencegovernance.diagnostic.ScenarioSchemaDiagnostic.TextParameter("missingProperty",property))))
+                .sorted(ru.kuznetsov.qaip.evidencegovernance.diagnostic.ScenarioSchemaDiagnostic.canonicalOrder()).toList();
+        assertEquals(expected,x.canonicalDiagnostics());
     }
 
     @Test void requestAndProofExposeNoCallerSuppliedDerivedAuthority(){
@@ -93,6 +162,44 @@ class AdmittedManifestVerifierV1Test {
         assertTrue(Arrays.stream(VerifiedAdmittedManifestV1.class.getDeclaredMethods()).filter(m->Modifier.isPublic(m.getModifiers()))
                 .noneMatch(m->Modifier.isStatic(m.getModifiers())&&m.getReturnType()==VerifiedAdmittedManifestV1.class));
     }
+
+    @Test void equivalentReconstructedCaptureIsAcceptedWithoutReferenceIdentity(){
+        Fixture f=fixture(manifest(scenario("one","One")));var proof=verifier.verifyAdmittedManifestV1(f.request());
+        var equivalent=RepositoryCaptureAttestation.verified(f.capture.sourceId(),f.capture.snapshotId(),
+                f.capture.fingerprintInput(),f.capture.contentFingerprint(),f.capture.regularMembers(),f.capture.unsupportedMatchingEntries());
+        assertNotSame(f.capture,equivalent);
+        var child=withCapture(proof.authoredScenarios().getFirst(),equivalent);
+        assertDoesNotThrow(()->VerifiedAdmittedManifestV1.fromAuthoritativeSource(proof.capture(),proof.parentMember(),
+                proof.occurrenceIdentity(),proof.claimedAuthority(),proof.authoritativeAdmissionResult(),proof.exactNormalizedManifest(),
+                proof.format(),proof.schemaVersion(),proof.scenarioIdentityScheme(),proof.sourceContractIdentifiers(),List.of(child)));
+        Fixture changed=fixture(manifest(scenario("other","Other")));
+        assertThrows(IllegalArgumentException.class,()->VerifiedAdmittedManifestV1.fromAuthoritativeSource(proof.capture(),proof.parentMember(),
+                proof.occurrenceIdentity(),proof.claimedAuthority(),proof.authoritativeAdmissionResult(),proof.exactNormalizedManifest(),
+                proof.format(),proof.schemaVersion(),proof.scenarioIdentityScheme(),proof.sourceContractIdentifiers(),
+                List.of(withCapture(proof.authoredScenarios().getFirst(),changed.capture))));
+    }
+
+    @Test void staticProofMintingBoundaryHasOneNewVerifierCallSite() throws Exception {
+        assertTrue(Arrays.stream(VerifiedAdmittedManifestV1.class.getDeclaredConstructors())
+                .allMatch(c->Modifier.isPrivate(c.getModifiers())));
+        assertTrue(Arrays.stream(VerifiedAdmittedManifestV1.class.getDeclaredMethods())
+                .filter(m->m.getReturnType()==VerifiedAdmittedManifestV1.class)
+                .noneMatch(m->Modifier.isPublic(m.getModifiers())||Modifier.isProtected(m.getModifiers())));
+        Path root=repositoryRoot();String verifierSource=Files.readString(root.resolve(
+                "qa-evidence-governance-core/src/main/java/ru/kuznetsov/qaip/evidencegovernance/fingerprint/semantic/AdmittedManifestVerifierV1.java"));
+        assertTrue(verifierSource.contains("VerifiedAdmittedManifestV1.fromVerifier("));
+        String bridge=Files.readString(root.resolve(
+                "qa-model-extractor/src/main/java/ru/kuznetsov/qaip/evidencegovernance/fingerprint/semantic/VerifiedAdmittedManifestSourceBridgeV1.java"));
+        assertFalse(bridge.contains("fromVerifier("));assertTrue(bridge.contains("fromAuthoritativeSource("));
+    }
+
+    private static NormalizedScenarioOccurrenceInputV1 withCapture(NormalizedScenarioOccurrenceInputV1 x,RepositoryCaptureAttestation capture){
+        return new NormalizedScenarioOccurrenceInputV1(x.sourceNormalizationVersion(),x.scenarioSemanticCanonicalizationVersion(),
+                x.scenarioSemanticContractVersion(),x.occurrenceIdentity(),x.parentMember(),capture,x.structuralLocation(),
+                x.claimedIdentity(),x.exactTitle(),x.authoredGiven(),x.givenSteps(),x.authoredWhen(),x.whenSteps(),
+                x.authoredThen(),x.thenSteps(),x.operationReference(),x.businessRuleReferences());
+    }
+    private static Path repositoryRoot(){Path current=Path.of("").toAbsolutePath();while(current!=null&&!Files.exists(current.resolve("settings.gradle")))current=current.getParent();return current;}
 
     private void assertCode(AdmittedManifestVerificationRejectionV1.Code code,AdmittedManifestVerificationRequestV1 request){
         assertEquals(code,assertThrows(AdmittedManifestVerificationRejectionV1.class,
