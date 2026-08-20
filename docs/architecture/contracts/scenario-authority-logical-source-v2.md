@@ -96,7 +96,7 @@ collections are not authoritative inputs.
 
 The authoritative constructor consumes one immutable request containing:
 
-- the authority-partition identity and `RepositoryCaptureAttestation`;
+- one `VerifiedScenarioAuthorityPartitionSourceV2` as defined below;
 - the fixed contract identifiers above;
 - ordered attributed-member outcome attestations;
 - ordered admitted Manifest composition attestations;
@@ -111,6 +111,42 @@ recompute it. Naked child fingerprints are never sufficient. Construction
 revalidates every proof before encoding. The request contains neither state
 nor a caller-supplied Logical V2 fingerprint.
 
+### `VerifiedScenarioAuthorityPartitionSourceV2`
+
+The mandatory upstream enumeration proof is a factory-only verified handoff
+that binds together:
+
+1. the exact `RepositoryCaptureAttestation`;
+2. the complete `ScenarioSourceNormalizationResult` for that capture;
+3. the exact parent Repository Capture identity;
+4. all parent-member processing and normalization outcomes in exact parent
+   order;
+5. the exact safely attributed members and their claimed authorities;
+6. the exact claimed authority selected for this partition;
+7. the derived admitted and rejected attributed-member membership;
+8. the derived admitted Manifest membership; and
+9. every Scenario declaration and occurrence binding in those Manifests.
+
+The complete normalization result, not the supplied child-attestation set, is
+the authoritative enumeration source. Its parent identity and every retained
+parent-member reference must be positively verified against the same capture
+attestation. Its ordered outcomes must cover the attested regular-member
+collection exactly once in exact parent order. Capture A normalization cannot
+be combined with Capture B attestation, including through coordinated
+relabeling.
+
+The handoff derives expected partition membership by filtering the complete
+ordered result to safely attributed members whose exact claimed authority
+equals the selected authority. It retains admitted/rejected state, admitted
+Manifest content, and declaration occurrences without filesystem discovery,
+recapture, inferred membership, or defaulted identifiers. A missing, extra,
+duplicated, relabeled, or reordered parent outcome prevents creation of the
+handoff.
+
+Evidence Governance derives expected aggregate membership from this verified
+handoff and compares all supplied child evidence against it. Child attestations
+prove the correctness of supplied evidence; the handoff proves completeness.
+
 ## Attributed-member membership
 
 The attributed-member collection contains exactly every safely attributed
@@ -122,6 +158,12 @@ The collection must be non-empty. A partition exists only for an authority
 actually claimed by at least one safely attributed member in the verified
 capture; a caller cannot manufacture an empty authority partition.
 
+One or more structurally rejected attributed members claiming the authority
+are sufficient to form a valid non-empty partition even when it contains no
+admitted Manifest. If the complete normalization result contains no safely
+attributed member for the selected authority, no Logical V2 partition exists
+and construction is rejected.
+
 Each entry binds:
 
 1. its complete `ParentCapturedMemberRef`;
@@ -129,16 +171,19 @@ Each entry binds:
 3. the complete accepted `AttributedMemberOutcomeFingerprint` input; and
 4. the authoritative attributed-member outcome fingerprint.
 
-Entries preserve exact parent regular-member order after filtering that order
-to the partition authority. The constructor validates this canonical order;
+Expected entries are derived from the complete verified handoff. Entries
+preserve exact parent regular-member order after filtering that order to the
+partition authority. The constructor validates this canonical order;
 it does not silently sort caller input. A foreign capture or authority,
 missing or extra attributable member, duplicate member, substituted outcome,
 or reordered entry is an aggregate-membership failure.
 
 ## Admitted Manifest evidence
 
-Exactly one Manifest evidence entry exists for every structurally admitted
-attributed member, and none exists for a structurally rejected member. Each
+Expected Manifest membership is derived from the complete normalization result
+in the verified handoff. Exactly one Manifest evidence entry exists for every
+structurally admitted attributed member, and none exists for a structurally
+rejected member. Each
 entry binds the exact `ManifestOccurrenceIdentity`, accepted Manifest semantic
 composition input, authoritative `ManifestSemanticFingerprint`, and the
 matching admitted attributed-member outcome.
@@ -148,14 +193,23 @@ code-point order. Missing, extra, duplicated, foreign, reordered, or
 substituted Manifest evidence is rejected. A rejected attributed member never
 fabricates a Manifest occurrence or Manifest semantic fingerprint.
 
+Under fixed format `qaip-scenario-authority-manifest-v1`, a structurally
+admitted Manifest contains at least one Scenario because the fixed schema
+requires `scenarios.minItems = 1`. An admitted empty Manifest is impossible:
+such source input must have been structurally rejected before Logical V2
+construction. Supplied admitted-empty-Manifest evidence is therefore an
+integrity/closure failure.
+
 ## Scenario identity-group membership
 
 The group collection accepts only authoritative
 `VerifiedScenarioIdentityGroupV1` values. It never accepts the Extractor's
 legacy presentation `ScenarioIdentityGroup` as evidence.
 
-Every Scenario declaration in every admitted Manifest belongs to exactly one
-verified group. Every occurrence in every group must bind to the same parent
+The complete declaration membership of every admitted Manifest is derived
+from the verified normalization result. Every such Scenario declaration
+belongs to exactly one verified group. Every occurrence in every group must
+bind to the same parent
 capture, an admitted member and Manifest occurrence in this partition, and the
 exact partition authority. No declaration may disappear, occur in two groups,
 or be introduced from another Manifest, authority, member, or capture.
@@ -198,13 +252,41 @@ Every `UNIQUE` group contributes exactly:
 - its `GIVEN`, `WHEN`, and `THEN` Step data in phase order and increasing
   numeric ordinal;
 - exactly one unresolved `OPERATION_REFERENCE` datum; and
-- unresolved `BUSINESS_RULE_REFERENCE` data in authored array order.
+- every unresolved `BUSINESS_RULE_REFERENCE` datum.
 
-After kind grouping, data use the exact ADR-015 identity tuple order for that
-kind. The supplied aggregate collection must already be in this order and is
-validated rather than silently sorted. The sequence-semantic Step and Business
-Rule parent order is additionally revalidated against the authoritative
-Scenario composition proof.
+The global aggregate comparator first uses the fixed datum-kind order above,
+then the following exact per-kind identity comparator. Every text field uses
+Unicode code-point order, fingerprint values use their complete ASCII value,
+and indexes and ordinals use unsigned numeric order:
+
+- `MANIFEST`: parent source ID, parent capture snapshot ID, complete parent
+  Repository Capture fingerprint, normalized repository-relative member path,
+  Manifest-occurrence identity version;
+- `SCENARIO`: its complete `MANIFEST` identity tuple, numeric Scenario array
+  index from the canonical structural path, Scenario-occurrence identity
+  version;
+- `STEP`: claimed Scenario authority, `scenarioKey`, Scenario identity scheme,
+  phase in fixed order `GIVEN`, `WHEN`, `THEN`, numeric ordinal within that
+  phase, Step identity version;
+- `OPERATION_REFERENCE`: claimed Scenario authority, `scenarioKey`, Scenario
+  identity scheme, fixed role `OPERATION_REF`, Operation-reference datum
+  identity version; and
+- `BUSINESS_RULE_REFERENCE`: claimed Scenario authority, `scenarioKey`,
+  Scenario identity scheme, referenced authority, stable Rule key, Business
+  Rule identity scheme, Business Rule-reference datum identity version.
+
+The supplied aggregate collection must already be in this global order and is
+validated rather than silently sorted. Equal complete identity tuples are
+duplicates and are rejected.
+
+Scenario semantic composition separately preserves Business Rule references
+in exact authored array order. That authored order is revalidated against the
+authoritative Scenario composition request and proof, but it is not the global
+Logical V2 normalized-datum ordering key. The aggregate serializes Business
+Rule-reference data by the canonical identity comparator above. Manifest
+Scenario-array order, Step phase/ordinal order, and Business Rule authored
+order remain sequence-semantic proof properties even where the global
+aggregate comparator uses another identity ordering.
 
 Every datum identity and fingerprint must equal its admitted Manifest or
 `UNIQUE` group proof. A datum appears exactly once. Duplicate-group semantic
@@ -328,6 +410,19 @@ Construction uses this deterministic precedence:
 7. **Aggregate encoding:** encode the already-verified canonical input and emit
    the fingerprint.
 
+The authoritative failure semantics are stage-level only. Stages are evaluated
+in the numbered order above. All applicable finite checks within the current
+stage are evaluated as required for complete validation. If one or more fail,
+that stage fails; individual same-stage diagnostic selection and check order
+are non-authoritative. Human or debug diagnostics may report multiple defects,
+but do not enter the Logical V2 fingerprint or authoritative evidence, and the
+stage result cannot depend on which same-stage check executed first.
+
+If defects exist in more than one stage, the earliest failing stage is the
+authoritative aggregate failure category and later stages do not manufacture
+another result. This contract defines no persistent fine-grained Logical V2
+failure taxonomy.
+
 Invalid or substituted attestations, identity conflicts, and inability to
 establish the exact parent partition are processing/integrity failures.
 Unsupported fixed identifiers are unsupported-contract failures. Missing,
@@ -335,6 +430,11 @@ extra, duplicated, foreign, or noncanonical members are aggregate-membership
 failures. None is authoritative source evidence or an alternate aggregate
 state. No broad exception catch converts unexpected failures into a declared
 failure category.
+
+Unexpected programming, infrastructure, or runtime exceptions remain
+processing failures. They are not converted into compatibility or
+aggregate-membership outcomes, and no generic exception catch-all
+classification is permitted.
 
 ## Anti-substitution requirements
 
@@ -377,6 +477,16 @@ pair associated with a different Logical V2 content fingerprint. That boundary
 accepts only the completed factory result; it contributes no registry state,
 timestamp, or operational metadata to canonical content.
 
+Complete Logical V2 capability integration must provide an atomic
+observation-acceptance operation over exactly
+`(sourceId, logicalSnapshotId, completedContentFingerprint)`. The first binding
+is accepted. An identical replay may be accepted idempotently according to the
+later storage contract. The same source ID and Logical snapshot ID with a
+different completed fingerprint is rejected atomically. This custody operation
+occurs only after successful composition, is not part of the verified
+authority-partition handoff slice, and adds no mutable state to fingerprint
+content.
+
 ## Canonical exclusions
 
 Logical V2 canonical content excludes Repository Derivation Reports,
@@ -404,6 +514,18 @@ expected bytes through the production encoder, for at least:
 - multiple authorities proving partition isolation;
 - mandatory provenance completeness;
 - ordering boundaries including Unicode paths and numeric indexes;
+- an omitted attributed member while every supplied child proof is
+  individually valid;
+- Capture A normalization combined with Capture B attestation;
+- admitted-empty-Manifest rejection under `scenarios.minItems = 1`;
+- Business Rule authored order differing from Logical aggregate identity
+  order;
+- exact comparator boundaries for every normalized datum kind;
+- simultaneous defects in two stages proving earliest-stage precedence;
+- multiple defects within one stage proving the same stage-level result
+  independently of check order;
+- a valid rejected-only authority partition;
+- absence of safely attributed members proving that no partition exists;
 - every fixed identifier/version change; and
 - deterministic recalculation.
 
@@ -413,7 +535,7 @@ data, and provenance; foreign capture; foreign authority; coordinated capture
 relabeling; an empty or fabricated authority partition; duplicate child-data
 admission; unsupported contracts, profiles, and versions; and reuse of one
 `sourceId + snapshotId` with a conflicting content fingerprint at the
-observation-acceptance boundary.
+later observation-acceptance boundary.
 
 ## ADR compatibility
 
