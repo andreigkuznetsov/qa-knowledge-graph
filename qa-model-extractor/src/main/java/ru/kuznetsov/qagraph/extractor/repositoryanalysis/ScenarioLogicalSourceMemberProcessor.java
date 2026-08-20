@@ -1,12 +1,13 @@
 package ru.kuznetsov.qagraph.extractor.repositoryanalysis;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityAttributionRejectionV1;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityAttributorV1;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityJsonParseRejectionV1;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 /** ADR-014 per-member parser and safe claimed-authority attribution boundary. */
 public final class ScenarioLogicalSourceMemberProcessor {
@@ -17,12 +18,8 @@ public final class ScenarioLogicalSourceMemberProcessor {
     public static final String STRUCTURAL_LOCATION_CONTRACT_IDENTIFIER =
             ScenarioMemberProcessingOutcome.STRUCTURAL_LOCATION_CONTRACT_IDENTIFIER;
 
-    private static final String ROOT_POINTER = "";
-    private static final String AUTHORITY_POINTER = "/authority";
-    private static final Pattern AUTHORITY = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._:/-]*$");
-    private static final int MAX_AUTHORITY_LENGTH = 200;
-
     private final ScenarioManifestJsonParser parser;
+    private final ScenarioAuthorityAttributorV1 attributor = new ScenarioAuthorityAttributorV1();
 
     public ScenarioLogicalSourceMemberProcessor() {
         this(new ScenarioManifestJsonParser());
@@ -48,50 +45,34 @@ public final class ScenarioLogicalSourceMemberProcessor {
             ParentCapturedMemberRef parentRef,
             byte[] exactParentBytes
     ) {
-        ScenarioManifestJsonParser.ExactParseResult parsed = parser.parseExactBytes(exactParentBytes);
-        if (parsed.failureCode() != null) {
+        ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityParsedJsonV1 parsed;
+        try {
+            parsed = parser.parseAuthoritatively(exactParentBytes);
+        } catch (ScenarioAuthorityJsonParseRejectionV1 rejection) {
             return new UnattributableMemberProcessingOutcome(
                     parentRef,
                     PARSER_CONTRACT_IDENTIFIER,
                     ATTRIBUTION_CONTRACT_IDENTIFIER,
-                    parseOutcome(parsed.failureCode()),
+                    parseOutcome(rejection.code()),
                     ScenarioMemberProcessingOutcome.AttributionOutcome.PARSE_UNATTRIBUTABLE,
                     Optional.empty());
         }
-
-        JsonNode document = parsed.document();
-        if (!document.isObject()) {
-            return unattributable(parentRef,
-                    ScenarioMemberProcessingOutcome.AttributionOutcome.NON_OBJECT_ROOT,
-                    ROOT_POINTER);
-        }
-        if (!document.has("authority")) {
-            return unattributable(parentRef,
-                    ScenarioMemberProcessingOutcome.AttributionOutcome.MISSING_AUTHORITY,
-                    AUTHORITY_POINTER);
-        }
-        JsonNode authorityNode = document.get("authority");
-        if (!authorityNode.isTextual()) {
-            return unattributable(parentRef,
-                    ScenarioMemberProcessingOutcome.AttributionOutcome.AUTHORITY_NOT_STRING,
-                    AUTHORITY_POINTER);
-        }
-        String authority = authorityNode.textValue();
-        if (!validAuthority(authority)) {
-            return unattributable(parentRef,
-                    ScenarioMemberProcessingOutcome.AttributionOutcome.INVALID_AUTHORITY,
-                    AUTHORITY_POINTER);
+        ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityAttributionV1 attribution;
+        try {
+            attribution = attributor.attribute(parsed);
+        } catch (ScenarioAuthorityAttributionRejectionV1 rejection) {
+            return unattributable(parentRef, attributionOutcome(rejection.code()), rejection.structuralLocation());
         }
 
         return new AttributedMemberProcessingOutcome(
                 parentRef,
-                authority,
+                attribution.authority(),
                 PARSER_CONTRACT_IDENTIFIER,
                 ATTRIBUTION_CONTRACT_IDENTIFIER,
                 ScenarioMemberProcessingOutcome.ParseOutcome.PARSED,
                 ScenarioMemberProcessingOutcome.AttributionOutcome.ATTRIBUTED,
                 Optional.empty(),
-                document);
+                parsed.document());
     }
 
     private static UnattributableMemberProcessingOutcome unattributable(
@@ -109,7 +90,7 @@ public final class ScenarioLogicalSourceMemberProcessor {
     }
 
     private static ScenarioMemberProcessingOutcome.ParseOutcome parseOutcome(
-            ScenarioManifestJsonParseResult.Code code
+            ScenarioAuthorityJsonParseRejectionV1.Code code
     ) {
         return switch (code) {
             case INVALID_UTF8 -> ScenarioMemberProcessingOutcome.ParseOutcome.INVALID_UTF8;
@@ -119,7 +100,13 @@ public final class ScenarioLogicalSourceMemberProcessor {
         };
     }
 
-    private static boolean validAuthority(String authority) {
-        return authority.length() <= MAX_AUTHORITY_LENGTH && AUTHORITY.matcher(authority).matches();
+    private static ScenarioMemberProcessingOutcome.AttributionOutcome attributionOutcome(
+            ScenarioAuthorityAttributionRejectionV1.Code code) {
+        return switch (code) {
+            case NON_OBJECT_ROOT -> ScenarioMemberProcessingOutcome.AttributionOutcome.NON_OBJECT_ROOT;
+            case MISSING_AUTHORITY -> ScenarioMemberProcessingOutcome.AttributionOutcome.MISSING_AUTHORITY;
+            case AUTHORITY_NOT_STRING -> ScenarioMemberProcessingOutcome.AttributionOutcome.AUTHORITY_NOT_STRING;
+            case INVALID_AUTHORITY -> ScenarioMemberProcessingOutcome.AttributionOutcome.INVALID_AUTHORITY;
+        };
     }
 }

@@ -2,6 +2,8 @@ package ru.kuznetsov.qagraph.extractor.repositoryanalysis;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityExactJsonParserV1;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityJsonParseRejectionV1;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -109,6 +111,29 @@ class ScenarioManifestJsonParserTest {
 
         assertEquals(1, result.members().getFirst().document().path("nested").path("value").asInt());
         assertThrows(UnsupportedOperationException.class, () -> result.members().clear());
+    }
+
+    @Test
+    void extractorRejectionCodesExactlyProjectEvidenceGovernanceForIdenticalBytes() {
+        var authorityParser = new ScenarioAuthorityExactJsonParserV1();
+        List<byte[]> fixtures = List.of(
+                new byte[]{(byte) 0xC3, 0x28},
+                "{".getBytes(StandardCharsets.UTF_8),
+                "{\"value\":1,\"value\":2}".getBytes(StandardCharsets.UTF_8),
+                "{} {}".getBytes(StandardCharsets.UTF_8));
+
+        for (byte[] fixture : fixtures) {
+            ScenarioAuthorityJsonParseRejectionV1 authoritative = assertThrows(
+                    ScenarioAuthorityJsonParseRejectionV1.class,
+                    () -> authorityParser.parseExactBytes(fixture));
+            ScenarioManifestJsonParseResult.Failed projection = failed(capture(
+                    new ScenarioManifestCaptureResult.CapturedMember(
+                            Path.of("fixture.scenario.json"),
+                            ".qaip/scenarios/fixture.scenario.json",
+                            fixture)));
+
+            assertEquals(authoritative.code().name(), projection.failure().code().name());
+        }
     }
 
     private ScenarioManifestCaptureResult.Completed capture(

@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.RawSourceMemberFingerprint;
 import ru.kuznetsov.qaip.evidencegovernance.fingerprint.RepositoryCaptureFingerprintEncoder;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityAttributionRejectionV1;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityAttributorV1;
+import ru.kuznetsov.qaip.evidencegovernance.source.ScenarioAuthorityExactJsonParserV1;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -27,6 +30,26 @@ class ScenarioLogicalSourceMemberProcessorTest {
                     RawSourceMemberFingerprint.ALGORITHM_IDENTIFIER);
 
     private final ScenarioLogicalSourceMemberProcessor processor = new ScenarioLogicalSourceMemberProcessor();
+
+    @Test
+    void extractorAttributionIsAnExactProjectionOfEvidenceGovernance() {
+        var authoritativeParser = new ScenarioAuthorityExactJsonParserV1();
+        var authoritativeAttributor = new ScenarioAuthorityAttributorV1();
+        for (String json : List.of("[]", "{}", "{\"authority\":null}", "{\"authority\":\" bad\"}")) {
+            var rejection = assertThrows(ScenarioAuthorityAttributionRejectionV1.class,
+                    () -> authoritativeAttributor.attribute(authoritativeParser.parseExactBytes(bytes(json))));
+            var projected = assertInstanceOf(UnattributableMemberProcessingOutcome.class,
+                    onlyOutcome(candidate(member("projection", json))));
+            assertEquals(rejection.structuralLocation(), projected.structuralLocation().orElse(""));
+            assertEquals(rejection.code().name(), projected.attributionOutcome().name());
+        }
+        String valid = "{\"authority\":\"Orders/V1\"}";
+        String authority = authoritativeAttributor.attribute(
+                authoritativeParser.parseExactBytes(bytes(valid))).authority();
+        var projected = assertInstanceOf(AttributedMemberProcessingOutcome.class,
+                onlyOutcome(candidate(member("projection-valid", valid))));
+        assertEquals(authority, projected.claimedAuthority());
+    }
 
     @Test
     void freezesParserAttributionAndStructuralLocationContracts() {
