@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import ru.kuznetsov.qaip.evidencegovernance.diagnostic.ScenarioSchemaDiagnostic;
 
 import java.lang.reflect.Modifier;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -12,6 +14,32 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ScenarioAuthorityPartitionSourceVerifierV2Test {
+    @Test void ONE_MEMBER_PARTITION() { oneMemberComposedPartitionRetainsEveryAuthoritativeProof(); }
+    @Test void MULTIPLE_MEMBER_PARTITION() { exactMultipleMemberOrderComesFromDerivationReport(); }
+    @Test void EXACT_MEMBER_ORDER() { exactMultipleMemberOrderComesFromDerivationReport(); }
+    @Test void STRUCTURALLY_REJECTED_MEMBER() { unavailableAndRejectedRemainPartitionEvidenceWithoutNormalizedManifestEligibility(); }
+    @Test void ADMITTED_COMPOSED_MEMBER() { oneMemberComposedPartitionRetainsEveryAuthoritativeProof(); }
+    @Test void ADMITTED_UNAVAILABLE_MEMBER() { unavailableAndRejectedRemainPartitionEvidenceWithoutNormalizedManifestEligibility(); }
+    @Test void OMITTED_MEMBER() { groupsMustCoverExactManifestOccurrencesOnce(); }
+    @Test void EXTRA_MEMBER() { manifestOutcomeMustExactlyMatchAttributedMember(); }
+    @Test void DUPLICATE_MEMBER() { exactMultipleMemberOrderComesFromDerivationReport(); }
+    @Test void REORDERED_MEMBER() { exactMultipleMemberOrderComesFromDerivationReport(); }
+    @Test void FOREIGN_CAPTURE_MEMBER() { foreignCaptureAndInternallyConsistentForeignPartitionAreRejected(); }
+    @Test void CROSS_AUTHORITY_MEMBER() { crossAuthorityMemberCannotEnterTheDerivedPartition(); }
+    @Test void MANIFEST_OCCURRENCE_SUBSTITUTION() { manifestOutcomeMustExactlyMatchAttributedMember(); }
+    @Test void NORMALIZED_MANIFEST_SUBSTITUTION() { manifestOutcomeMustExactlyMatchAttributedMember(); }
+    @Test void COMPOSED_UNIQUE() { assertCombination(List.of(child("a.json", 0, "same")), false, VerifiedScenarioIdentityGroupV1.State.UNIQUE); }
+    @Test void COMPOSED_DUPLICATE_EQUIVALENT() { assertCombination(List.of(child("a.json", 0, "same"), child("a.json", 1, "same")), false, VerifiedScenarioIdentityGroupV1.State.DUPLICATE_EQUIVALENT); }
+    @Test void COMPOSED_DUPLICATE_CONFLICTING() { assertCombination(List.of(child("a.json", 0, "one"), child("a.json", 1, "two")), false, VerifiedScenarioIdentityGroupV1.State.DUPLICATE_CONFLICTING); }
+    @Test void UNAVAILABLE_DUPLICATE_UNCLASSIFIED() { assertCombination(List.of(child("a.json", 0, "same"), child("a.json", 1, "u", "future-source")), true, VerifiedScenarioIdentityGroupV1.State.DUPLICATE_UNCLASSIFIED); }
+    @Test void GROUP_MISSING_OCCURRENCE() { groupsMustCoverExactManifestOccurrencesOnce(); }
+    @Test void GROUP_EXTRA_OCCURRENCE() { groupsMustCoverExactManifestOccurrencesOnce(); }
+    @Test void GROUP_DUPLICATE_MEMBERSHIP() { groupsMustCoverExactManifestOccurrencesOnce(); }
+    @Test void GROUP_FOREIGN_GROUP() { groupsMustCoverExactManifestOccurrencesOnce(); }
+    @Test void GROUP_FOREIGN_OCCURRENCE() { groupsMustCoverExactManifestOccurrencesOnce(); }
+    @Test void GROUP_CROSS_CAPTURE_OCCURRENCE() { groupsMustCoverExactManifestOccurrencesOnce(); }
+    @Test void GROUP_CROSS_AUTHORITY_OCCURRENCE() { crossAuthorityMemberCannotEnterTheDerivedPartition(); }
+
     @Test void oneMemberComposedPartitionRetainsEveryAuthoritativeProof() {
         var fixture = admitted("a.json", List.of(child("a.json", 0, "one")), false);
         var verified = verify(fixture);
@@ -133,6 +161,21 @@ class ScenarioAuthorityPartitionSourceVerifierV2Test {
                 .noneMatch(method -> method.getName().equals("verified") || method.getName().equals("of")));
         assertEquals(1, Arrays.stream(ScenarioAuthorityPartitionSourceVerifierV2.class.getMethods())
                 .filter(method -> method.getName().equals("verify")).count());
+    }
+
+    @Test void soleVerifiedPartitionConstructorCallsiteIsVerifier() throws Exception {
+        var source = Files.readString(Path.of("src/main/java/ru/kuznetsov/qaip/evidencegovernance/fingerprint/semantic/ScenarioAuthorityPartitionSourceVerifierV2.java"));
+        assertEquals(1, source.split("new VerifiedScenarioAuthorityPartitionSourceV2\\s*\\(", -1).length - 1);
+        assertTrue(source.contains("public static VerifiedScenarioAuthorityPartitionSourceV2 verify("));
+    }
+
+    @Test void verifierBoundaryHasNoExtractorCompatibilityDtos() throws Exception {
+        for (var name : List.of("ScenarioAuthorityPartitionSourceVerifierV2.java", "VerifiedScenarioAuthorityPartitionSourceV2.java")) {
+            var source = Files.readString(Path.of("src/main/java/ru/kuznetsov/qaip/evidencegovernance/fingerprint/semantic/" + name));
+            assertFalse(source.contains("NormalizedManifestDatum"));
+            assertFalse(source.contains("ScenarioAuthorityNormalizedProcessingV1"));
+            assertFalse(source.contains("qa-model-extractor"));
+        }
     }
 
     private static void assertCombination(List<ChildSpec> specs, boolean unavailable,
