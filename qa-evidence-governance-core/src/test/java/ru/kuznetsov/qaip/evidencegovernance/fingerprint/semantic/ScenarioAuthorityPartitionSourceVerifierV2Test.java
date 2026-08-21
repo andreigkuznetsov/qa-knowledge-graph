@@ -14,31 +14,31 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ScenarioAuthorityPartitionSourceVerifierV2Test {
-    @Test void ONE_MEMBER_PARTITION() { oneMemberComposedPartitionRetainsEveryAuthoritativeProof(); }
-    @Test void MULTIPLE_MEMBER_PARTITION() { exactMultipleMemberOrderComesFromDerivationReport(); }
-    @Test void EXACT_MEMBER_ORDER() { exactMultipleMemberOrderComesFromDerivationReport(); }
-    @Test void STRUCTURALLY_REJECTED_MEMBER() { unavailableAndRejectedRemainPartitionEvidenceWithoutNormalizedManifestEligibility(); }
-    @Test void ADMITTED_COMPOSED_MEMBER() { oneMemberComposedPartitionRetainsEveryAuthoritativeProof(); }
-    @Test void ADMITTED_UNAVAILABLE_MEMBER() { unavailableAndRejectedRemainPartitionEvidenceWithoutNormalizedManifestEligibility(); }
-    @Test void OMITTED_MEMBER() { groupsMustCoverExactManifestOccurrencesOnce(); }
-    @Test void EXTRA_MEMBER() { manifestOutcomeMustExactlyMatchAttributedMember(); }
-    @Test void DUPLICATE_MEMBER() { exactMultipleMemberOrderComesFromDerivationReport(); }
-    @Test void REORDERED_MEMBER() { exactMultipleMemberOrderComesFromDerivationReport(); }
-    @Test void FOREIGN_CAPTURE_MEMBER() { foreignCaptureAndInternallyConsistentForeignPartitionAreRejected(); }
-    @Test void CROSS_AUTHORITY_MEMBER() { crossAuthorityMemberCannotEnterTheDerivedPartition(); }
-    @Test void MANIFEST_OCCURRENCE_SUBSTITUTION() { manifestOutcomeMustExactlyMatchAttributedMember(); }
-    @Test void NORMALIZED_MANIFEST_SUBSTITUTION() { manifestOutcomeMustExactlyMatchAttributedMember(); }
-    @Test void COMPOSED_UNIQUE() { assertCombination(List.of(child("a.json", 0, "same")), false, VerifiedScenarioIdentityGroupV1.State.UNIQUE); }
-    @Test void COMPOSED_DUPLICATE_EQUIVALENT() { assertCombination(List.of(child("a.json", 0, "same"), child("a.json", 1, "same")), false, VerifiedScenarioIdentityGroupV1.State.DUPLICATE_EQUIVALENT); }
-    @Test void COMPOSED_DUPLICATE_CONFLICTING() { assertCombination(List.of(child("a.json", 0, "one"), child("a.json", 1, "two")), false, VerifiedScenarioIdentityGroupV1.State.DUPLICATE_CONFLICTING); }
-    @Test void UNAVAILABLE_DUPLICATE_UNCLASSIFIED() { assertCombination(List.of(child("a.json", 0, "same"), child("a.json", 1, "u", "future-source")), true, VerifiedScenarioIdentityGroupV1.State.DUPLICATE_UNCLASSIFIED); }
-    @Test void GROUP_MISSING_OCCURRENCE() { groupsMustCoverExactManifestOccurrencesOnce(); }
-    @Test void GROUP_EXTRA_OCCURRENCE() { groupsMustCoverExactManifestOccurrencesOnce(); }
-    @Test void GROUP_DUPLICATE_MEMBERSHIP() { groupsMustCoverExactManifestOccurrencesOnce(); }
-    @Test void GROUP_FOREIGN_GROUP() { groupsMustCoverExactManifestOccurrencesOnce(); }
-    @Test void GROUP_FOREIGN_OCCURRENCE() { groupsMustCoverExactManifestOccurrencesOnce(); }
-    @Test void GROUP_CROSS_CAPTURE_OCCURRENCE() { groupsMustCoverExactManifestOccurrencesOnce(); }
-    @Test void GROUP_CROSS_AUTHORITY_OCCURRENCE() { crossAuthorityMemberCannotEnterTheDerivedPartition(); }
+    @Test void ONE_MEMBER_PARTITION() { var f=admitted("a.json",List.of(child("a.json",0,"one")),false); var v=verify(f); assertEquals(1,v.attributedMemberOutcomes().size()); }
+    @Test void MULTIPLE_MEMBER_PARTITION() { var p=twoMembers(); assertEquals(2,p.verified.attributedMemberOutcomes().size()); }
+    @Test void EXACT_MEMBER_ORDER() { var p=twoMembers(); assertEquals(p.capture.regularMembers(),p.verified.attributedMemberOutcomes().stream().map(x->x.input().parentMemberReference()).toList()); }
+    @Test void STRUCTURALLY_REJECTED_MEMBER() { var f=rejected("a.json"); var v=ScenarioAuthorityPartitionSourceVerifierV2.verify(f.capture,f.report,List.of(f.composition),List.of(),List.of()); assertEquals(1,v.attributedMemberOutcomes().size()); assertTrue(v.manifestOutcomes().isEmpty()); }
+    @Test void ADMITTED_COMPOSED_MEMBER() { var f=admitted("a.json",List.of(child("a.json",0,"one")),false); assertInstanceOf(ManifestSemanticCompositionOutcomeV1.Composed.class,verify(f).manifestOutcomes().getFirst()); }
+    @Test void ADMITTED_UNAVAILABLE_MEMBER() { var f=admitted("a.json",List.of(child("a.json",0,"same"),child("a.json",1,"u","future-source")),true); var v=verify(f); assertInstanceOf(ManifestSemanticCompositionOutcomeV1.Unavailable.class,v.manifestOutcomes().getFirst()); assertTrue(v.composedNormalizedManifests().isEmpty()); assertEquals(2,v.scenarioOccurrenceOutcomes().size()); assertEquals(VerifiedScenarioIdentityGroupV1.State.DUPLICATE_UNCLASSIFIED,v.scenarioIdentityGroups().getFirst().state()); }
+    @Test void OMITTED_MEMBER() { var p=twoMembers(); assertThrows(IllegalArgumentException.class,()->ScenarioAuthorityPartitionSourceVerifierV2.verify(p.capture,p.report,List.of(p.compositions.getFirst()),List.of(p.manifests.getFirst()),List.of(p.group))); }
+    @Test void EXTRA_MEMBER() { var p=twoMembers(); var extra=rejectedComposition(p.capture.regularMembers().get(1),"orders"); assertThrows(IllegalArgumentException.class,()->ScenarioAuthorityPartitionSourceVerifierV2.verify(p.capture,p.report,List.of(p.compositions.get(0),extra),p.manifests,List.of(p.group))); }
+    @Test void DUPLICATE_MEMBER() { var p=twoMembers(); assertThrows(IllegalArgumentException.class,()->ScenarioAuthorityPartitionSourceVerifierV2.verify(p.capture,p.report,List.of(p.compositions.get(0),p.compositions.get(0)),p.manifests,List.of(p.group))); }
+    @Test void REORDERED_MEMBER() { var p=twoMembers(); assertThrows(IllegalArgumentException.class,()->ScenarioAuthorityPartitionSourceVerifierV2.verify(p.capture,p.report,List.of(p.compositions.get(1),p.compositions.get(0)),p.manifests,List.of(p.group))); }
+    @Test void FOREIGN_CAPTURE_MEMBER() { var local=rejected("a.json"); var foreign=rejected("b.json"); assertThrows(IllegalArgumentException.class,()->ScenarioAuthorityPartitionSourceVerifierV2.verify(local.capture,local.report,List.of(foreign.composition),List.of(),List.of())); }
+    @Test void CROSS_AUTHORITY_MEMBER() { var f=ScenarioIdentityGroupComposerV1Test.fixture("a.json","b.json"); var a=rejectedComposition(f.refs().get(0),"orders"); var b=rejectedComposition(f.refs().get(1),"payments"); assertThrows(IllegalArgumentException.class,()->ScenarioAuthorityPartitionSourceVerifierV2.verify(f.att(),report(f.att(),List.of(a,b)),List.of(a,b),List.of(),List.of())); }
+    @Test void MANIFEST_OCCURRENCE_SUBSTITUTION() { var f=admitted("a.json",List.of(child("a.json",0,"one")),false); var c=(ManifestSemanticCompositionOutcomeV1.Composed)f.manifestOutcome; var s=new ManifestSemanticCompositionOutcomeV1.Composed(c.manifest(),c.childOutcomes(),c.scenarioFingerprints(),new ManifestSemanticFingerprint(ManifestSemanticFingerprint.VALUE_PREFIX+"0".repeat(64))); assertThrows(IllegalArgumentException.class,()->ScenarioAuthorityPartitionSourceVerifierV2.verify(f.capture,f.report,List.of(f.composition),List.of(s),List.of(f.group))); }
+    @Test void NORMALIZED_MANIFEST_SUBSTITUTION() { assertTrue(Arrays.stream(VerifiedScenarioAuthorityPartitionSourceV2.class.getDeclaredMethods()).anyMatch(m->m.getName().equals("composedNormalizedManifests"))); assertTrue(Arrays.stream(ScenarioAuthorityPartitionSourceVerifierV2.class.getDeclaredMethods()).noneMatch(m->Arrays.stream(m.getParameterTypes()).anyMatch(t->t.getSimpleName().contains("NormalizedManifestDatum")))); }
+    @Test void COMPOSED_UNIQUE() { var f=admitted("a.json",List.of(child("a.json",0,"same")),false); var v=verify(f); assertInstanceOf(ManifestSemanticCompositionOutcomeV1.Composed.class,v.manifestOutcomes().getFirst()); assertEquals(VerifiedScenarioIdentityGroupV1.State.UNIQUE,v.scenarioIdentityGroups().getFirst().state()); assertEquals(1,v.manifestOutcomes().size()); assertEquals(1,v.scenarioIdentityGroups().size()); }
+    @Test void COMPOSED_DUPLICATE_EQUIVALENT() { var f=admitted("a.json",List.of(child("a.json",0,"same"),child("a.json",1,"same")),false); var v=verify(f); assertInstanceOf(ManifestSemanticCompositionOutcomeV1.Composed.class,v.manifestOutcomes().getFirst()); assertEquals(VerifiedScenarioIdentityGroupV1.State.DUPLICATE_EQUIVALENT,v.scenarioIdentityGroups().getFirst().state()); assertEquals(2,v.scenarioOccurrenceOutcomes().size()); }
+    @Test void COMPOSED_DUPLICATE_CONFLICTING() { var f=admitted("a.json",List.of(child("a.json",0,"one"),child("a.json",1,"two")),false); var v=verify(f); assertInstanceOf(ManifestSemanticCompositionOutcomeV1.Composed.class,v.manifestOutcomes().getFirst()); assertEquals(VerifiedScenarioIdentityGroupV1.State.DUPLICATE_CONFLICTING,v.scenarioIdentityGroups().getFirst().state()); assertEquals(2,v.scenarioOccurrenceOutcomes().size()); }
+    @Test void UNAVAILABLE_DUPLICATE_UNCLASSIFIED() { var f=admitted("a.json",List.of(child("a.json",0,"same"),child("a.json",1,"u","future-source")),true); var v=verify(f); assertInstanceOf(ManifestSemanticCompositionOutcomeV1.Unavailable.class,v.manifestOutcomes().getFirst()); assertEquals(VerifiedScenarioIdentityGroupV1.State.DUPLICATE_UNCLASSIFIED,v.scenarioIdentityGroups().getFirst().state()); assertEquals(2,v.scenarioOccurrenceOutcomes().size()); }
+    @Test void GROUP_MISSING_OCCURRENCE() { var f=admitted("a.json",List.of(child("a.json",0,"one")),false); assertThrows(IllegalArgumentException.class,()->ScenarioAuthorityPartitionSourceVerifierV2.verify(f.capture,f.report,List.of(f.composition),List.of(f.manifestOutcome),List.of())); }
+    @Test void GROUP_EXTRA_OCCURRENCE() { var f=admitted("a.json",List.of(child("a.json",0,"one")),false); var e=ScenarioIdentityGroupComposerV1Test.attempt(ScenarioIdentityGroupComposerV1Test.input(ScenarioIdentityGroupComposerV1Test.fixture("a.json"),"a.json",1,"extra")); var g=ScenarioIdentityGroupComposerV1.compose(ScenarioIdentityGroupComposerV1.DUPLICATE_OUTCOME_CONTRACT,f.group.claimedIdentity(),List.of(f.manifestOutcome.childOutcomes().getFirst(),e)); assertThrows(IllegalArgumentException.class,()->ScenarioAuthorityPartitionSourceVerifierV2.verify(f.capture,f.report,List.of(f.composition),List.of(f.manifestOutcome),List.of(g))); }
+    @Test void GROUP_DUPLICATE_MEMBERSHIP() { var f=admitted("a.json",List.of(child("a.json",0,"one")),false); assertThrows(IllegalArgumentException.class,()->ScenarioAuthorityPartitionSourceVerifierV2.verify(f.capture,f.report,List.of(f.composition),List.of(f.manifestOutcome),List.of(f.group,f.group))); }
+    @Test void GROUP_FOREIGN_GROUP() { var f=admitted("a.json",List.of(child("a.json",0,"one")),false); var x=admitted("b.json",List.of(child("b.json",0,"one")),false); assertThrows(IllegalArgumentException.class,()->ScenarioAuthorityPartitionSourceVerifierV2.verify(f.capture,f.report,List.of(f.composition),List.of(f.manifestOutcome),List.of(x.group))); }
+    @Test void GROUP_FOREIGN_OCCURRENCE() { var f=admitted("a.json",List.of(child("a.json",0,"one")),false); var e=ScenarioIdentityGroupComposerV1Test.attempt(ScenarioIdentityGroupComposerV1Test.input(ScenarioIdentityGroupComposerV1Test.fixture("a.json"),"a.json",1,"extra")); var g=ScenarioIdentityGroupComposerV1.compose(ScenarioIdentityGroupComposerV1.DUPLICATE_OUTCOME_CONTRACT,f.group.claimedIdentity(),List.of(e)); assertThrows(IllegalArgumentException.class,()->ScenarioAuthorityPartitionSourceVerifierV2.verify(f.capture,f.report,List.of(f.composition),List.of(f.manifestOutcome),List.of(g))); }
+    @Test void GROUP_CROSS_CAPTURE_OCCURRENCE() { var f=admitted("a.json",List.of(child("a.json",0,"one")),false); var x=admitted("b.json",List.of(child("b.json",0,"one")),false); var g=ScenarioIdentityGroupComposerV1.compose(ScenarioIdentityGroupComposerV1.DUPLICATE_OUTCOME_CONTRACT,f.group.claimedIdentity(),List.of(x.manifestOutcome.childOutcomes().getFirst())); assertThrows(IllegalArgumentException.class,()->ScenarioAuthorityPartitionSourceVerifierV2.verify(f.capture,f.report,List.of(f.composition),List.of(f.manifestOutcome),List.of(g))); }
+    @Test void GROUP_CROSS_AUTHORITY_OCCURRENCE() { var f=admitted("a.json",List.of(child("a.json",0,"one")),false); assertTrue(Arrays.stream(ScenarioAuthorityPartitionSourceVerifierV2.class.getDeclaredMethods()).noneMatch(m->Arrays.stream(m.getParameterTypes()).anyMatch(t->t.getSimpleName().contains("ClaimedAuthorityOverride")))); assertTrue(Files.exists(repositoryRoot().resolve("qa-evidence-governance-core/src/main/java/ru/kuznetsov/qaip/evidencegovernance/fingerprint/semantic/ScenarioAuthorityPartitionSourceVerifierV2.java"))); assertEquals("orders",f.manifestOutcome.manifest().claimedAuthority()); }
 
     @Test void oneMemberComposedPartitionRetainsEveryAuthoritativeProof() {
         var fixture = admitted("a.json", List.of(child("a.json", 0, "one")), false);
@@ -164,18 +164,29 @@ class ScenarioAuthorityPartitionSourceVerifierV2Test {
     }
 
     @Test void soleVerifiedPartitionConstructorCallsiteIsVerifier() throws Exception {
-        var source = Files.readString(Path.of("src/main/java/ru/kuznetsov/qaip/evidencegovernance/fingerprint/semantic/ScenarioAuthorityPartitionSourceVerifierV2.java"));
-        assertEquals(1, source.split("new VerifiedScenarioAuthorityPartitionSourceV2\\s*\\(", -1).length - 1);
-        assertTrue(source.contains("public static VerifiedScenarioAuthorityPartitionSourceV2 verify("));
+        var root=Path.of("..").toAbsolutePath().normalize(); var files=Files.walk(root).filter(p->p.toString().endsWith(".java")).filter(p->!p.toString().contains("build")).filter(p->!p.toString().contains("src\\test")).toList();
+        var verifier=files.stream().filter(p->p.getFileName().toString().equals("ScenarioAuthorityPartitionSourceVerifierV2.java")).findFirst().orElseThrow();
+        var count=files.stream().mapToInt(p->{try{return Files.readString(p).split("new\\s+VerifiedScenarioAuthorityPartitionSourceV2\\s*\\(",-1).length-1;}catch(Exception e){throw new RuntimeException(e);}}).sum();
+        assertEquals(1,count); assertTrue(Files.readString(verifier).contains("new VerifiedScenarioAuthorityPartitionSourceV2"));
     }
 
     @Test void verifierBoundaryHasNoExtractorCompatibilityDtos() throws Exception {
-        for (var name : List.of("ScenarioAuthorityPartitionSourceVerifierV2.java", "VerifiedScenarioAuthorityPartitionSourceV2.java")) {
-            var source = Files.readString(Path.of("src/main/java/ru/kuznetsov/qaip/evidencegovernance/fingerprint/semantic/" + name));
-            assertFalse(source.contains("NormalizedManifestDatum"));
-            assertFalse(source.contains("ScenarioAuthorityNormalizedProcessingV1"));
-            assertFalse(source.contains("qa-model-extractor"));
-        }
+        var root=Path.of("..").toAbsolutePath().normalize(); var module=root.resolve("qa-evidence-governance-core");
+        var files=Files.walk(module.resolve("src/main")).filter(p->p.toString().endsWith(".java")).toList();
+        for(var p:files){var s=Files.readString(p); assertFalse(s.contains("NormalizedManifestDatum")); assertFalse(s.contains("ScenarioAuthorityNormalizedProcessingV1")); assertFalse(s.contains("qa-model-extractor"));}
+        assertFalse(Files.readString(module.resolve("build.gradle")).contains("qa-model-extractor"));
+    }
+
+    @Test void repositoryProductionEvidenceGovernancePackageIsNotSplit() throws Exception {
+        var root=Path.of("..").toAbsolutePath().normalize(); var owner=root.resolve("qa-evidence-governance-core");
+        var foreign=Files.walk(root).filter(p->p.toString().endsWith(".java")).filter(p->p.normalize().toString().contains("src"+java.io.File.separator+"main"+java.io.File.separator+"java")).filter(p->!p.normalize().startsWith(owner.resolve("src/main").normalize())).filter(p->{try{return Files.readString(p).contains("package ru.kuznetsov.qaip.evidencegovernance");}catch(Exception e){throw new RuntimeException(e);}}).toList();
+        assertTrue(foreign.isEmpty(),foreign::toString);
+    }
+
+    private static Path repositoryRoot() {
+        var here=Path.of("").toAbsolutePath().normalize();
+        for(var p=here;p!=null;p=p.getParent()) if(Files.exists(p.resolve("settings.gradle")) && Files.exists(p.resolve("qa-evidence-governance-core"))) return p;
+        throw new IllegalStateException("repository root not found");
     }
 
     private static void assertCombination(List<ChildSpec> specs, boolean unavailable,
@@ -191,6 +202,15 @@ class ScenarioAuthorityPartitionSourceVerifierV2Test {
         return ScenarioAuthorityPartitionSourceVerifierV2.verify(
                 fixture.capture, fixture.report, List.of(fixture.composition),
                 List.of(fixture.manifestOutcome), List.of(fixture.group));
+    }
+
+    private static TwoMembers twoMembers() {
+        var c=ScenarioIdentityGroupComposerV1Test.fixture("a.json","b.json");
+        var a=admitted(c,List.of(child(c,new ChildSpec("a.json",0,"same",ScenarioSemanticFingerprintEncoder.SOURCE_NORMALIZATION_VERSION))),false);
+        var b=admitted(c,List.of(child(c,new ChildSpec("b.json",0,"same",ScenarioSemanticFingerprintEncoder.SOURCE_NORMALIZATION_VERSION))),false);
+        var ms=List.of(a.manifestOutcome,b.manifestOutcome); var cs=List.of(a.composition,b.composition);
+        var g=ScenarioIdentityGroupComposerV1.compose(ScenarioIdentityGroupComposerV1.DUPLICATE_OUTCOME_CONTRACT,ms.getFirst().childOutcomes().getFirst().occurrence().claimedIdentity(),List.of(ms.getFirst().childOutcomes().getFirst(),ms.get(1).childOutcomes().getFirst()));
+        return new TwoMembers(c.att(),report(c.att(),cs),cs,ms,g,ScenarioAuthorityPartitionSourceVerifierV2.verify(c.att(),report(c.att(),cs),cs,ms,List.of(g)));
     }
 
     private static AdmittedFixture admitted(String path, List<ChildSpec> specs, boolean unavailable) {
@@ -286,4 +306,9 @@ class ScenarioAuthorityPartitionSourceVerifierV2Test {
             RepositoryCaptureAttestation capture,
             RepositoryDerivationReportFingerprintInput report,
             AttributedMemberOutcomeComposerV1.Composition composition) {}
+    private record TwoMembers(RepositoryCaptureAttestation capture, RepositoryDerivationReportFingerprintInput report,
+                              List<AttributedMemberOutcomeComposerV1.Composition> compositions,
+                              List<ManifestSemanticCompositionOutcomeV1> manifests,
+                              VerifiedScenarioIdentityGroupV1 group,
+                              VerifiedScenarioAuthorityPartitionSourceV2 verified) {}
 }
