@@ -502,6 +502,20 @@ Construction uses this deterministic precedence:
    the finite provenance profile, all canonical orders, then encode the
    already-verified canonical input and emit the fingerprint.
 
+An inconsistency or failure in Stages 1 through 4 is a construction/integrity
+failure and must never be normalized, downgraded, recovered, or converted into
+Manifest availability `UNAVAILABLE`. In particular, failed partition/member
+enumeration, attributed-member proof or structural-admission binding, Manifest
+outcome proof binding, or attributed-member/Manifest consistency cannot produce
+a `LogicalSourceManifestEntryV2` (or equivalent) with state `UNAVAILABLE`.
+That state is valid only when the already-authoritative
+`ManifestSemanticCompositionOutcomeV1` itself is `UNAVAILABLE`.
+
+The canonical Manifest availability vocabulary remains closed to exactly
+`COMPOSED` and `UNAVAILABLE`. Proof or construction failure exists outside that
+vocabulary; there is no `INVALID`, `UNKNOWN`, `ERROR`, `OTHER`, or generic
+unavailable fallback.
+
 The authoritative failure semantics are stage-level only. Stages are evaluated
 in the numbered order above. All applicable finite checks within the current
 stage are evaluated as required for complete validation. If one or more fail,
@@ -602,7 +616,24 @@ The conformance corpus must provide independent literal complete domain bytes,
 complete canonical bytes, and final prefixed fingerprints, without generating
 expected bytes through the production encoder, for at least:
 
-- one admitted member, one Manifest, and one `UNIQUE` Scenario;
+- `COMPOSED_UNIQUE`: one structurally admitted parent Manifest with state
+  `COMPOSED`, its exact Manifest fingerprint present, and one independently
+  retained `UNIQUE` Scenario group;
+- `COMPOSED_DUPLICATE_EQUIVALENT`: one structurally admitted parent Manifest
+  with state `COMPOSED` and its exact Manifest fingerprint present, together
+  with independently retained `DUPLICATE_EQUIVALENT` group evidence. The
+  Manifest remains `COMPOSED`; the group remains canonically inadmissible under
+  the approved duplicate-equivalent semantics.
+- `COMPOSED_DUPLICATE_CONFLICTING`: one structurally admitted parent Manifest
+  with state `COMPOSED` and its exact Manifest fingerprint present because all
+  authored Scenario semantic fingerprints exist, together with independently
+  retained `DUPLICATE_CONFLICTING` group evidence. The conflict affects
+  Scenario admissibility and must not retroactively make the Manifest
+  `UNAVAILABLE`.
+- `UNAVAILABLE_DUPLICATE_UNCLASSIFIED`: one structurally admitted parent
+  Manifest with state `UNAVAILABLE`, absent Manifest fingerprint, and exact
+  unavailable reason, together with independently retained
+  `DUPLICATE_UNCLASSIFIED` group evidence;
 - one rejected attributed member;
 - mixed admitted and rejected attributed members;
 - multiple admitted Manifests;
@@ -612,9 +643,6 @@ expected bytes through the production encoder, for at least:
   reason, and absent normalized `MANIFEST` datum;
 - attributed-member/Manifest consistency for both availability states;
 - mixed `COMPOSED` and `UNAVAILABLE` entries preserving occurrence order;
-- `UNIQUE` together with each duplicate group state;
-- parent Manifest `UNAVAILABLE` together with retained
-  `DUPLICATE_UNCLASSIFIED` group evidence;
 - duplicate-group child-data exclusion;
 - multiple `UNIQUE` groups;
 - multiple authorities proving partition isolation;
@@ -643,10 +671,25 @@ admission; unsupported contracts, profiles, and versions; and reuse of one
 `sourceId + snapshotId` with a conflicting content fingerprint at the
 later observation-acceptance boundary.
 
-They must also cover `COMPOSED` without a fingerprint, `COMPOSED` with a
-reason, `UNAVAILABLE` with a fingerprint, `UNAVAILABLE` without the exact
-reason, foreign/cross-capture Manifest outcome, occurrence substitution,
-attributed-outcome disagreement, and normalized Manifest substitution. Every
+Manifest-state rejection vectors must separately cover:
+
+- `COMPOSED` without a fingerprint;
+- `COMPOSED` with an unavailable reason;
+- `UNAVAILABLE` with a fingerprint;
+- `UNAVAILABLE` without a reason;
+- `UNAVAILABLE` with an unknown unavailable reason; and
+- an unknown or unsupported availability state/tag.
+
+The last case is an integrity/construction rejection: it produces no canonical
+Manifest entry and no Logical V2 aggregate or fingerprint. It is distinct from
+an unsupported identifier/version and from an unknown unavailable reason. No
+invalid enum member is added and no unknown input maps to `COMPOSED`,
+`UNAVAILABLE`, or a default state.
+
+Proof-consistency vectors must separately cover attributed-outcome/Manifest
+occurrence mismatch, attributed-outcome/Manifest fingerprint mismatch,
+foreign/cross-capture Manifest outcome, normalized Manifest substitution, and
+an earlier proof inconsistency that must not become `UNAVAILABLE`. Every
 non-Logical-V2 fingerprint golden remains byte-for-byte unchanged.
 
 ## Dependency graph and implementation readiness
@@ -654,16 +697,18 @@ non-Logical-V2 fingerprint golden remains byte-for-byte unchanged.
 The construction dependencies are:
 
 ```text
-Repository Capture / Admitted Manifest Verifier V1
+RepositoryCaptureAttestation
+    -> AdmittedManifestVerifierV1
+    -> VerifiedAdmittedManifestV1
     -> ManifestSemanticCompositionOutcomeV1
-    -> authoritative AttributedMemberOutcome composition
-    -> Logical V2 Manifest entry
+    -> AttributedMemberOutcome alignment
+    -> Logical V2 Manifest evidence
 
-Scenario occurrence composition outcomes
-    -> VerifiedScenarioIdentityGroupV1
-    -> Logical V2 Scenario-group evidence
+authoritative Scenario occurrence outcomes
+    -> Scenario Identity Groups
+    -> Logical V2 group evidence
 
-Logical V2 Manifest entry ----+
+Logical V2 Manifest evidence -+
                               +-> Logical Source V2 aggregate/fingerprint
 Logical V2 group evidence ----+
 ```
