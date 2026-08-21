@@ -59,6 +59,22 @@ class ScenarioAuthorityPartitionSourceVerifierV2Test {
         assertTrue(production.stream().filter(p->{try{return Files.readString(p).contains("revalidateProof(");}catch(Exception e){throw new RuntimeException(e);}}).allMatch(p->p.endsWith("ManifestSemanticCompositionAttemptV1.java")||p.endsWith("ScenarioIdentityGroupComposerV1.java")||p.endsWith("ScenarioOccurrenceCompositionAttemptV1.java")));
     }
 
+    @Test void AUTHORITY_ORIGIN_IS_VERIFIED_ADMITTED_MANIFEST_AUTHORITY() throws Exception {
+        var root=repositoryRoot();
+        var admitted=Files.readString(root.resolve("qa-evidence-governance-core/src/main/java/ru/kuznetsov/qaip/evidencegovernance/fingerprint/semantic/AdmittedManifestVerifierV1.java"));
+        var verified=Files.readString(root.resolve("qa-evidence-governance-core/src/main/java/ru/kuznetsov/qaip/evidencegovernance/fingerprint/semantic/VerifiedAdmittedManifestV1.java"));
+        var mapper=Files.readString(root.resolve("qa-evidence-governance-core/src/main/java/ru/kuznetsov/qaip/evidencegovernance/fingerprint/semantic/ManifestSemanticCompositionAttemptV1.java"));
+        assertTrue(admitted.contains("for(var scenario:normalized.authoredScenarios()) children.add(child(capture,oldParent,manifest,scenario,contracts))"));
+        assertTrue(admitted.contains("VerifiedAdmittedManifestV1.fromVerifier(capture,oldParent,manifest,parsed,attribution,normalized"));
+        var normalizedAdmitted=admitted.replaceAll("\\s+","");
+        assertTrue(normalizedAdmitted.contains("newScenarioSemanticCompositionRequest.ClaimedScenarioIdentity(s.claimedIdentity().authority(),s.claimedIdentity().scenarioKey(),s.claimedIdentity().identityScheme())"));
+        assertTrue(admitted.contains("new NormalizedScenarioOccurrenceInputV1(c.sourceNormalizationVersion()"));
+        assertTrue(verified.contains("attribution.authority(),normalized,normalized.format()"));
+        assertTrue(verified.contains("!x.claimedIdentity().authority().equals(a)"));
+        assertTrue(mapper.contains("var expected=i.manifest().authoredScenarios()"));
+        assertTrue(mapper.contains("ScenarioOccurrenceCompositionAttemptV1.revalidateProof(child)"));
+    }
+
     @Test void oneMemberComposedPartitionRetainsEveryAuthoritativeProof() {
         var fixture = admitted("a.json", List.of(child("a.json", 0, "one")), false);
         var verified = verify(fixture);
